@@ -1,0 +1,11 @@
+{
+  "name": "Expo App",
+  "dockerFile": "../Dockerfile",
+  "postCreateCommand": "npm install",
+  "extensions": ["expo.vsix"],
+  "forwardPorts": [8081, 19000, 19001],
+  "remoteUser": "node",
+  "containerEnv": {
+    "NODE_ENV": "development"
+  }
+}
