@@ -13,8 +13,6 @@ RUN apk add --no-cache \
 # Install Expo CLI globally
 RUN npm install -g expo-cli@latest
 
-# Install Watchman for file watching
-RUN apk add --no-cache watchman
 
 # Create app directory
 WORKDIR /app
