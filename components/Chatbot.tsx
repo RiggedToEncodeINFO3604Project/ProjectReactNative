@@ -1,5 +1,12 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import * as Haptics from "expo-haptics";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Animated,
   Keyboard,
@@ -11,7 +18,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from "react-native";
 
 import { useTheme } from "@/context/ThemeContext";
@@ -20,7 +27,6 @@ import Constants from "expo-constants";
 
 // Get API key from environment (supports both .env and app.json extra)
 const getApiKey = (): string => {
-  // First try process.env (for EXPO_PUBLIC_ prefixed vars)
   if (typeof process !== "undefined" && process.env) {
     const envKey =
       (process.env as Record<string, string>).EXPO_PUBLIC_GEMINI_API_KEY ||
@@ -28,7 +34,6 @@ const getApiKey = (): string => {
     if (envKey) return envKey;
   }
 
-  // Then try Constants.expoConfig.extra (for app.json extra field)
   const extraKey = Constants.expoConfig?.extra?.GEMINI_API_KEY;
   if (extraKey) return extraKey;
 
@@ -47,6 +52,25 @@ interface QuickAction {
   label: string;
   icon: string;
   query: string;
+}
+
+interface Colors {
+  bgDeep: string;
+  bgCard: string;
+  bgInput: string;
+  accent: string;
+  accentDim: string;
+  textPrimary: string;
+  textMuted: string;
+  textDim: string;
+  border: string;
+  bubbleBot: string;
+}
+
+interface TextPart {
+  type: "text" | "bold" | "italic" | "link";
+  content: string;
+  url?: string;
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -68,90 +92,29 @@ const QUICK_ACTIONS: QuickAction[] = [
   },
 ];
 
-// Generate unique ID
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
-// Parse rich text and return elements for rendering
-const parseRichText = (
-  text: string,
-  COLORS: Record<string, string>,
-  isUser: boolean,
-) => {
-  const elements: React.ReactNode[] = [];
-  const lines = text.split("\n");
-  let keyCounter = 0;
-
-  lines.forEach((line, lineIndex) => {
-    const trimmedLine = line.trim();
-    if (!trimmedLine) {
-      if (lineIndex > 0) {
-        elements.push(
-          <View key={`blank-${lineIndex}`} style={styles.blankLine} />,
-        );
-      }
-      return;
-    }
-
-    // Check if it's a numbered list (1., 2., etc.)
-    const numberedMatch = trimmedLine.match(/^(\d+)[.)]\s+(.*)/);
-    // Check if it's a bullet list (-, *, •)
-    const bulletMatch = trimmedLine.match(/^([-*•])\s+(.*)/);
-
-    if (numberedMatch || bulletMatch) {
-      const prefix = numberedMatch ? numberedMatch[1] + "." : bulletMatch![1];
-      const content = numberedMatch ? numberedMatch[2] : bulletMatch![2];
-
-      const lineElements = parseInlineFormatting(
-        content,
-        COLORS,
-        isUser,
-        keyCounter,
-      );
-      elements.push(
-        <View key={`list-${lineIndex}`} style={styles.listItem}>
-          <Text style={[styles.listPrefix, { color: COLORS.accent }]}>
-            {prefix}
-          </Text>
-          <View style={styles.listContent}>{lineElements}</View>
-        </View>,
-      );
-      keyCounter++;
-    } else {
-      elements.push(
-        <View key={`text-${lineIndex}`} style={styles.textLine}>
-          {parseInlineFormatting(trimmedLine, COLORS, isUser, keyCounter)}
-        </View>,
-      );
-      keyCounter++;
-    }
-  });
-
-  return elements;
+// Constants
+const ANIMATION_CONFIG = {
+  jumpDuration: 200,
+  totalCycle: 600,
+  welcomeFadeDuration: 300,
 };
 
-// Parse inline formatting (bold, italics, links) within a line
-const parseInlineFormatting = (
-  text: string,
-  COLORS: Record<string, string>,
-  isUser: boolean,
-  baseKey: number,
-): React.ReactNode[] => {
-  const parts: {
-    type: "text" | "bold" | "italic" | "link";
-    content: string;
-    url?: string;
-  }[] = [];
-  let currentIndex = 0;
-  let keyCounter = 0;
+const MAX_MESSAGE_LENGTH = 1000;
+const SCROLL_DELAY = 100;
 
-  // Regex to match **bold**, *italic*, [text](url), or plain URLs
-  // Order matters: markdown links first, then bold, then italic, then URLs
+// Utility functions
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
+// Optimized text parsing with memoization
+const parseTextParts = (text: string): TextPart[] => {
+  const parts: TextPart[] = [];
+  let currentIndex = 0;
+
   const regex =
     /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(\*\*(.+?)\*\*)|(\*([^\*]+)\*)|(https?:\/\/[^\s]+)/g;
   let match;
 
   while ((match = regex.exec(text)) !== null) {
-    // Add text before match
     if (match.index > currentIndex) {
       parts.push({
         type: "text",
@@ -160,23 +123,18 @@ const parseInlineFormatting = (
     }
 
     if (match[1]) {
-      // Markdown link [text](url)
       parts.push({ type: "link", content: match[2], url: match[3] });
     } else if (match[4]) {
-      // Bold text (**text**)
       parts.push({ type: "bold", content: match[5] });
     } else if (match[6]) {
-      // Italic text (*text*)
       parts.push({ type: "italic", content: match[7] || match[6] });
     } else if (match[8]) {
-      // Plain URL
       parts.push({ type: "link", content: match[8], url: match[8] });
     }
 
     currentIndex = regex.lastIndex;
   }
 
-  // Add remaining text
   if (currentIndex < text.length) {
     parts.push({ type: "text", content: text.slice(currentIndex) });
   }
@@ -185,99 +143,335 @@ const parseInlineFormatting = (
     parts.push({ type: "text", content: text });
   }
 
-  return parts.map((part, index) => {
-    const key = `${baseKey}-${index}`;
+  return parts;
+};
 
-    if (part.type === "bold") {
-      return (
-        <Text
-          key={key}
-          style={[
-            styles.messageText,
-            styles.boldText,
-            { color: isUser ? COLORS.bgDeep : COLORS.textPrimary },
-          ]}
-        >
-          {part.content}
-        </Text>
-      );
+// API service
+const sendToApi = async (
+  text: string,
+  history: Message[],
+): Promise<{ answer: string; matchedSections: string[] }> => {
+  const apiKey = getApiKey();
+
+  if (!apiKey) {
+    throw new Error("API key not found. Please configure GEMINI_API_KEY.");
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "gemma-3-27b-it" });
+
+  const chatHistory = [
+    {
+      role: "user",
+      parts: [
+        {
+          text: "You are Skedulelt Support Assistant, a helpful customer service chatbot for Skedulelt, a booking/scheduling platform operating in Trinidad & Tobago. Help users with questions about booking appointments, payments, cancellation policies, and using the platform. Keep responses concise and helpful.",
+        },
+      ],
+    },
+    ...history.map((m) => ({
+      role: m.role === "user" ? "user" : "model",
+      parts: [{ text: m.text }],
+    })),
+  ];
+
+  const chat = model.startChat({
+    history: chatHistory as any,
+    generationConfig: {
+      temperature: 0.7,
+      maxOutputTokens: 500,
+    },
+  });
+
+  const result = await chat.sendMessage(text);
+  const answer = result.response.text();
+
+  if (!answer) {
+    throw new Error("Empty response from AI");
+  }
+
+  const sections: string[] = [];
+  const sectionPatterns = [/【(\d+)】/g, /\[([^\]]+)\]/g];
+
+  for (const pattern of sectionPatterns) {
+    let match;
+    while ((match = pattern.exec(answer)) !== null) {
+      if (!sections.includes(match[1])) {
+        sections.push(match[1]);
+      }
+    }
+  }
+
+  return { answer, matchedSections: sections };
+};
+
+// Memoized components
+const InlineText = React.memo(
+  ({
+    part,
+    colors,
+    isUser,
+  }: {
+    part: TextPart;
+    colors: Colors;
+    isUser: boolean;
+  }) => {
+    const textColor = isUser ? colors.bgDeep : colors.textPrimary;
+
+    const handleLinkPress = useCallback(() => {
+      if (part.url) {
+        Linking.openURL(part.url);
+      }
+    }, [part.url]);
+
+    switch (part.type) {
+      case "bold":
+        return (
+          <Text
+            style={[styles.messageText, styles.boldText, { color: textColor }]}
+          >
+            {part.content}
+          </Text>
+        );
+      case "italic":
+        return (
+          <Text
+            style={[
+              styles.messageText,
+              styles.italicText,
+              { color: textColor },
+            ]}
+          >
+            {part.content}
+          </Text>
+        );
+      case "link":
+        return (
+          <Text
+            style={[
+              styles.messageText,
+              styles.linkText,
+              { color: colors.accent },
+            ]}
+            onPress={handleLinkPress}
+          >
+            {part.content}
+          </Text>
+        );
+      default:
+        return (
+          <Text style={[styles.messageText, { color: textColor }]}>
+            {part.content}
+          </Text>
+        );
+    }
+  },
+);
+
+const RichTextLine = React.memo(
+  ({
+    line,
+    colors,
+    isUser,
+  }: {
+    line: string;
+    colors: Colors;
+    isUser: boolean;
+  }) => {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      return <View style={styles.blankLine} />;
     }
 
-    if (part.type === "italic") {
-      return (
-        <Text
-          key={key}
-          style={[
-            styles.messageText,
-            styles.italicText,
-            { color: isUser ? COLORS.bgDeep : COLORS.textPrimary },
-          ]}
-        >
-          {part.content}
-        </Text>
-      );
-    }
+    const numberedMatch = trimmedLine.match(/^(\d+)[.)]\s+(.*)/);
+    const bulletMatch = trimmedLine.match(/^([-*•])\s+(.*)/);
 
-    if (part.type === "link") {
-      const url = part.url || part.content;
+    const parts = useMemo(
+      () =>
+        parseTextParts(numberedMatch?.[2] || bulletMatch?.[2] || trimmedLine),
+      [numberedMatch, bulletMatch, trimmedLine],
+    );
+
+    if (numberedMatch || bulletMatch) {
+      const prefix = numberedMatch ? numberedMatch[1] + "." : bulletMatch![1];
+
       return (
-        <Text
-          key={key}
-          style={[
-            styles.messageText,
-            styles.linkText,
-            { color: COLORS.accent },
-          ]}
-          onPress={() => Linking.openURL(url)}
-        >
-          {part.content}
-        </Text>
+        <View style={styles.listItem}>
+          <Text style={[styles.listPrefix, { color: colors.accent }]}>
+            {prefix}
+          </Text>
+          <View style={styles.listContent}>
+            {parts.map((part, index) => (
+              <InlineText
+                key={index}
+                part={part}
+                colors={colors}
+                isUser={isUser}
+              />
+            ))}
+          </View>
+        </View>
       );
     }
 
     return (
-      <Text
-        key={key}
+      <View style={styles.textLine}>
+        {parts.map((part, index) => (
+          <InlineText key={index} part={part} colors={colors} isUser={isUser} />
+        ))}
+      </View>
+    );
+  },
+);
+
+const MessageBubble = React.memo(
+  ({ message, colors }: { message: Message; colors: Colors }) => {
+    const isUser = message.role === "user";
+    const lines = useMemo(() => message.text.split("\n"), [message.text]);
+
+    return (
+      <View
         style={[
-          styles.messageText,
-          { color: isUser ? COLORS.bgDeep : COLORS.textPrimary },
+          styles.bubble,
+          isUser ? styles.bubbleUser : styles.bubbleBot,
+          {
+            backgroundColor: isUser ? colors.accent : colors.bubbleBot,
+            borderColor: colors.border,
+            borderTopLeftRadius: isUser ? 14 : 4,
+            borderTopRightRadius: isUser ? 4 : 14,
+          },
         ]}
       >
-        {part.content}
-      </Text>
+        {isUser ? (
+          <Text style={[styles.messageText, { color: colors.bgDeep }]}>
+            {message.text}
+          </Text>
+        ) : (
+          <View>
+            {lines.map((line, index) => (
+              <RichTextLine
+                key={index}
+                line={line}
+                colors={colors}
+                isUser={isUser}
+              />
+            ))}
+          </View>
+        )}
+        {!isUser && message.sections && message.sections.length > 0 && (
+          <View style={styles.sectionsBadge}>
+            {message.sections.map((section, index) => (
+              <Text
+                key={index}
+                style={[
+                  styles.sectionBadgeText,
+                  {
+                    color: colors.accentDim,
+                    backgroundColor: `${colors.accent}20`,
+                    borderColor: `${colors.accent}30`,
+                  },
+                ]}
+              >
+                {section}
+              </Text>
+            ))}
+          </View>
+        )}
+      </View>
     );
-  });
-};
+  },
+);
+
+const TypingIndicator = React.memo(
+  ({
+    colors,
+    anim1,
+    anim2,
+    anim3,
+  }: {
+    colors: Colors;
+    anim1: Animated.Value;
+    anim2: Animated.Value;
+    anim3: Animated.Value;
+  }) => {
+    const animatedStyles = useMemo(
+      () =>
+        [anim1, anim2, anim3].map((anim) => ({
+          backgroundColor: colors.textMuted,
+          transform: [
+            {
+              translateY: anim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, -5],
+              }),
+            },
+          ],
+        })),
+      [anim1, anim2, anim3, colors.textMuted],
+    );
+
+    return (
+      <View style={[styles.messageRow, styles.botRow]}>
+        <View
+          style={[
+            styles.avatar,
+            styles.avatarBot,
+            { backgroundColor: colors.accent, borderColor: colors.accent },
+          ]}
+        >
+          <Text style={[styles.avatarText, { color: colors.bgDeep }]}>S</Text>
+        </View>
+        <View
+          style={[
+            styles.bubble,
+            styles.typingBubble,
+            { backgroundColor: colors.bubbleBot, borderColor: colors.border },
+          ]}
+        >
+          <View style={styles.typingDots}>
+            {animatedStyles.map((style, index) => (
+              <Animated.View key={index} style={[styles.dot, style]} />
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  },
+);
 
 export default function Chatbot() {
   const { isDarkMode } = useTheme();
 
-  // Theme-based colors
-  const COLORS = isDarkMode
-    ? {
-        bgDeep: "#0c0e12",
-        bgCard: "#141820",
-        bgInput: "#1a1f2e",
-        accent: "#f0c85a",
-        accentDim: "#c9a43a",
-        textPrimary: "#eef0f4",
-        textMuted: "#6b7280",
-        textDim: "#4a5060",
-        border: "#2a2f3e",
-        bubbleBot: "#1e2333",
-      }
-    : {
-        bgDeep: "#ffffff",
-        bgCard: "#f8f9fa",
-        bgInput: "#e9ecef",
-        accent: "#f0c85a",
-        accentDim: "#d4a84b",
-        textPrimary: "#11181C",
-        textMuted: "#6b7280",
-        textDim: "#9ca3af",
-        border: "#dee2e6",
-        bubbleBot: "#f1f3f4",
-      };
+  const COLORS = useMemo<Colors>(
+    () =>
+      isDarkMode
+        ? {
+            bgDeep: "#0c0e12",
+            bgCard: "#141820",
+            bgInput: "#1a1f2e",
+            accent: "#f0c85a",
+            accentDim: "#c9a43a",
+            textPrimary: "#eef0f4",
+            textMuted: "#6b7280",
+            textDim: "#4a5060",
+            border: "#2a2f3e",
+            bubbleBot: "#1e2333",
+          }
+        : {
+            bgDeep: "#ffffff",
+            bgCard: "#f8f9fa",
+            bgInput: "#e9ecef",
+            accent: "#f0c85a",
+            accentDim: "#d4a84b",
+            textPrimary: "#11181C",
+            textMuted: "#6b7280",
+            textDim: "#9ca3af",
+            border: "#dee2e6",
+            bubbleBot: "#f1f3f4",
+          },
+    [isDarkMode],
+  );
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -299,66 +493,36 @@ export default function Chatbot() {
   const typingAnim1 = useRef(new Animated.Value(0)).current;
   const typingAnim2 = useRef(new Animated.Value(0)).current;
   const typingAnim3 = useRef(new Animated.Value(0)).current;
-
-  // Animation refs for cleanup
   const animRefs = useRef<Animated.CompositeAnimation[]>([]);
 
-  // Start typing indicator animation
   const startTypingAnimation = useCallback(() => {
-    // All dots share the same 600ms cycle using a single loop
-    // Dot 1: jumps at 0ms
-    // Dot 2: jumps at 300ms
-    // Dot 3: jumps at 600ms
-    const jumpDuration = 200;
-    const totalCycle = 600;
+    const { jumpDuration, totalCycle } = ANIMATION_CONFIG;
+
+    const createDotAnimation = (
+      anim: Animated.Value,
+      delay: number,
+    ): Animated.CompositeAnimation =>
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: jumpDuration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: jumpDuration,
+          useNativeDriver: true,
+        }),
+        Animated.delay(totalCycle - 2 * jumpDuration - delay),
+      ]);
 
     animRefs.current = [
       Animated.loop(
         Animated.parallel([
-          // Dot 1: jumps at 0ms, waits 400ms until cycle end
-          Animated.sequence([
-            Animated.timing(typingAnim1, {
-              toValue: 1,
-              duration: jumpDuration,
-              useNativeDriver: true,
-            }),
-            Animated.timing(typingAnim1, {
-              toValue: 0,
-              duration: jumpDuration,
-              useNativeDriver: true,
-            }),
-            Animated.delay(totalCycle - 2 * jumpDuration),
-          ]),
-          // Dot 2: jumps at 200ms, waits 200ms until cycle end
-          Animated.sequence([
-            Animated.delay(jumpDuration),
-            Animated.timing(typingAnim2, {
-              toValue: 1,
-              duration: jumpDuration,
-              useNativeDriver: true,
-            }),
-            Animated.timing(typingAnim2, {
-              toValue: 0,
-              duration: jumpDuration,
-              useNativeDriver: true,
-            }),
-            Animated.delay(totalCycle - 2 * jumpDuration - jumpDuration),
-          ]),
-          // Dot 3: jumps at 400ms, waits 0ms until cycle end
-          Animated.sequence([
-            Animated.delay(2 * jumpDuration),
-            Animated.timing(typingAnim3, {
-              toValue: 1,
-              duration: jumpDuration,
-              useNativeDriver: true,
-            }),
-            Animated.timing(typingAnim3, {
-              toValue: 0,
-              duration: jumpDuration,
-              useNativeDriver: true,
-            }),
-            Animated.delay(totalCycle - 2 * jumpDuration - 2 * jumpDuration),
-          ]),
+          createDotAnimation(typingAnim1, 0),
+          createDotAnimation(typingAnim2, jumpDuration),
+          createDotAnimation(typingAnim3, 2 * jumpDuration),
         ]),
       ),
     ];
@@ -366,7 +530,6 @@ export default function Chatbot() {
     animRefs.current[0].start();
   }, [typingAnim1, typingAnim2, typingAnim3]);
 
-  // Stop typing indicator animation
   const stopTypingAnimation = useCallback(() => {
     animRefs.current.forEach((anim) => anim.stop());
     animRefs.current = [];
@@ -375,133 +538,50 @@ export default function Chatbot() {
     typingAnim3.setValue(0);
   }, [typingAnim1, typingAnim2, typingAnim3]);
 
-  // Scroll to bottom of chat
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+    }, SCROLL_DELAY);
   }, []);
 
-  // Hide welcome screen with animation
   const hideWelcome = useCallback(() => {
     Animated.timing(welcomeOpacity, {
       toValue: 0,
-      duration: 300,
+      duration: ANIMATION_CONFIG.welcomeFadeDuration,
       useNativeDriver: true,
     }).start(() => {
       setHasStarted(true);
     });
   }, [welcomeOpacity]);
 
-  // API call to send message using official Google SDK
-  const sendToApi = async (
-    text: string,
-    history: Message[],
-  ): Promise<{ answer: string; matchedSections: string[] }> => {
-    const apiKey = getApiKey();
-
-    if (!apiKey) {
-      throw new Error("API key not found. Please configure GEMINI_API_KEY.");
-    }
-
-    // Initialize the Google Generative AI SDK
-    const genAI = new GoogleGenerativeAI(apiKey);
-
-    // For Gemma models, we use the model name directly
-    const model = genAI.getGenerativeModel({
-      model: "gemma-3-27b-it",
-    });
-
-    // Build chat history for SDK format
-    // Gemma 3 doesn't support systemInstruction, so we prepend it as a user message
-    const chatHistory = [
-      {
-        role: "user",
-        parts: [
-          {
-            text: "You are Skedulelt Support Assistant, a helpful customer service chatbot for Skedulelt, a booking/scheduling platform operating in Trinidad & Tobago. Help users with questions about booking appointments, payments, cancellation policies, and using the platform. Keep responses concise and helpful.",
-          },
-        ],
-      },
-      ...history.map((m) => ({
-        role: m.role === "user" ? "user" : "model",
-        parts: [{ text: m.text }],
-      })),
-    ];
-
-    // Start chat session and send message
-    const chat = model.startChat({
-      history: chatHistory as any,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 500,
-      },
-    });
-
-    const result = await chat.sendMessage(text);
-    const response = result.response;
-    const answer = response.text();
-
-    if (!answer) {
-      throw new Error("Empty response from AI");
-    }
-
-    // Extract sections from the response
-    const sections: string[] = [];
-    const sectionPatterns = [/【(\d+)】/g, /\[([^\]]+)\]/g];
-
-    for (const pattern of sectionPatterns) {
-      let match;
-      while ((match = pattern.exec(answer)) !== null) {
-        if (!sections.includes(match[1])) {
-          sections.push(match[1]);
-        }
-      }
-    }
-
-    return { answer, matchedSections: sections };
-  };
-
-  // Send message handler
   const handleSendMessage = useCallback(
     async (text?: string) => {
       const messageText = text?.trim() || inputText.trim();
       if (!messageText || isTyping) return;
 
       Keyboard.dismiss();
-
-      // Hide welcome screen
       hideWelcome();
 
-      // Create user message
       const userMessage: Message = {
         id: generateId(),
         role: "user",
         text: messageText,
       };
 
-      // Add user message to state
       setMessages((prev) => [...prev, userMessage]);
       setInputText("");
       setIsTyping(true);
       scrollToBottom();
 
-      // Add temporary typing message
       setMessages((prev) => [...prev, { id: "typing", role: "bot", text: "" }]);
-
-      // Start typing animation
       startTypingAnimation();
 
       try {
-        // Get history excluding the typing message
         const history = messages.filter((m) => m.id !== "typing");
-
         const data = await sendToApi(messageText, history);
 
-        // Remove typing message and add bot response
-        setMessages((prev) => prev.filter((m) => m.id !== "typing"));
         setMessages((prev) => [
-          ...prev,
+          ...prev.filter((m) => m.id !== "typing"),
           {
             id: generateId(),
             role: "bot",
@@ -510,10 +590,8 @@ export default function Chatbot() {
           },
         ]);
       } catch (error) {
-        // Remove typing message and add error
-        setMessages((prev) => prev.filter((m) => m.id !== "typing"));
         setMessages((prev) => [
-          ...prev,
+          ...prev.filter((m) => m.id !== "typing"),
           {
             id: generateId(),
             role: "bot",
@@ -537,7 +615,6 @@ export default function Chatbot() {
     ],
   );
 
-  // Handle quick action press
   const handleQuickAction = useCallback(
     (query: string) => {
       handleSendMessage(query);
@@ -545,7 +622,6 @@ export default function Chatbot() {
     [handleSendMessage],
   );
 
-  // Handle new chat
   const handleNewChat = useCallback(() => {
     setMessages([]);
     setHasStarted(false);
@@ -555,152 +631,63 @@ export default function Chatbot() {
     setIsTyping(false);
   }, [welcomeOpacity, stopTypingAnimation]);
 
-  // Cleanup animations on unmount
   useEffect(() => {
     return () => {
       stopTypingAnimation();
     };
   }, [stopTypingAnimation]);
 
-  // Render message bubble
-  const renderMessage = (message: Message) => {
-    const isUser = message.role === "user";
+  const renderMessage = useCallback(
+    (message: Message) => {
+      const isUser = message.role === "user";
 
-    if (message.id === "typing") {
+      if (message.id === "typing") {
+        return (
+          <TypingIndicator
+            key={message.id}
+            colors={COLORS}
+            anim1={typingAnim1}
+            anim2={typingAnim2}
+            anim3={typingAnim3}
+          />
+        );
+      }
+
       return (
-        <View key={message.id} style={[styles.messageRow, styles.botRow]}>
+        <View
+          key={message.id}
+          style={[styles.messageRow, isUser ? styles.userRow : styles.botRow]}
+        >
           <View
             style={[
               styles.avatar,
-              styles.avatarBot,
-              { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+              isUser ? styles.avatarUser : styles.avatarBot,
+              {
+                backgroundColor: COLORS.accent,
+                borderColor: COLORS.accent,
+              },
             ]}
           >
-            <Text style={[styles.avatarText, { color: COLORS.bgDeep }]}>S</Text>
+            <Text style={[styles.avatarText, { color: COLORS.bgDeep }]}>
+              {isUser ? "U" : "S"}
+            </Text>
           </View>
-          <View
-            style={[
-              styles.bubble,
-              styles.typingBubble,
-              { backgroundColor: COLORS.bubbleBot, borderColor: COLORS.border },
-            ]}
-          >
-            <View style={styles.typingDots}>
-              <Animated.View
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: COLORS.textMuted,
-                    transform: [
-                      {
-                        translateY: typingAnim1.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, -5],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: COLORS.textMuted,
-                    transform: [
-                      {
-                        translateY: typingAnim2.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, -5],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: COLORS.textMuted,
-                    transform: [
-                      {
-                        translateY: typingAnim3.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0, -5],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            </View>
-          </View>
+          <MessageBubble message={message} colors={COLORS} />
         </View>
       );
-    }
+    },
+    [COLORS, typingAnim1, typingAnim2, typingAnim3],
+  );
 
-    return (
-      <View
-        key={message.id}
-        style={[styles.messageRow, isUser ? styles.userRow : styles.botRow]}
-      >
-        <View
-          style={[
-            styles.avatar,
-            isUser ? styles.avatarUser : styles.avatarBot,
-            {
-              backgroundColor: COLORS.accent,
-              borderColor: COLORS.accent,
-            },
-          ]}
-        >
-          <Text style={[styles.avatarText, { color: COLORS.bgDeep }]}>
-            {isUser ? "U" : "S"}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.bubble,
-            isUser ? styles.bubbleUser : styles.bubbleBot,
-            {
-              backgroundColor: isUser ? COLORS.accent : COLORS.bubbleBot,
-              borderColor: COLORS.border,
-              borderTopLeftRadius: isUser ? 14 : 4,
-              borderTopRightRadius: isUser ? 4 : 14,
-            },
-          ]}
-        >
-          {isUser ? (
-            <Text style={[styles.messageText, { color: COLORS.bgDeep }]}>
-              {message.text}
-            </Text>
-          ) : (
-            <View>{parseRichText(message.text, COLORS, isUser)}</View>
-          )}
-          {!isUser && message.sections && message.sections.length > 0 && (
-            <View style={styles.sectionsBadge}>
-              {message.sections.map((section, index) => (
-                <Text
-                  key={index}
-                  style={[
-                    styles.sectionBadgeText,
-                    {
-                      color: COLORS.accentDim,
-                      backgroundColor: `${COLORS.accent}20`,
-                      borderColor: `${COLORS.accent}30`,
-                    },
-                  ]}
-                >
-                  {section}
-                </Text>
-              ))}
-            </View>
-          )}
-        </View>
-      </View>
-    );
-  };
+  const sendButtonScale = useMemo(
+    () => (sendButtonHovered ? 1.05 : sendButtonPressed ? 0.95 : 1),
+    [sendButtonHovered, sendButtonPressed],
+  );
+
+  const newChatScale = useMemo(
+    () => (newChatHovered ? 1.05 : newChatPressed ? 0.95 : 1),
+    [newChatHovered, newChatPressed],
+  );
 
   return (
     <KeyboardAvoidingView
@@ -716,21 +703,17 @@ export default function Chatbot() {
         ]}
       >
         <View style={styles.headerLeft}>
-          <Animated.View
+          <View
             style={[
               styles.logoCircle,
               {
                 backgroundColor: COLORS.accent,
                 shadowColor: COLORS.accent,
-                shadowOpacity: typingAnim1.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.28, 0.42],
-                }),
               },
             ]}
           >
             <Text style={[styles.logoText, { color: COLORS.bgDeep }]}>S</Text>
-          </Animated.View>
+          </View>
           <View style={styles.headerTitles}>
             <Text style={[styles.headerTitle, { color: COLORS.textPrimary }]}>
               Skedulelt Support Assistant
@@ -743,21 +726,19 @@ export default function Chatbot() {
             </View>
           </View>
         </View>
-        {/* New Chat Button */}
         <Pressable
           style={[
             styles.clearButton,
-            { borderColor: COLORS.border },
             {
-              transform: [
-                {
-                  scale: newChatHovered ? 1.05 : newChatPressed ? 0.95 : 1,
-                },
-              ],
+              borderColor: COLORS.border,
+              transform: [{ scale: newChatScale }],
             },
           ]}
           onPress={handleNewChat}
-          onPressIn={() => setNewChatPressed(true)}
+          onPressIn={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setNewChatPressed(true);
+          }}
           onPressOut={() => setNewChatPressed(false)}
           {...(Platform.OS === "web" && {
             onMouseEnter: () => setNewChatHovered(true),
@@ -770,7 +751,7 @@ export default function Chatbot() {
         </Pressable>
       </View>
 
-      {/* Welcome Screen (shown before first message) */}
+      {/* Welcome Screen */}
       {!hasStarted && (
         <Animated.View
           style={[styles.welcomeContainer, { opacity: welcomeOpacity }]}
@@ -806,9 +787,13 @@ export default function Chatbot() {
                     },
                   ]}
                   onPress={() => handleQuickAction(action.query)}
-                  onPressIn={() =>
-                    setChipPressedStates((prev) => ({ ...prev, [index]: true }))
-                  }
+                  onPressIn={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setChipPressedStates((prev) => ({
+                      ...prev,
+                      [index]: true,
+                    }));
+                  }}
                   onPressOut={() =>
                     setChipPressedStates((prev) => ({
                       ...prev,
@@ -880,7 +865,7 @@ export default function Chatbot() {
             onChangeText={setInputText}
             onSubmitEditing={() => handleSendMessage()}
             multiline
-            maxLength={1000}
+            maxLength={MAX_MESSAGE_LENGTH}
             blurOnSubmit={true}
             returnKeyType="send"
           />
@@ -896,21 +881,14 @@ export default function Chatbot() {
                 elevation: 3,
               },
               (!inputText.trim() || isTyping) && styles.sendButtonDisabled,
-              {
-                transform: [
-                  {
-                    scale: sendButtonHovered
-                      ? 1.05
-                      : sendButtonPressed
-                        ? 0.95
-                        : 1,
-                  },
-                ],
-              },
+              { transform: [{ scale: sendButtonScale }] },
             ]}
             onPress={() => handleSendMessage()}
             disabled={!inputText.trim() || isTyping}
-            onPressIn={() => setSendButtonPressed(true)}
+            onPressIn={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSendButtonPressed(true);
+            }}
             onPressOut={() => setSendButtonPressed(false)}
             {...(Platform.OS === "web" && {
               onMouseEnter: () => setSendButtonHovered(true),
@@ -954,9 +932,8 @@ export default function Chatbot() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingBottom: Platform.OS === "ios" ? 80 : 60, // Account for navbar
+    paddingBottom: Platform.OS === "ios" ? 80 : 60,
   },
-  // Header styles
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -977,6 +954,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.28,
     shadowRadius: 18,
     elevation: 5,
   },
@@ -1025,7 +1003,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: "uppercase",
   },
-  // Welcome screen styles
   welcomeContainer: {
     paddingHorizontal: 24,
     paddingTop: 32,
@@ -1066,7 +1043,6 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
   },
-  // Messages styles
   messagesContainer: {
     flex: 1,
     paddingHorizontal: 24,
@@ -1109,7 +1085,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
   },
-  avatarTextUser: {},
   bubble: {
     maxWidth: "82%",
     paddingHorizontal: 16,
@@ -1142,10 +1117,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 23,
   },
-  messageTextUser: {
-    fontWeight: "500",
-  },
-  // Rich text styles
   blankLine: {
     height: 4,
   },
@@ -1193,7 +1164,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     letterSpacing: 0.3,
   },
-  // Input bar styles
   inputBar: {
     paddingHorizontal: 24,
     paddingVertical: 16,
@@ -1232,11 +1202,5 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-  },
-  inputNote: {
-    textAlign: "center",
-    fontSize: 11,
-    marginTop: 10,
-    letterSpacing: 0.2,
   },
 });
