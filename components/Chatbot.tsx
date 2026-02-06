@@ -22,7 +22,6 @@ import {
 } from "react-native";
 
 import { useTheme } from "@/context/ThemeContext";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import Constants from "expo-constants";
 
 // Get API key from environment (supports both .env and app.json extra)
@@ -151,58 +150,28 @@ const sendToApi = async (
   text: string,
   history: Message[],
 ): Promise<{ answer: string; matchedSections: string[] }> => {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    throw new Error("API key not found. Please configure GEMINI_API_KEY.");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemma-3-27b-it" });
-
-  const chatHistory = [
-    {
-      role: "user",
-      parts: [
-        {
-          text: "You are Skedulelt Support Assistant, a helpful customer service chatbot for Skedulelt, a booking/scheduling platform operating in Trinidad & Tobago. Help users with questions about booking appointments, payments, cancellation policies, and using the platform. Keep responses concise and helpful.",
-        },
-      ],
-    },
-    ...history.map((m) => ({
-      role: m.role === "user" ? "user" : "model",
-      parts: [{ text: m.text }],
-    })),
-  ];
-
-  const chat = model.startChat({
-    history: chatHistory as any,
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 500,
-    },
+  const response = await fetch("https://render-app.onrender.com/api/chat", {
+    // To be replaced with actual API endpoint
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message: text,
+      history: history.map((m) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        text: m.text,
+      })),
+    }),
   });
 
-  const result = await chat.sendMessage(text);
-  const answer = result.response.text();
-
-  if (!answer) {
-    throw new Error("Empty response from AI");
+  if (!response.ok) {
+    throw new Error(await response.text());
   }
 
-  const sections: string[] = [];
-  const sectionPatterns = [/【(\d+)】/g, /\[([^\]]+)\]/g];
-
-  for (const pattern of sectionPatterns) {
-    let match;
-    while ((match = pattern.exec(answer)) !== null) {
-      if (!sections.includes(match[1])) {
-        sections.push(match[1]);
-      }
-    }
-  }
-
-  return { answer, matchedSections: sections };
+  const data = await response.json();
+  return {
+    answer: data.answer,
+    matchedSections: data.matchedSections,
+  };
 };
 
 // Memoized components
