@@ -30,5 +30,8 @@ COPY . .
 # Expose port for Expo
 EXPOSE 8081
 
-# Default command
-CMD ["npx", "expo", "start", "--web", "--host"]
+# Build the web app
+RUN npx expo export --platform web
+
+# Default command - serve the built static files
+CMD ["npx", "serve", "dist/client", "-l", "8081"]
