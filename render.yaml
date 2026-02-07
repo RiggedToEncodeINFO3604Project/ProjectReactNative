@@ -2,7 +2,7 @@ services:
   - type: web
     name: expo-app
     runtime: node
-    buildCommand: npm install && npm run build:web
+    buildCommand: npm install && EXPO_PUBLIC_GEMINI_API_KEY=$EXPO_PUBLIC_GEMINI_API_KEY npm run build:web
     startCommand: npm run serve
     envVars:
       - key: NODE_VERSION

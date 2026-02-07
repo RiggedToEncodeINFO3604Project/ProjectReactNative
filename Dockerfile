@@ -27,6 +27,14 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Accept build-time environment variables
+ARG EXPO_PUBLIC_GEMINI_API_KEY
+ARG GEMINI_API_KEY
+
+# Set environment variables for the build
+ENV EXPO_PUBLIC_GEMINI_API_KEY=$EXPO_PUBLIC_GEMINI_API_KEY
+ENV GEMINI_API_KEY=$GEMINI_API_KEY
+
 # Expose port for Expo
 EXPOSE 8081
 
