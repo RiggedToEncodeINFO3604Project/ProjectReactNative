@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: expo-app
+    runtime: node
+    buildCommand: npm install && npm run build:web
+    startCommand: npm run serve
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: EXPO_PUBLIC_GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
