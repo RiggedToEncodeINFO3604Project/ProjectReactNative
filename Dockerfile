@@ -33,5 +33,5 @@ EXPOSE 8081
 # Build the web app
 RUN npx expo export --platform web
 
-# Default command - serve the built static files
-CMD ["npx", "serve", "dist/client", "-l", "8081"]
+# Default command - serve the built static files from the dist directory
+CMD ["npx", "serve", "dist", "-l", "8081"]
