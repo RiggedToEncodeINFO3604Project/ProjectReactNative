@@ -22,23 +22,6 @@ import {
 } from "react-native";
 
 import { useTheme } from "@/context/ThemeContext";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import Constants from "expo-constants";
-
-// Get API key from environment (supports both .env and app.json extra)
-const getApiKey = (): string => {
-  if (typeof process !== "undefined" && process.env) {
-    const envKey =
-      (process.env as Record<string, string>).EXPO_PUBLIC_GEMINI_API_KEY ||
-      (process.env as Record<string, string>).GEMINI_API_KEY;
-    if (envKey) return envKey;
-  }
-
-  const extraKey = Constants.expoConfig?.extra?.GEMINI_API_KEY;
-  if (extraKey) return extraKey;
-
-  return "";
-};
 
 // Types
 interface Message {
@@ -105,7 +88,7 @@ const SCROLL_DELAY = 100;
 // Utility functions
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-// Optimized text parsing with memoization
+// Optimized text parsing for UI rendering
 const parseTextParts = (text: string): TextPart[] => {
   const parts: TextPart[] = [];
   let currentIndex = 0;
@@ -146,86 +129,29 @@ const parseTextParts = (text: string): TextPart[] => {
   return parts;
 };
 
-// API service
+// API service - calls backend API endpoint securely
 const sendToApi = async (
   text: string,
   history: Message[],
 ): Promise<{ answer: string; matchedSections: string[] }> => {
-  // Check if running on web and use server-side API
-  if (Platform.OS === "web") {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: text,
-        history: history.filter((m) => m.id !== "typing"),
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || "Failed to get response from server");
-    }
-
-    const data = await response.json();
-    return { answer: data.answer, matchedSections: data.matchedSections };
-  }
-
-  // For native apps, use direct API call
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    throw new Error("API key not found. Please configure GEMINI_API_KEY.");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemma-3-27b-it" });
-
-  const chatHistory = [
-    {
-      role: "user",
-      parts: [
-        {
-          text: "You are Skedulelt Support Assistant, a helpful customer service chatbot for Skedulelt, a booking/scheduling platform operating in Trinidad & Tobago. Help users with questions about booking appointments, payments, cancellation policies, and using the platform. Keep responses concise and helpful.",
-        },
-      ],
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-    ...history.map((m) => ({
-      role: m.role === "user" ? "user" : "model",
-      parts: [{ text: m.text }],
-    })),
-  ];
-
-  const chat = model.startChat({
-    history: chatHistory as any,
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 500,
-    },
+    body: JSON.stringify({
+      message: text,
+      history: history.filter((m) => m.id !== "typing"),
+    }),
   });
 
-  const result = await chat.sendMessage(text);
-  const answer = result.response.text();
-
-  if (!answer) {
-    throw new Error("Empty response from AI");
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to get response from server");
   }
 
-  const sections: string[] = [];
-  const sectionPatterns = [/【(\d+)】/g, /\[([^\]]+)\]/g];
-
-  for (const pattern of sectionPatterns) {
-    let match;
-    while ((match = pattern.exec(answer)) !== null) {
-      if (!sections.includes(match[1])) {
-        sections.push(match[1]);
-      }
-    }
-  }
-
-  return { answer, matchedSections: sections };
+  const data = await response.json();
+  return { answer: data.answer, matchedSections: data.matchedSections };
 };
 
 // Memoized components
