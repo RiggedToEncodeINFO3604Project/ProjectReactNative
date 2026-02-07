@@ -1,12 +1,8 @@
 services:
   - type: web
     name: expo-app
-    runtime: node
-    buildCommand: npm install && npm run build:web
-    startCommand: npm run serve
+    runtime: docker
     envVars:
-      - key: NODE_VERSION
-        value: 20
       - key: GEMINI_API_KEY
         sync: false
       - key: EXPO_PUBLIC_GEMINI_API_KEY
