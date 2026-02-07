@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 8081;
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "dist/client")));
+app.use(express.static(path.join(__dirname, "dist")));
 
 // API endpoint for chatbot
 app.post("/api/chat", async (req, res) => {
@@ -80,7 +80,7 @@ app.post("/api/chat", async (req, res) => {
 
 // Serve React app for all other routes
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist/client", "index.html"));
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 app.listen(PORT, () => {
