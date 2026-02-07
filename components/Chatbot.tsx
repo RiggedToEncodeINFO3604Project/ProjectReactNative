@@ -151,6 +151,29 @@ const sendToApi = async (
   text: string,
   history: Message[],
 ): Promise<{ answer: string; matchedSections: string[] }> => {
+  // Check if running on web and use server-side API
+  if (Platform.OS === "web") {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: text,
+        history: history.filter((m) => m.id !== "typing"),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to get response from server");
+    }
+
+    const data = await response.json();
+    return { answer: data.answer, matchedSections: data.matchedSections };
+  }
+
+  // For native apps, use direct API call
   const apiKey = getApiKey();
 
   if (!apiKey) {
