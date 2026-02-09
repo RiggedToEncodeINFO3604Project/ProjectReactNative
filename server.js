@@ -1,6 +1,6 @@
 const express = require("express");
 const path = require("path");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const https = require("https");
 
 const app = express();
 const PORT = process.env.PORT || 8081;
@@ -9,67 +9,50 @@ const PORT = process.env.PORT || 8081;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "dist")));
 
-// API endpoint for chatbot
+// Proxy endpoint for chatbot - forwards to FastAPI server
 app.post("/api/chat", async (req, res) => {
   try {
     const { message, history } = req.body;
 
-    const apiKey =
-      process.env.GEMINI_API_KEY || process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+    // Forward to FastAPI server
+    const fastapiUrl = "https://rag-server-bf1a.onrender.com/api/chat";
 
-    if (!apiKey) {
-      return res.status(500).json({
-        error: "API key not configured on server",
+    const postData = JSON.stringify({ message, history });
+
+    const options = {
+      hostname: "render-app.onrender.com",
+      path: "/api/chat",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(postData),
+      },
+    };
+
+    const proxyReq = https.request(options, (proxyRes) => {
+      let data = "";
+      proxyRes.on("data", (chunk) => {
+        data += chunk;
       });
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemma-3-27b-it" });
-
-    const chatHistory = [
-      {
-        role: "user",
-        parts: [
-          {
-            text: "You are Skedulelt Support Assistant, a helpful customer service chatbot for Skedulelt, a booking/scheduling platform operating in Trinidad & Tobago. Help users with questions about booking appointments, payments, cancellation policies, and using the platform. Keep responses concise and helpful.",
-          },
-        ],
-      },
-      ...history.map((m) => ({
-        role: m.role === "user" ? "user" : "model",
-        parts: [{ text: m.text }],
-      })),
-    ];
-
-    const chat = model.startChat({
-      history: chatHistory,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 500,
-      },
+      proxyRes.on("end", () => {
+        try {
+          const parsedData = JSON.parse(data);
+          res.status(proxyRes.statusCode).json(parsedData);
+        } catch (error) {
+          res.status(500).json({ error: "Failed to parse FastAPI response" });
+        }
+      });
     });
 
-    const result = await chat.sendMessage(message);
-    const answer = result.response.text();
+    proxyReq.on("error", (error) => {
+      console.error("Proxy error:", error);
+      res.status(500).json({
+        error: error.message || "Failed to connect to FastAPI server",
+      });
+    });
 
-    if (!answer) {
-      return res.status(500).json({ error: "Empty response from AI" });
-    }
-
-    // Extract sections
-    const sections = [];
-    const sectionPatterns = [/【(\d+)】/g, /\[([^\]]+)\]/g];
-
-    for (const pattern of sectionPatterns) {
-      let match;
-      while ((match = pattern.exec(answer)) !== null) {
-        if (!sections.includes(match[1])) {
-          sections.push(match[1]);
-        }
-      }
-    }
-
-    res.json({ answer, matchedSections: sections });
+    proxyReq.write(postData);
+    proxyReq.end();
   } catch (error) {
     console.error("Chat API error:", error);
     res.status(500).json({

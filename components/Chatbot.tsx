@@ -146,11 +146,16 @@ const parseTextParts = (text: string): TextPart[] => {
 };
 
 // API service - calls backend API endpoint securely
+// Uses relative path when served by Express proxy, or full URL for direct access
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (typeof window !== "undefined" ? window.location.origin : "") + "/api/chat";
+
 const sendToApi = async (
   text: string,
   history: Message[],
 ): Promise<{ answer: string; matchedSections: string[] }> => {
-  const response = await fetch("https://render-app.onrender.com/api/chat", {
+  const response = await fetch(API_URL, {
     // To be replaced with actual API endpoint
     method: "POST",
     headers: { "Content-Type": "application/json" },
