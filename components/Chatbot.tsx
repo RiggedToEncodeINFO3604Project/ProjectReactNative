@@ -104,7 +104,7 @@ const SCROLL_DELAY = 100;
 // Utility functions
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-// Optimized text parsing with memoization
+// Optimized text parsing for UI rendering
 const parseTextParts = (text: string): TextPart[] => {
   const parts: TextPart[] = [];
   let currentIndex = 0;
@@ -145,7 +145,7 @@ const parseTextParts = (text: string): TextPart[] => {
   return parts;
 };
 
-// API service
+// API service - calls backend API endpoint securely
 const sendToApi = async (
   text: string,
   history: Message[],

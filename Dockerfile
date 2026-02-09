@@ -22,7 +22,7 @@ COPY package*.json ./
 COPY tsconfig.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -30,5 +30,8 @@ COPY . .
 # Expose port for Expo
 EXPOSE 8081
 
-# Default command
-CMD ["npx", "expo", "start", "--web", "--host"]
+# Build the web app
+RUN npx expo export --platform web
+
+# Default command - run the Express server with API proxy
+CMD ["npm", "run", "serve"]
