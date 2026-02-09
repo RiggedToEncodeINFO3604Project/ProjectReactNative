@@ -22,6 +22,22 @@ import {
 } from "react-native";
 
 import { useTheme } from "@/context/ThemeContext";
+import Constants from "expo-constants";
+
+// Get API key from environment (supports both .env and app.json extra)
+const getApiKey = (): string => {
+  if (typeof process !== "undefined" && process.env) {
+    const envKey =
+      (process.env as Record<string, string>).EXPO_PUBLIC_GEMINI_API_KEY ||
+      (process.env as Record<string, string>).GEMINI_API_KEY;
+    if (envKey) return envKey;
+  }
+
+  const extraKey = Constants.expoConfig?.extra?.GEMINI_API_KEY;
+  if (extraKey) return extraKey;
+
+  return "";
+};
 
 // Types
 interface Message {
@@ -134,24 +150,28 @@ const sendToApi = async (
   text: string,
   history: Message[],
 ): Promise<{ answer: string; matchedSections: string[] }> => {
-  const response = await fetch("/api/chat", {
+  const response = await fetch("https://render-app.onrender.com/api/chat", {
+    // To be replaced with actual API endpoint
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message: text,
-      history: history.filter((m) => m.id !== "typing"),
+      history: history.map((m) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        text: m.text,
+      })),
     }),
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "Failed to get response from server");
+    throw new Error(await response.text());
   }
 
   const data = await response.json();
-  return { answer: data.answer, matchedSections: data.matchedSections };
+  return {
+    answer: data.answer,
+    matchedSections: data.matchedSections,
+  };
 };
 
 // Memoized components
