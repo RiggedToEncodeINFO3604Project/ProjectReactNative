@@ -1,26 +1,26 @@
 import {
-    login as apiLogin,
-    logout as apiLogout,
-    registerCustomer as apiRegisterCustomer,
-    registerProvider as apiRegisterProvider,
-    getStoredAuth,
+  login as apiLogin,
+  logout as apiLogout,
+  registerCustomer as apiRegisterCustomer,
+  registerProvider as apiRegisterProvider,
+  getStoredAuth,
 } from "@/services/schedulingApi";
 import {
-    AuthContextType,
-    AuthState,
-    CustomerCreate,
-    MessageResponse,
-    ProviderCreate,
-    TokenResponse,
-    UserCreate,
-    UserRole
+  AuthContextType,
+  AuthState,
+  CustomerCreate,
+  MessageResponse,
+  ProviderCreate,
+  TokenResponse,
+  UserCreate,
+  UserRole,
 } from "@/types/scheduling";
 import React, {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useState,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
 } from "react";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -70,6 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string): Promise<TokenResponse> => {
       const response = await apiLogin(email, password);
+
+      console.log("Login response role:", response.role);
+      console.log("Role type:", typeof response.role);
 
       setState({
         isAuthenticated: true,

@@ -19,6 +19,15 @@ function AuthNavigator() {
   const { isAuthenticated, role, isLoading } = useAuth();
   const { isDarkMode } = useTheme();
 
+  console.log(
+    "AuthNavigator - isAuthenticated:",
+    isAuthenticated,
+    "role:",
+    role,
+    "isLoading:",
+    isLoading,
+  );
+
   if (isLoading) {
     return (
       <View
@@ -64,6 +73,7 @@ function AuthNavigator() {
             options={{ presentation: "modal", title: "Home" }}
           />
         </Stack>
+        <Redirect href="/(customer)" />
         <StatusBar style={isDarkMode ? "light" : "dark"} />
       </ThemeProvider>
     );
@@ -81,6 +91,7 @@ function AuthNavigator() {
             options={{ presentation: "modal", title: "Home" }}
           />
         </Stack>
+        <Redirect href="/(provider)" />
         <StatusBar style={isDarkMode ? "light" : "dark"} />
       </ThemeProvider>
     );

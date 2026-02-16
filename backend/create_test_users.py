@@ -7,14 +7,16 @@ Run this script to create test accounts:
 
 import asyncio
 import sys
+import uuid
 from pathlib import Path
+from datetime import datetime, timezone
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 from database import connect_to_mongo, close_mongo_connection, get_database
 from auth import get_password_hash
-from models import UserCreate, CustomerCreate, ProviderCreate
+from models import UserCreate, CustomerCreate, ProviderCreate, UserRole
 from config import settings
 
 
@@ -24,68 +26,75 @@ async def create_test_users():
     
     print("Creating test users...")
     
-    # Create test customer
+    # Create test customer with string UUID (matching auth_routes.py format)
+    customer_id = str(uuid.uuid4())
     customer_user = {
+        "_id": customer_id,
         "email": "testc@test.com",
         "password": get_password_hash("123"),
         "role": "Customer",
+        "created_at": datetime.now(timezone.utc),
+        "last_login": None,
     }
     
     # Check if customer already exists
     existing_customer = await db.users.find_one({"email": "testc@test.com"})
     if existing_customer:
         print("  - testc (customer) already exists")
-        customer_id = existing_customer["_id"]
     else:
-        result = await db.users.insert_one(customer_user)
-        customer_id = result.inserted_id
+        await db.users.insert_one(customer_user)
         
         # Create customer profile
         customer_profile = {
-            "user_id": str(customer_id),
+            "_id": str(uuid.uuid4()),
+            "user_id": customer_id,
             "name": "Test Customer",
             "phone": "555-0001",
             "payment_type": "Cash",
         }
         await db.customers.insert_one(customer_profile)
-        print("  ✓ Created testc (customer) - password: 123")
+        print("  [OK] Created testc (customer) - password: 123")
     
-    # Create test provider
+    # Create test provider with string UUID (matching auth_routes.py format)
+    provider_id = str(uuid.uuid4())
     provider_user = {
+        "_id": provider_id,
         "email": "testp@test.com",
         "password": get_password_hash("123"),
         "role": "Provider",
+        "created_at": datetime.now(timezone.utc),
+        "last_login": None,
     }
     
     # Check if provider already exists
     existing_provider = await db.users.find_one({"email": "testp@test.com"})
     if existing_provider:
         print("  - testp (provider) already exists")
-        provider_id = existing_provider["_id"]
     else:
-        result = await db.users.insert_one(provider_user)
-        provider_id = result.inserted_id
+        await db.users.insert_one(provider_user)
         
         # Create provider profile
         provider_profile = {
-            "user_id": str(provider_id),
+            "_id": str(uuid.uuid4()),
+            "user_id": provider_id,
             "business_name": "Test Provider Services",
             "bio": "A test provider account for development",
             "address": "123 Test Street",
             "is_active": True,
         }
         await db.providers.insert_one(provider_profile)
-        print("  ✓ Created testp (provider) - password: 123")
+        print("  [OK] Created testp (provider) - password: 123")
         
         # Add a sample service for the provider
         service = {
-            "provider_id": str(provider_id),
+            "_id": str(uuid.uuid4()),
+            "provider_id": provider_id,
             "name": "Test Service",
             "description": "A sample service for testing",
             "price": 50.0,
         }
         await db.services.insert_one(service)
-        print("  ✓ Added sample service for testp")
+        print("  [OK] Added sample service for testp")
     
     await close_mongo_connection()
     print("\nTest users created successfully!")

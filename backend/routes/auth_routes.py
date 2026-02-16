@@ -25,7 +25,7 @@ async def register_customer(user_data: UserCreate, customer_data: CustomerCreate
         "_id": user_id,
         "email": user_data.email,
         "password": get_password_hash(user_data.password),
-        "role": UserRole.CUSTOMER,
+        "role": "Customer",
         "created_at": datetime.utcnow(),
         "last_login": None
     }
@@ -59,7 +59,7 @@ async def register_provider(user_data: UserCreate, provider_data: ProviderCreate
         "_id": user_id,
         "email": user_data.email,
         "password": get_password_hash(user_data.password),
-        "role": UserRole.PROVIDER,
+        "role": "Provider",
         "created_at": datetime.utcnow(),
         "last_login": None
     }
@@ -92,6 +92,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Convert ObjectId to string for JWT
+    user_id = str(user["_id"])
+    
     # Update last login
     await db.users.update_one(
         {"_id": user["_id"]},
@@ -100,7 +103,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
-        data={"sub": user["_id"], "role": user["role"]}, 
+        data={"sub": user_id, "role": user["role"]}, 
         expires_delta=access_token_expires
     )
     
@@ -108,5 +111,5 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         "access_token": access_token,
         "token_type": "bearer",
         "role": user["role"],
-        "user_id": user["_id"]
+        "user_id": user_id
     }

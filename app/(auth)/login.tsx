@@ -32,11 +32,17 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
+      console.log("Attempting login with:", email);
       const response = await login(email, password);
-      // Navigation will be handled by auth state change
-      router.replace("/");
+      console.log("Login response:", response);
+      // Navigation is handled automatically by AuthNavigator in _layout.tsx
+      // based on isAuthenticated and role state changes
     } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.detail || "Login failed");
+      console.error("Login error:", error);
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || error.message || "Login failed",
+      );
     } finally {
       setLoading(false);
     }
