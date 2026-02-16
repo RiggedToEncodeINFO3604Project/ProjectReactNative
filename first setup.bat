@@ -6,7 +6,7 @@ echo   SkeduleIt - First Time Setup
 echo ============================================
 echo.
 
-echo [1/4] Installing frontend dependencies...
+echo [1/5] Installing frontend dependencies...
 call npm install
 if %errorlevel% neq 0 (
     echo Error: Frontend npm install failed!
@@ -16,7 +16,7 @@ if %errorlevel% neq 0 (
 echo Frontend dependencies installed successfully!
 echo.
 
-echo [2/4] Setting up backend...
+echo [2/5] Setting up backend...
 cd backend
 
 echo Checking for Python virtual environment...
@@ -51,13 +51,13 @@ if %errorlevel% neq 0 (
 echo Backend dependencies installed successfully!
 echo.
 
-echo [3/4] Checking environment files...
+echo [3/5] Checking environment files...
 cd ..
 if not exist ".env" (
     echo Warning: .env file not found in root directory
     echo Please create .env with the following variables:
     echo   EXPO_PUBLIC_API_URL=http://localhost:8000
-    echo   MONGODB_URL=mongodb://localhost:27017
+    echo   MONGODB_URL=your-mongodb-atlas-connection-string
     echo   DATABASE_NAME=scheduling_db
     echo   SECRET_KEY=your-secret-key
     echo   ALGORITHM=HS256
@@ -67,12 +67,28 @@ if not exist ".env" (
 )
 echo.
 
-echo [4/4] Setup complete!
+echo [4/5] Testing MongoDB connection...
+cd backend
+call venv\Scripts\activate
+python test_mongodb_connection.py
+if %errorlevel% neq 0 (
+    echo.
+    echo Warning: Could not connect to MongoDB.
+    echo Please check your MONGODB_URL in .env file.
+)
+cd ..
+echo.
+
+echo [5/5] Setup complete!
 echo.
 echo ============================================
 echo   Setup completed successfully!
 echo ============================================
 echo.
 echo You can now run 'start server.bat' to start the application.
+echo.
+echo Test accounts:
+echo   Customer: testc@test.com / 123
+echo   Provider: testp@test.com / 123
 echo.
 pause

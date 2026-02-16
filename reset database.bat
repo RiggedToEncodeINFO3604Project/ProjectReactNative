@@ -49,14 +49,15 @@ if %errorlevel% equ 0 (
         echo Creating test users...
         python create_test_users.py
         echo.
-        echo Test users created:
-        echo   Customer: testc@test.com / 123
-        echo   Provider: testp@test.com / 123
     )
 ) else (
     echo.
-    echo Error: Failed to reset database.
-    echo Make sure MongoDB is running.
+    echo ============================================
+    echo   Database Reset Failed!
+    echo ============================================
+    echo.
+    echo Could not connect to MongoDB.
+    echo Please check your MONGODB_URL in .env file.
 )
 
 echo.

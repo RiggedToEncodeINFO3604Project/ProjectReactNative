@@ -9,7 +9,14 @@ async def connect_to_mongo():
     global client, database
     client = AsyncIOMotorClient(settings.mongodb_url)
     database = client[settings.database_name]
-    print("Connected to MongoDB")
+    
+    # Actually test the connection
+    try:
+        await client.admin.command('ping')
+        print("Connected to MongoDB successfully")
+    except Exception as e:
+        print(f"Failed to connect to MongoDB: {e}")
+        print(f"Please check your MONGODB_URL in .env file")
 
 # Close MongoDB connection
 async def close_mongo_connection():
