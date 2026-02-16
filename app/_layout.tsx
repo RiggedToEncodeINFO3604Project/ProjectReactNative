@@ -3,7 +3,7 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
@@ -13,10 +13,6 @@ import {
   ThemeProvider as CustomThemeProvider,
   useTheme,
 } from "@/context/ThemeContext";
-
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
 
 // Component to handle auth-based routing
 function AuthNavigator() {
@@ -38,7 +34,7 @@ function AuthNavigator() {
     );
   }
 
-  // If not authenticated, show auth screens
+  // If not authenticated, show auth screens with redirect to login
   if (!isAuthenticated) {
     return (
       <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
@@ -50,6 +46,7 @@ function AuthNavigator() {
             options={{ presentation: "modal", title: "Home" }}
           />
         </Stack>
+        <Redirect href="/login" />
         <StatusBar style={isDarkMode ? "light" : "dark"} />
       </ThemeProvider>
     );
@@ -89,16 +86,18 @@ function AuthNavigator() {
     );
   }
 
-  // Fallback to tabs
+  // Fallback to auth screens
   return (
     <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
       <Stack>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="support"
           options={{ presentation: "modal", title: "Home" }}
         />
       </Stack>
+      <Redirect href="/login" />
       <StatusBar style={isDarkMode ? "light" : "dark"} />
     </ThemeProvider>
   );
