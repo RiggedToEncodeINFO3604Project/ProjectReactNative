@@ -73,6 +73,9 @@ export default function CustomerHomeScreen() {
       onPress={() => handleProviderPress(item.id)}
     >
       <Text style={[styles.providerName, { color: colors.text }]}>
+        {item.provider_name}
+      </Text>
+      <Text style={[styles.businessName, { color: colors.textMuted }]}>
         {item.business_name}
       </Text>
       <Text
@@ -82,7 +85,7 @@ export default function CustomerHomeScreen() {
         {item.bio}
       </Text>
       <Text style={[styles.providerAddress, { color: colors.textMuted }]}>
-        {item.address}
+        {item.provider_address}
       </Text>
       <View style={styles.servicesContainer}>
         <Text style={[styles.servicesLabel, { color: colors.text }]}>
@@ -237,6 +240,11 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 20,
     fontWeight: "bold",
+    marginBottom: 5,
+  },
+  businessName: {
+    fontSize: 16,
+    fontWeight: "500",
     marginBottom: 5,
   },
   providerBio: {

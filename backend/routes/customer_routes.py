@@ -26,7 +26,7 @@ async def search_providers(
     if provider_id:
         query["_id"] = provider_id
     elif name:
-        query["business_name"] = {"$regex": name, "$options": "i"}
+        query["provider_name"] = {"$regex": name, "$options": "i"}
     
     providers = await db.providers.find(query).to_list(100)
     
@@ -35,9 +35,10 @@ async def search_providers(
         services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
         result.append({
             "id": provider["_id"],
+            "provider_name": provider["provider_name"],
             "business_name": provider["business_name"],
             "bio": provider["bio"],
-            "address": provider["address"],
+            "provider_address": provider["provider_address"],
             "is_active": provider["is_active"],
             "services": [Service(**service) for service in services]
         })
@@ -320,7 +321,7 @@ async def get_my_bookings(current_user: UserInDB = Depends(get_current_customer)
             "cost": booking["cost"],
             "status": booking["status"],
             "service_name": service["name"] if service else "Unknown",
-            "provider_name": provider["business_name"] if provider else "Unknown"
+            "provider_name": provider["provider_name"] if provider else "Unknown"
         })
     
     return result

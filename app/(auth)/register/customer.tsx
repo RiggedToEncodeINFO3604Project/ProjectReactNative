@@ -23,20 +23,12 @@ export default function RegisterCustomerScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [paymentType, setPaymentType] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (
-      !name ||
-      !email ||
-      !phone ||
-      !paymentType ||
-      !password ||
-      !confirmPassword
-    ) {
+    if (!name || !email || !phone || !password || !confirmPassword) {
       Alert.alert("Error", "Please fill in all fields");
       return;
     }
@@ -50,7 +42,7 @@ export default function RegisterCustomerScreen() {
     try {
       await registerCustomer(
         { email, password, role: "Customer" },
-        { name, phone, paymentType },
+        { name, phone },
       );
       Alert.alert("Success", "Registration successful! Please login.", [
         { text: "OK", onPress: () => router.replace("../login" as never) },
@@ -144,21 +136,6 @@ export default function RegisterCustomerScreen() {
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
-            />
-
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="Payment Type (e.g., Credit Card, Cash)"
-              placeholderTextColor={colors.textMuted}
-              value={paymentType}
-              onChangeText={setPaymentType}
             />
 
             <TextInput

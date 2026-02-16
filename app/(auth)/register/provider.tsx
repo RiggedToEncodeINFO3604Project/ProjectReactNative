@@ -20,20 +20,22 @@ export default function RegisterProviderScreen() {
   const { registerProvider } = useAuth();
   const router = useRouter();
 
+  const [providerName, setProviderName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
-  const [address, setAddress] = useState("");
+  const [providerAddress, setProviderAddress] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
     if (
+      !providerName ||
       !businessName ||
       !email ||
       !bio ||
-      !address ||
+      !providerAddress ||
       !password ||
       !confirmPassword
     ) {
@@ -50,7 +52,7 @@ export default function RegisterProviderScreen() {
     try {
       await registerProvider(
         { email, password, role: "Provider" },
-        { businessName, bio, address, isActive: true },
+        { providerName, businessName, bio, providerAddress, isActive: true },
       );
       Alert.alert("Success", "Registration successful! Please login.", [
         { text: "OK", onPress: () => router.replace("../login" as never) },
@@ -89,7 +91,7 @@ export default function RegisterProviderScreen() {
             Register as Provider
           </Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Create your business account to offer services
+            Create your provider account to offer services
           </Text>
 
           <View
@@ -98,6 +100,21 @@ export default function RegisterProviderScreen() {
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.inputBg,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Provider Name (Your Name)"
+              placeholderTextColor={colors.textMuted}
+              value={providerName}
+              onChangeText={setProviderName}
+            />
+
             <TextInput
               style={[
                 styles.input,
@@ -157,10 +174,10 @@ export default function RegisterProviderScreen() {
                   borderColor: colors.border,
                 },
               ]}
-              placeholder="Business Address"
+              placeholder="Provider Address"
               placeholderTextColor={colors.textMuted}
-              value={address}
-              onChangeText={setAddress}
+              value={providerAddress}
+              onChangeText={setProviderAddress}
             />
 
             <TextInput

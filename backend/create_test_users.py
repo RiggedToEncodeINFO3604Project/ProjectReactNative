@@ -50,7 +50,6 @@ async def create_test_users():
             "user_id": customer_id,
             "name": "Test Customer",
             "phone": "555-0001",
-            "payment_type": "Cash",
         }
         await db.customers.insert_one(customer_profile)
         print("  [OK] Created testc (customer) - password: 123")
@@ -77,9 +76,10 @@ async def create_test_users():
         provider_profile = {
             "_id": str(uuid.uuid4()),
             "user_id": provider_id,
+            "provider_name": "Test Provider",
             "business_name": "Test Provider Services",
             "bio": "A test provider account for development",
-            "address": "123 Test Street",
+            "provider_address": "123 Test Street",
             "is_active": True,
         }
         await db.providers.insert_one(provider_profile)

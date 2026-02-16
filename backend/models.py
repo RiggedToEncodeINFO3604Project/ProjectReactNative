@@ -41,7 +41,6 @@ class Token(BaseModel):
 class CustomerBase(BaseModel):
     name: str
     phone: str
-    payment_type: str
 
 
 class CustomerCreate(CustomerBase):
@@ -57,9 +56,10 @@ class Customer(CustomerBase):
 
 
 class ProviderBase(BaseModel):
+    provider_name: str
     business_name: str
     bio: str
-    address: str
+    provider_address: str
     is_active: bool = True
 
 
@@ -131,9 +131,10 @@ class ClientRecord(ClientRecordBase):
 
 class ProviderSearchResult(BaseModel):
     id: str
+    provider_name: str
     business_name: str
     bio: str
-    address: str
+    provider_address: str
     is_active: bool
     services: List[Service]
 

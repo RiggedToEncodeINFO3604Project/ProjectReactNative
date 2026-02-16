@@ -39,13 +39,11 @@ export interface Customer {
   userId: string;
   name: string;
   phone: string;
-  paymentType: string;
 }
 
 export interface CustomerCreate {
   name: string;
   phone: string;
-  paymentType: string;
   userId?: string;
 }
 
@@ -53,16 +51,18 @@ export interface CustomerCreate {
 export interface Provider {
   id: string;
   userId: string;
+  providerName: string;
   businessName: string;
   bio: string;
-  address: string;
+  providerAddress: string;
   isActive: boolean;
 }
 
 export interface ProviderCreate {
+  providerName: string;
   businessName: string;
   bio: string;
-  address: string;
+  providerAddress: string;
   isActive?: boolean;
   userId?: string;
 }
@@ -124,9 +124,10 @@ export interface BookingRequest {
 // API response types
 export interface ProviderSearchResult {
   id: string;
+  provider_name: string;
   business_name: string;
   bio: string;
-  address: string;
+  provider_address: string;
   is_active: boolean;
   services: Service[];
 }

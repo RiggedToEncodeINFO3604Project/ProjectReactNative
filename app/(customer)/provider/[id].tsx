@@ -1,25 +1,25 @@
 import { useTheme } from "@/context/ThemeContext";
 import {
-    createBooking,
-    getProviderAvailability,
-    getProviderCalendar,
+  createBooking,
+  getProviderAvailability,
+  getProviderCalendar,
 } from "@/services/schedulingApi";
 import {
-    DayBookingStatus,
-    ProviderSearchResult,
-    Service,
-    TimeSlot,
+  DayBookingStatus,
+  ProviderSearchResult,
+  Service,
+  TimeSlot,
 } from "@/types/scheduling";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // Days of week for display
@@ -89,7 +89,7 @@ export default function ProviderDetailsScreen() {
 
   const loadAvailability = async () => {
     try {
-      const data = await getProviderAvailability(id, selectedDate);
+      const data = await getProviderAvailability(id, selectedDate!);
       setAvailableSlots(data.available_slots);
     } catch (error: any) {
       Alert.alert("Error", "Failed to load availability");
@@ -169,20 +169,23 @@ export default function ProviderDetailsScreen() {
       >
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.backText, { color: colors.accent }]}>
-            ← Back
+            {"<"} Back
           </Text>
         </TouchableOpacity>
       </View>
 
       <View style={[styles.providerInfo, { backgroundColor: colors.card }]}>
-        <Text style={[styles.businessName, { color: colors.text }]}>
+        <Text style={[styles.providerName, { color: colors.text }]}>
+          {provider.provider_name}
+        </Text>
+        <Text style={[styles.businessName, { color: colors.textMuted }]}>
           {provider.business_name}
         </Text>
         <Text style={[styles.bio, { color: colors.textMuted }]}>
           {provider.bio}
         </Text>
         <Text style={[styles.address, { color: colors.textMuted }]}>
-          📍 {provider.address}
+          {provider.provider_address}
         </Text>
       </View>
 
@@ -248,7 +251,9 @@ export default function ProviderDetailsScreen() {
                 )
               }
             >
-              <Text style={[styles.monthNav, { color: colors.accent }]}>←</Text>
+              <Text style={[styles.monthNav, { color: colors.accent }]}>
+                &#8592;
+              </Text>
             </TouchableOpacity>
             <Text style={[styles.monthTitle, { color: colors.text }]}>
               {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
@@ -263,7 +268,9 @@ export default function ProviderDetailsScreen() {
                 )
               }
             >
-              <Text style={[styles.monthNav, { color: colors.accent }]}>→</Text>
+              <Text style={[styles.monthNav, { color: colors.accent }]}>
+                &#8594;
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -374,9 +381,14 @@ const styles = StyleSheet.create({
   providerInfo: {
     padding: 20,
   },
-  businessName: {
+  providerName: {
     fontSize: 24,
     fontWeight: "bold",
+    marginBottom: 8,
+  },
+  businessName: {
+    fontSize: 18,
+    fontWeight: "500",
     marginBottom: 8,
   },
   bio: {

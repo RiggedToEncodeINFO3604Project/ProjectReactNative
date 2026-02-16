@@ -68,8 +68,11 @@ export const registerCustomer = async (
   customerData: CustomerCreate,
 ): Promise<MessageResponse> => {
   const response = await api.post<MessageResponse>("/auth/register/customer", {
-    ...userData,
-    ...customerData,
+    email: userData.email,
+    password: userData.password,
+    role: userData.role,
+    name: customerData.name,
+    phone: customerData.phone,
     user_id: customerData.userId || "",
   });
   return response.data;
@@ -81,8 +84,14 @@ export const registerProvider = async (
   providerData: ProviderCreate,
 ): Promise<MessageResponse> => {
   const response = await api.post<MessageResponse>("/auth/register/provider", {
-    ...userData,
-    ...providerData,
+    email: userData.email,
+    password: userData.password,
+    role: userData.role,
+    provider_name: providerData.providerName,
+    business_name: providerData.businessName,
+    bio: providerData.bio,
+    provider_address: providerData.providerAddress,
+    is_active: providerData.isActive ?? true,
     user_id: providerData.userId || "",
   });
   return response.data;

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta, datetime
+from pydantic import BaseModel, EmailStr
+from typing import Optional
 from models import UserCreate, User, Token, UserRole, CustomerCreate, Customer, ProviderCreate, Provider
 from auth import get_password_hash, verify_password, create_access_token
 from config import settings
@@ -9,13 +11,36 @@ import uuid
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
+
+# Combined request models for registration
+class CustomerRegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    role: str = "Customer"
+    name: str
+    phone: str
+    user_id: str = ""
+
+
+class ProviderRegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    role: str = "Provider"
+    provider_name: str
+    business_name: str
+    bio: str
+    provider_address: str
+    is_active: bool = True
+    user_id: str = ""
+
+
 # Register a new customer user
 @router.post("/register/customer", response_model=dict)
-async def register_customer(user_data: UserCreate, customer_data: CustomerCreate):
+async def register_customer(request: CustomerRegisterRequest):
     db = get_database()
     
     # Check if user exists
-    existing_user = await db.users.find_one({"email": user_data.email})
+    existing_user = await db.users.find_one({"email": request.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
@@ -23,8 +48,8 @@ async def register_customer(user_data: UserCreate, customer_data: CustomerCreate
     user_id = str(uuid.uuid4())
     user_dict = {
         "_id": user_id,
-        "email": user_data.email,
-        "password": get_password_hash(user_data.password),
+        "email": request.email,
+        "password": get_password_hash(request.password),
         "role": "Customer",
         "created_at": datetime.utcnow(),
         "last_login": None
@@ -35,9 +60,8 @@ async def register_customer(user_data: UserCreate, customer_data: CustomerCreate
     customer_dict = {
         "_id": str(uuid.uuid4()),
         "user_id": user_id,
-        "name": customer_data.name,
-        "phone": customer_data.phone,
-        "payment_type": customer_data.payment_type
+        "name": request.name,
+        "phone": request.phone
     }
     await db.customers.insert_one(customer_dict)
     
@@ -45,11 +69,11 @@ async def register_customer(user_data: UserCreate, customer_data: CustomerCreate
 
 # Register a new provider user
 @router.post("/register/provider", response_model=dict)
-async def register_provider(user_data: UserCreate, provider_data: ProviderCreate):
+async def register_provider(request: ProviderRegisterRequest):
     db = get_database()
     
     # Check if user exists
-    existing_user = await db.users.find_one({"email": user_data.email})
+    existing_user = await db.users.find_one({"email": request.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
@@ -57,8 +81,8 @@ async def register_provider(user_data: UserCreate, provider_data: ProviderCreate
     user_id = str(uuid.uuid4())
     user_dict = {
         "_id": user_id,
-        "email": user_data.email,
-        "password": get_password_hash(user_data.password),
+        "email": request.email,
+        "password": get_password_hash(request.password),
         "role": "Provider",
         "created_at": datetime.utcnow(),
         "last_login": None
@@ -69,10 +93,11 @@ async def register_provider(user_data: UserCreate, provider_data: ProviderCreate
     provider_dict = {
         "_id": str(uuid.uuid4()),
         "user_id": user_id,
-        "business_name": provider_data.business_name,
-        "bio": provider_data.bio,
-        "address": provider_data.address,
-        "is_active": provider_data.is_active
+        "provider_name": request.provider_name,
+        "business_name": request.business_name,
+        "bio": request.bio,
+        "provider_address": request.provider_address,
+        "is_active": request.is_active
     }
     await db.providers.insert_one(provider_dict)
     
