@@ -48,8 +48,10 @@ export default function CustomerHomeScreen() {
     router.push("bookings" as never);
   };
 
-  const handleProviderPress = (providerId: string) => {
-    router.push(`provider/${providerId}` as never);
+  const handleProviderPress = (provider: ProviderSearchResult) => {
+    router.push(
+      `provider/${provider.id}?provider=${encodeURIComponent(JSON.stringify(provider))}` as never,
+    );
   };
 
   const colors = {
@@ -70,7 +72,7 @@ export default function CustomerHomeScreen() {
         styles.providerCard,
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
-      onPress={() => handleProviderPress(item.id)}
+      onPress={() => handleProviderPress(item)}
     >
       <Text style={[styles.providerName, { color: colors.text }]}>
         {item.provider_name}
