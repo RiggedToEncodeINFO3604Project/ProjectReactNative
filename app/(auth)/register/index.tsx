@@ -40,7 +40,7 @@ export default function RegisterChoiceScreen() {
             styles.optionCard,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
-          onPress={() => router.push("customer" as never)}
+          onPress={() => router.push("register/customer" as never)}
         >
           <Text style={styles.optionIcon}>👤</Text>
           <Text style={[styles.optionTitle, { color: colors.text }]}>
@@ -57,7 +57,7 @@ export default function RegisterChoiceScreen() {
             styles.optionCard,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
-          onPress={() => router.push("provider" as never)}
+          onPress={() => router.push("register/provider" as never)}
         >
           <Text style={styles.optionIcon}>💼</Text>
           <Text style={[styles.optionTitle, { color: colors.text }]}>
