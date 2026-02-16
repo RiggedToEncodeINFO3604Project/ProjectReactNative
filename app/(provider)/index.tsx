@@ -3,11 +3,11 @@ import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function ProviderHomeScreen() {
@@ -17,7 +17,7 @@ export default function ProviderHomeScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace("/login");
+    // Navigation will be handled by auth state change
   };
 
   const colors = {
@@ -34,17 +34,17 @@ export default function ProviderHomeScreen() {
     {
       title: "📅 Manage Availability",
       description: "Set your weekly schedule and available time slots",
-      route: "/provider/availability",
+      route: "availability",
     },
     {
       title: "💼 Manage Services",
       description: "Add or update the services you offer",
-      route: "/provider/services",
+      route: "services",
     },
     {
       title: "📋 Pending Bookings",
       description: "Review and approve booking requests",
-      route: "/provider/pending",
+      route: "pending",
     },
   ];
 

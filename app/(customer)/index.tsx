@@ -5,19 +5,19 @@ import { ProviderSearchResult } from "@/types/scheduling";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function CustomerHomeScreen() {
   const { isDarkMode } = useTheme();
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -41,7 +41,15 @@ export default function CustomerHomeScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace("/login");
+    // Navigation will be handled by auth state change in root layout
+  };
+
+  const handleViewBookings = () => {
+    router.push("bookings" as never);
+  };
+
+  const handleProviderPress = (providerId: string) => {
+    router.push(`provider/${providerId}` as never);
   };
 
   const colors = {
@@ -62,7 +70,7 @@ export default function CustomerHomeScreen() {
         styles.providerCard,
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
-      onPress={() => router.push(`/customer/provider/${item.id}`)}
+      onPress={() => handleProviderPress(item.id)}
     >
       <Text style={[styles.providerName, { color: colors.text }]}>
         {item.business_name}
@@ -136,7 +144,7 @@ export default function CustomerHomeScreen() {
 
       <TouchableOpacity
         style={[styles.myBookingsButton, { backgroundColor: colors.success }]}
-        onPress={() => router.push("/customer/bookings")}
+        onPress={handleViewBookings}
       >
         <Text style={styles.myBookingsText}>My Bookings</Text>
       </TouchableOpacity>

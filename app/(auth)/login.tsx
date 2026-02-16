@@ -3,16 +3,16 @@ import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function LoginScreen() {
@@ -124,7 +124,9 @@ export default function LoginScreen() {
               <Text style={[styles.registerText, { color: colors.textMuted }]}>
                 Don't have an account?
               </Text>
-              <TouchableOpacity onPress={() => router.push("/register")}>
+              <TouchableOpacity
+                onPress={() => router.push("register" as never)}
+              >
                 <Text style={[styles.registerLink, { color: colors.accent }]}>
                   Register
                 </Text>

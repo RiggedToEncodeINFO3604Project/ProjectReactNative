@@ -2,11 +2,11 @@ import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function RegisterChoiceScreen() {
@@ -40,7 +40,7 @@ export default function RegisterChoiceScreen() {
             styles.optionCard,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
-          onPress={() => router.push("/register/customer")}
+          onPress={() => router.push("customer" as never)}
         >
           <Text style={styles.optionIcon}>👤</Text>
           <Text style={[styles.optionTitle, { color: colors.text }]}>
@@ -57,7 +57,7 @@ export default function RegisterChoiceScreen() {
             styles.optionCard,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
-          onPress={() => router.push("/register/provider")}
+          onPress={() => router.push("provider" as never)}
         >
           <Text style={styles.optionIcon}>💼</Text>
           <Text style={[styles.optionTitle, { color: colors.text }]}>
