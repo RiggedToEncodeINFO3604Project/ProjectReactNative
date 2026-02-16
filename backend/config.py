@@ -1,4 +1,12 @@
+import os
+from pathlib import Path
+
 from pydantic_settings import BaseSettings
+
+
+# Find the root .env file (go up one directory from backend/)
+ROOT_DIR = Path(__file__).parent.parent
+ENV_FILE = ROOT_DIR / ".env"
 
 
 class Settings(BaseSettings):
@@ -13,7 +21,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
 
     class Config:
-        env_file = ".env"
+        env_file = str(ENV_FILE)
         case_sensitive = False
 
 
