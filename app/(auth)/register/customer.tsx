@@ -17,7 +17,7 @@ import {
 
 export default function RegisterCustomerScreen() {
   const { isDarkMode } = useTheme();
-  const { registerCustomer } = useAuth();
+  const { registerCustomer, login } = useAuth();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -40,13 +40,16 @@ export default function RegisterCustomerScreen() {
 
     setLoading(true);
     try {
+      // Register the customer
       await registerCustomer(
         { email, password, role: "Customer" },
         { name, phone },
       );
-      Alert.alert("Success", "Registration successful! Please login.", [
-        { text: "OK", onPress: () => router.replace("../login" as never) },
-      ]);
+
+      // Automatically log in the user
+      await login(email, password);
+
+      // Navigation will be handled by AuthContext state change
     } catch (error: any) {
       Alert.alert(
         "Error",

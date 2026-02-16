@@ -17,7 +17,7 @@ import {
 
 export default function RegisterProviderScreen() {
   const { isDarkMode } = useTheme();
-  const { registerProvider } = useAuth();
+  const { registerProvider, login } = useAuth();
   const router = useRouter();
 
   const [providerName, setProviderName] = useState("");
@@ -50,13 +50,16 @@ export default function RegisterProviderScreen() {
 
     setLoading(true);
     try {
+      // Register the provider
       await registerProvider(
         { email, password, role: "Provider" },
         { providerName, businessName, bio, providerAddress, isActive: true },
       );
-      Alert.alert("Success", "Registration successful! Please login.", [
-        { text: "OK", onPress: () => router.replace("../login" as never) },
-      ]);
+
+      // Automatically log in the user
+      await login(email, password);
+
+      // Navigation will be handled by AuthContext state change
     } catch (error: any) {
       Alert.alert(
         "Error",
