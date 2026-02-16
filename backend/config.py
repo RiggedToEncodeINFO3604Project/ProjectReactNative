@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = str(ENV_FILE)
         case_sensitive = False
+        extra = "ignore"  # Ignore extra fields like GEMINI_API_KEY
 
 
 settings = Settings()
