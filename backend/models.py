@@ -78,6 +78,7 @@ class Provider(ProviderBase):
 class TimeSlot(BaseModel):
     start_time: str  # Format: "HH:MM"
     end_time: str    # Format: "HH:MM"
+    session_duration: int = 30  # Duration in minutes, default 30
 
 
 class DayAvailability(BaseModel):

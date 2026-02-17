@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+plans/
 
 # Expo
 .expo/
@@ -53,3 +54,4 @@ backend/__pycache__/
 backend/routes/__pycache__/
 backend/*.pyc
 backend/*.db
+

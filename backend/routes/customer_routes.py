@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from models import (
     ProviderSearchResult, Service, BookingRequest, ClientRecord,
     ClientRecordCreate, UserInDB, DayBookingStatus
@@ -10,6 +10,43 @@ import uuid
 from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/customer", tags=["customer"])
+
+
+def generate_sessions(start_time: str, end_time: str, session_duration: int) -> Dict[str, Any]:
+    # Parse times
+    start_parts = start_time.split(':')
+    end_parts = end_time.split(':')
+    
+    start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
+    end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])
+    
+    total_minutes = end_minutes - start_minutes
+    
+    # Calculate number of COMPLETE sessions that fit within the window
+    num_sessions = total_minutes // session_duration
+    remainder_minutes = total_minutes % session_duration
+    
+    sessions = []
+    current_time = start_minutes
+    
+    for i in range(num_sessions):
+        session_start = current_time
+        session_end = current_time + session_duration
+        
+        # Verify session fits entirely within the window
+        if session_end <= end_minutes:
+            sessions.append({
+                'start_time': f'{session_start // 60:02d}:{session_start % 60:02d}',
+                'end_time': f'{session_end // 60:02d}:{session_end % 60:02d}'
+            })
+        
+        current_time = session_end
+    
+    return {
+        'sessions': sessions,
+        'remainder_minutes': remainder_minutes,
+        'sessions_created': len(sessions)
+    }
 
 
 @router.get("/providers/search", response_model=List[ProviderSearchResult])
@@ -91,18 +128,30 @@ async def get_provider_availability(
         "status": {"$in": ["pending", "confirmed"]}
     }).to_list(100)
     
-    # Filter out booked time slots
-    available_slots = []
+    # Generate sessions from time slots
+    all_sessions = []
     for slot in day_schedule["time_slots"]:
+        session_duration = slot.get("session_duration", 30)  # Default 30 minutes
+        result = generate_sessions(
+            slot["start_time"],
+            slot["end_time"],
+            session_duration
+        )
+        all_sessions.extend(result["sessions"])
+    
+    # Filter out booked sessions
+    available_slots = []
+    for session in all_sessions:
         is_available = True
         for booking in bookings:
-            if (booking["start_time"] < slot["end_time"] and 
-                booking["end_time"] > slot["start_time"]):
+            # Check if this session overlaps with any booking
+            if (booking["start_time"] < session["end_time"] and 
+                booking["end_time"] > session["start_time"]):
                 is_available = False
                 break
         
         if is_available:
-            available_slots.append(slot)
+            available_slots.append(session)
     
     return {"available_slots": available_slots}
 
@@ -167,30 +216,27 @@ async def get_provider_calendar(
             status = "unavailable"
             available_percentage = 0.0
         else:
-            # Calculate total available minutes
-            total_minutes = 0
+            # Calculate total available sessions
+            total_sessions = 0
             for slot in day_schedule["time_slots"]:
-                start_parts = slot["start_time"].split(":")
-                end_parts = slot["end_time"].split(":")
-                start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
-                end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])
-                total_minutes += (end_minutes - start_minutes)
+                session_duration = slot.get("session_duration", 30)
+                result_gen = generate_sessions(
+                    slot["start_time"],
+                    slot["end_time"],
+                    session_duration
+                )
+                total_sessions += result_gen["sessions_created"]
             
-            # Calculate booked minutes
-            booked_minutes = 0
+            # Calculate booked sessions
+            booked_sessions = 0
             if date_str in bookings_by_date:
-                for booking in bookings_by_date[date_str]:
-                    start_parts = booking["start_time"].split(":")
-                    end_parts = booking["end_time"].split(":")
-                    start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
-                    end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])
-                    booked_minutes += (end_minutes - start_minutes)
+                booked_sessions = len(bookings_by_date[date_str])
             
-            if total_minutes == 0:
+            if total_sessions == 0:
                 available_percentage = 0.0
                 status = "unavailable"
             else:
-                booked_percentage = (booked_minutes / total_minutes) * 100
+                booked_percentage = (booked_sessions / total_sessions) * 100
                 available_percentage = 100 - booked_percentage
                 
                 if booked_percentage >= 100:
@@ -244,18 +290,30 @@ async def create_booking(
     if not availability:
         raise HTTPException(status_code=400, detail="Provider has no availability set")
     
-    # Verify the requested time is within available slots
+    # Generate all valid sessions for this day and verify the requested time matches one
     is_valid_slot = False
     for day in availability["schedule"]:
         if day["day_of_week"] == day_of_week:
             for slot in day["time_slots"]:
-                if (booking_request.start_time >= slot["start_time"] and 
-                    booking_request.end_time <= slot["end_time"]):
-                    is_valid_slot = True
+                session_duration = slot.get("session_duration", 30)
+                result = generate_sessions(
+                    slot["start_time"],
+                    slot["end_time"],
+                    session_duration
+                )
+                # Check if the requested booking matches any generated session
+                for session in result["sessions"]:
+                    if (booking_request.start_time == session["start_time"] and 
+                        booking_request.end_time == session["end_time"]):
+                        is_valid_slot = True
+                        break
+                if is_valid_slot:
                     break
+            if is_valid_slot:
+                break
     
     if not is_valid_slot:
-        raise HTTPException(status_code=400, detail="Requested time is not available")
+        raise HTTPException(status_code=400, detail="Requested time slot is not available. Please select a valid session time.")
     
     # Check for conflicts
     start_of_day = booking_date.replace(hour=0, minute=0, second=0, microsecond=0)

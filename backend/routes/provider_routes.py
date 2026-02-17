@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List
+from typing import List, Dict, Any
 from models import (
     Service, ServiceCreate, AvailabilitySchedule, ClientRecord,
     UserInDB, DayAvailability
@@ -10,6 +10,46 @@ import uuid
 from datetime import datetime
 
 router = APIRouter(prefix="/provider", tags=["provider"])
+
+DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+
+def generate_sessions(start_time: str, end_time: str, session_duration: int) -> Dict[str, Any]:
+    # Parse times
+    start_parts = start_time.split(':')
+    end_parts = end_time.split(':')
+    
+    start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
+    end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])
+    
+    total_minutes = end_minutes - start_minutes
+    
+    # Calculate number of COMPLETE sessions that fit within the window
+    # A session at 9:30-10:15 would extend past 10:00, so we DON'T create it
+    num_sessions = total_minutes // session_duration
+    remainder_minutes = total_minutes % session_duration
+    
+    sessions = []
+    current_time = start_minutes
+    
+    for i in range(num_sessions):
+        session_start = current_time
+        session_end = current_time + session_duration
+        
+        # Verify session fits entirely within the window
+        if session_end <= end_minutes:
+            sessions.append({
+                'start_time': f'{session_start // 60:02d}:{session_start % 60:02d}',
+                'end_time': f'{session_end // 60:02d}:{session_end % 60:02d}'
+            })
+        
+        current_time = session_end
+    
+    return {
+        'sessions': sessions,
+        'remainder_minutes': remainder_minutes,
+        'sessions_created': len(sessions)
+    }
 
 
 @router.post("/services", response_model=Service)
@@ -62,6 +102,56 @@ async def set_availability(
     if not provider:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     
+    # Validate time slots and generate warnings for overflow
+    warnings = []
+    summary = {'total_slots_created': 0, 'total_remainder_minutes': 0}
+    
+    for day in availability.schedule:
+        for slot in day.time_slots:
+            # Get session duration (default to 30 if not provided)
+            session_duration = getattr(slot, 'session_duration', None) or 30
+            
+            # Debug logging
+            print(f"DEBUG: Processing slot {slot.start_time}-{slot.end_time} with session_duration={session_duration}")
+            
+            # Generate sessions to check for overflow
+            result = generate_sessions(
+                slot.start_time,
+                slot.end_time,
+                session_duration
+            )
+            
+            print(f"DEBUG: Generated {result['sessions_created']} sessions, remainder={result['remainder_minutes']} minutes")
+            
+            summary['total_slots_created'] += result['sessions_created']
+            
+            # Check for remainder (overflow time that couldn't fit a full session)
+            if result['remainder_minutes'] > 0:
+                summary['total_remainder_minutes'] += result['remainder_minutes']
+                
+                # Calculate the unused time range
+                start_parts = slot.start_time.split(':')
+                start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
+                unused_start = start_minutes + (result['sessions_created'] * session_duration)
+                unused_end = unused_start + result['remainder_minutes']
+                
+                unused_start_time = f'{unused_start // 60:02d}:{unused_start % 60:02d}'
+                unused_end_time = f'{unused_end // 60:02d}:{unused_end % 60:02d}'
+                
+                warnings.append({
+                    'day': DAYS[day.day_of_week],
+                    'slot': f'{slot.start_time}-{slot.end_time}',
+                    'session_duration': session_duration,
+                    'remainder_minutes': result['remainder_minutes'],
+                    'unused_time_range': f'{unused_start_time}-{unused_end_time}',
+                    'sessions_created': result['sessions_created'],
+                    'message': f'{result["remainder_minutes"]} minutes of remaining time ({unused_start_time}-{unused_end_time}) were insufficient for a full {session_duration}-minute session. Consider extending availability to {unused_end_time} or reducing session duration.',
+                    'suggestions': [
+                        f'Extend availability end time to {unused_end_time} to accommodate one more session',
+                        f'Reduce session duration to fit more sessions in the available window'
+                    ]
+                })
+    
     # Delete existing availability
     await db.availability.delete_many({"provider_id": provider["_id"]})
     
@@ -73,7 +163,16 @@ async def set_availability(
     }
     
     await db.availability.insert_one(availability_dict)
-    return {"message": "Availability updated successfully"}
+    
+    response = {
+        "message": "Availability updated successfully",
+        "summary": summary
+    }
+    
+    if warnings:
+        response["warnings"] = warnings
+    
+    return response
 
 
 @router.get("/availability", response_model=dict)

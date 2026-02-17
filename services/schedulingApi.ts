@@ -4,6 +4,7 @@
 // =======================================================
 
 import {
+  AvailabilityResponse,
   AvailabilitySchedule,
   AvailableSlotsResponse,
   BookingRequest,
@@ -260,11 +261,14 @@ export const getMyServices = async (): Promise<Service[]> => {
 
 export const setAvailability = async (
   availabilityData: AvailabilitySchedule,
-): Promise<MessageResponse> => {
-  const response = await api.post<MessageResponse>("/provider/availability", {
-    provider_id: availabilityData.providerId,
-    schedule: availabilityData.schedule,
-  });
+): Promise<AvailabilityResponse> => {
+  const response = await api.post<AvailabilityResponse>(
+    "/provider/availability",
+    {
+      provider_id: availabilityData.providerId,
+      schedule: availabilityData.schedule,
+    },
+  );
   return response.data;
 };
 
@@ -274,7 +278,11 @@ export const getAvailability = async (): Promise<AvailabilitySchedule> => {
     provider_id: string;
     schedule: Array<{
       day_of_week: number;
-      time_slots: Array<{ start_time: string; end_time: string }>;
+      time_slots: Array<{
+        start_time: string;
+        end_time: string;
+        session_duration?: number;
+      }>;
     }>;
   }>("/provider/availability");
 

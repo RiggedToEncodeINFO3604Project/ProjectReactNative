@@ -87,6 +87,7 @@ export interface ServiceCreate {
 export interface TimeSlot {
   start_time: string; // Format: "HH:MM"
   end_time: string; // Format: "HH:MM"
+  session_duration?: number; // Duration in minutes, default 30
 }
 
 export interface DayAvailability {
@@ -199,4 +200,25 @@ export interface AuthContextType extends AuthState {
     userData: UserCreate,
     providerData: ProviderCreate,
   ) => Promise<MessageResponse>;
+}
+
+// Availability response with warnings
+export interface AvailabilityWarning {
+  day: string;
+  slot: string;
+  session_duration: number;
+  remainder_minutes: number;
+  unused_time_range: string;
+  sessions_created: number;
+  message: string;
+  suggestions: string[];
+}
+
+export interface AvailabilityResponse {
+  message: string;
+  warnings?: AvailabilityWarning[];
+  summary?: {
+    total_slots_created: number;
+    total_remainder_minutes: number;
+  };
 }
