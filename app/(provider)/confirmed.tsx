@@ -33,14 +33,12 @@ export default function ConfirmedBookingsScreen() {
   );
 
   const loadBookings = async () => {
-    console.log("DEBUG: Loading confirmed bookings...");
     setLoading(true);
+
     try {
       const results = await getConfirmedBookings();
-      console.log("DEBUG: Loaded confirmed bookings:", results);
       setBookings(results);
     } catch (error: any) {
-      console.error("DEBUG: Error loading confirmed bookings:", error);
       Alert.alert(
         "Error",
         error.response?.data?.detail || "Failed to load bookings",
@@ -57,10 +55,11 @@ export default function ConfirmedBookingsScreen() {
 
   const handleDelete = async (bookingId: string) => {
     setProcessing(bookingId);
+
     try {
       await deleteBooking(bookingId);
       Alert.alert("Success", "Booking deleted successfully");
-      loadBookings();
+      await loadBookings();
     } catch (error: any) {
       Alert.alert(
         "Error",
@@ -73,6 +72,10 @@ export default function ConfirmedBookingsScreen() {
 
   const handleReschedule = () => {
     loadBookings();
+  };
+
+  const handleBackPress = () => {
+    router.push("/manage-bookings");
   };
 
   const colors = {
@@ -138,7 +141,7 @@ export default function ConfirmedBookingsScreen() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.push("/manage-bookings")}>
+        <TouchableOpacity onPress={handleBackPress}>
           <Text style={[styles.backText, { color: colors.accent }]}>
             {"<"} Back
           </Text>

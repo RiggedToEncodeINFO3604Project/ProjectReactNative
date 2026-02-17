@@ -212,20 +212,18 @@ async def get_pending_bookings(current_user: UserInDB = Depends(get_current_prov
     db = get_database()
     
     provider = await db.providers.find_one({"user_id": current_user.id})
+    
     if not provider:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     
-    # Get services for this provider
     services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
     service_ids = [service["_id"] for service in services]
     
-    # Get pending bookings
     bookings = await db.client_records.find({
         "service_id": {"$in": service_ids},
         "status": "pending"
     }).to_list(100)
     
-    # Enrich with customer and service details
     result = []
     for booking in bookings:
         customer = await db.customers.find_one({"_id": booking["customer_id"]})
@@ -255,10 +253,10 @@ async def accept_booking(
     db = get_database()
     
     booking = await db.client_records.find_one({"_id": booking_id})
+    
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    # Verify this booking belongs to this provider
     service = await db.services.find_one({"_id": booking["service_id"]})
     provider = await db.providers.find_one({"user_id": current_user.id})
     
@@ -282,10 +280,10 @@ async def reject_booking(
     db = get_database()
     
     booking = await db.client_records.find_one({"_id": booking_id})
+    
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    # Verify this booking belongs to this provider
     service = await db.services.find_one({"_id": booking["service_id"]})
     provider = await db.providers.find_one({"user_id": current_user.id})
     
@@ -306,20 +304,18 @@ async def get_confirmed_bookings(current_user: UserInDB = Depends(get_current_pr
     db = get_database()
     
     provider = await db.providers.find_one({"user_id": current_user.id})
+    
     if not provider:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     
-    # Get services for this provider
     services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
     service_ids = [service["_id"] for service in services]
     
-    # Get confirmed bookings
     bookings = await db.client_records.find({
         "service_id": {"$in": service_ids},
         "status": "confirmed"
     }).to_list(100)
     
-    # Enrich with customer and service details
     result = []
     for booking in bookings:
         customer = await db.customers.find_one({"_id": booking["customer_id"]})
@@ -349,20 +345,22 @@ async def delete_booking(
     db = get_database()
     
     booking = await db.client_records.find_one({"_id": booking_id})
+    
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    # Verify this booking belongs to this provider
     service = await db.services.find_one({"_id": booking["service_id"]})
     provider = await db.providers.find_one({"user_id": current_user.id})
     
     if not service or service["provider_id"] != provider["_id"]:
         raise HTTPException(status_code=403, detail="Not authorized to delete this booking")
     
-    # Delete the booking document
-    await db.client_records.delete_one({"_id": booking_id})
+    await db.client_records.update_one(
+        {"_id": booking_id},
+        {"$set": {"status": "cancelled"}}
+    )
     
-    return {"message": "Booking deleted successfully"}
+    return {"message": "Booking cancelled successfully"}
 
 
 @router.put("/bookings/{booking_id}/reschedule", response_model=dict)

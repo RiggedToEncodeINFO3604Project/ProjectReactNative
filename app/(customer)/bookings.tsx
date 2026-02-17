@@ -1,3 +1,5 @@
+import ConfirmModal from "@/components/ConfirmModal";
+import SuccessModal from "@/components/SuccessModal";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cancelBooking, getMyBookings } from "@/services/schedulingApi";
@@ -6,12 +8,11 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 export default function MyBookingsScreen() {
@@ -21,6 +22,19 @@ export default function MyBookingsScreen() {
 
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
+
+  // Confirmation modal state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [bookingToCancel, setBookingToCancel] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  // Success modal state
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+
+  // Error modal state
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Refresh bookings when screen comes into focus
   useFocusEffect(
@@ -29,48 +43,65 @@ export default function MyBookingsScreen() {
     }, []),
   );
 
+  const showError = (message: string) => {
+    setErrorMessage(message);
+    setErrorModalVisible(true);
+  };
+
   const loadBookings = async () => {
-    console.log("DEBUG: Loading bookings...");
     setLoading(true);
     try {
       const results = await getMyBookings();
-      console.log("DEBUG: Loaded bookings:", results);
       setBookings(results);
     } catch (error: any) {
-      console.error("DEBUG: Error loading bookings:", error);
-      Alert.alert(
-        "Error",
-        error.response?.data?.detail || "Failed to load bookings",
-      );
+      console.error("[CustomerBookings]", "Error loading bookings:", error);
+      showError(error.response?.data?.detail || "Failed to load bookings");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCancelBooking = async (bookingId: string) => {
-    Alert.alert(
-      "Cancel Booking",
-      "Are you sure you want to cancel this booking?",
-      [
-        { text: "No", style: "cancel" },
-        {
-          text: "Yes",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await cancelBooking(bookingId);
-              Alert.alert("Success", "Booking cancelled successfully");
-              loadBookings();
-            } catch (error: any) {
-              Alert.alert(
-                "Error",
-                error.response?.data?.detail || "Failed to cancel booking",
-              );
-            }
-          },
-        },
-      ],
-    );
+  const handleCancelBooking = (bookingId: string) => {
+    // Show the styled confirmation modal
+    setBookingToCancel(bookingId);
+    setModalVisible(true);
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!bookingToCancel) return;
+
+    setCancelling(true);
+    setProcessing(bookingToCancel);
+
+    try {
+      await cancelBooking(bookingToCancel);
+
+      // Close the confirmation modal
+      setModalVisible(false);
+      setBookingToCancel(null);
+
+      // Show success modal with green checkmark
+      setSuccessModalVisible(true);
+
+      // Refresh the bookings list
+      await loadBookings();
+    } catch (error: any) {
+      console.error("[CustomerBookings]", "Error during cancellation:", error);
+
+      // Close the confirmation modal
+      setModalVisible(false);
+      setBookingToCancel(null);
+
+      showError(error.response?.data?.detail || "Failed to cancel booking");
+    } finally {
+      setCancelling(false);
+      setProcessing(null);
+    }
+  };
+
+  const cancelCancelBooking = () => {
+    setModalVisible(false);
+    setBookingToCancel(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -130,8 +161,13 @@ export default function MyBookingsScreen() {
         <TouchableOpacity
           style={[styles.cancelButton, { borderColor: "#FF3B30" }]}
           onPress={() => handleCancelBooking(item.booking_id)}
+          disabled={processing === item.booking_id}
         >
-          <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+          {processing === item.booking_id ? (
+            <ActivityIndicator color="#FF3B30" />
+          ) : (
+            <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+          )}
         </TouchableOpacity>
       )}
     </View>
@@ -173,6 +209,37 @@ export default function MyBookingsScreen() {
           }
         />
       )}
+
+      {/* Styled Confirmation Modal */}
+      <ConfirmModal
+        visible={modalVisible}
+        title="Cancel Booking"
+        message="Are you sure you want to cancel this booking? This action cannot be undone."
+        confirmText="Yes, Cancel"
+        cancelText="No, Keep It"
+        confirmStyle="danger"
+        onConfirm={confirmCancelBooking}
+        onCancel={cancelCancelBooking}
+        loading={cancelling}
+      />
+
+      {/* Success Modal with green checkmark */}
+      <SuccessModal
+        visible={successModalVisible}
+        message="Booking Cancelled Successfully"
+        onClose={() => setSuccessModalVisible(false)}
+      />
+
+      {/* Error Modal */}
+      <ConfirmModal
+        visible={errorModalVisible}
+        title="Error"
+        message={errorMessage}
+        confirmText="OK"
+        confirmStyle="primary"
+        onConfirm={() => setErrorModalVisible(false)}
+        onCancel={() => setErrorModalVisible(false)}
+      />
     </View>
   );
 }

@@ -1,3 +1,5 @@
+import ConfirmModal from "@/components/ConfirmModal";
+import SuccessModal from "@/components/SuccessModal";
 import { useTheme } from "@/context/ThemeContext";
 import {
   getAvailableSlotsForReschedule,
@@ -41,6 +43,13 @@ export default function BookingActionModal({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
 
+  // Delete confirmation modal state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Success modal state
+  const [showSuccess, setShowSuccess] = useState(false);
+
   const colors = {
     background: isDarkMode ? "#151718" : "#f5f5f5",
     card: isDarkMode ? "#1e2333" : "#ffffff",
@@ -54,23 +63,42 @@ export default function BookingActionModal({
   };
 
   const handleDelete = () => {
+    if (!booking) {
+      return;
+    }
+
+    // Show the confirmation modal instead of Alert.alert
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
     if (!booking) return;
 
-    Alert.alert(
-      "Delete Booking",
-      `Are you sure you want to delete the booking for ${booking.customer_name}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            onDelete(booking.booking_id);
-            onClose();
-          },
-        },
-      ],
-    );
+    setDeleting(true);
+
+    try {
+      await onDelete(booking.booking_id);
+
+      // Close the confirmation modal
+      setShowDeleteConfirm(false);
+
+      // Show success modal
+      setShowSuccess(true);
+
+      // Close the booking action modal after a short delay
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (error: any) {
+      // Close confirmation modal and show error
+      setShowDeleteConfirm(false);
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || "Failed to cancel booking",
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleShowReschedule = () => {
@@ -83,21 +111,28 @@ export default function BookingActionModal({
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
     setSelectedSlot(null);
+
     if (date && booking) {
       loadAvailableSlots(date);
     }
   };
 
   const loadAvailableSlots = async (date: string) => {
-    if (!booking) return;
+    if (!booking) {
+      return;
+    }
 
     setLoadingSlots(true);
+
     try {
       const slots = await getAvailableSlotsForReschedule(
         booking.booking_id,
         date,
       );
-      setAvailableSlots(slots.filter((slot) => slot.available));
+
+      const availableSlots = slots.filter((slot) => slot.available);
+
+      setAvailableSlots(availableSlots);
     } catch (error: any) {
       Alert.alert(
         "Error",
@@ -116,13 +151,18 @@ export default function BookingActionModal({
     }
 
     setRescheduling(true);
+
     try {
-      await rescheduleBooking(booking.booking_id, {
+      const payload = {
         date: selectedDate,
         start_time: selectedSlot.start_time,
         end_time: selectedSlot.end_time,
-      });
+      };
+
+      await rescheduleBooking(booking.booking_id, payload);
+
       Alert.alert("Success", "Booking rescheduled successfully");
+
       setShowReschedule(false);
       onReschedule();
       onClose();
@@ -144,227 +184,276 @@ export default function BookingActionModal({
     onClose();
   };
 
-  if (!booking) return null;
+  if (!booking) {
+    return null;
+  }
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={handleClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View
-          style={[
-            styles.modalContent,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
-          {!showReschedule ? (
-            // Main Action View
-            <>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Booking Details
-              </Text>
-
-              <View style={styles.bookingDetails}>
-                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
-                  Customer:
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.text }]}>
-                  {booking.customer_name}
+    <>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={visible}
+        onRequestClose={handleClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            {!showReschedule ? (
+              // Main Action View
+              <>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Booking Details
                 </Text>
 
-                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
-                  Service:
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.text }]}>
-                  {booking.service_name}
-                </Text>
-
-                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
-                  Date:
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.text }]}>
-                  {new Date(booking.date).toLocaleDateString()}
-                </Text>
-
-                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
-                  Time:
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.text }]}>
-                  {booking.start_time} - {booking.end_time}
-                </Text>
-
-                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>
-                  Price:
-                </Text>
-                <Text style={[styles.detailValue, { color: colors.accent }]}>
-                  ${booking.cost}
-                </Text>
-              </View>
-
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    { backgroundColor: colors.error },
-                  ]}
-                  onPress={handleDelete}
-                >
-                  <Text style={styles.actionButtonText}>Delete Booking</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    { backgroundColor: colors.accent },
-                  ]}
-                  onPress={handleShowReschedule}
-                >
-                  <Text style={styles.rescheduleButtonText}>
-                    Reschedule Booking
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.closeButton,
-                  { backgroundColor: colors.inputBg },
-                ]}
-                onPress={handleClose}
-              >
-                <Text style={[styles.closeButtonText, { color: colors.text }]}>
-                  Close
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            // Reschedule View
-            <>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Reschedule Booking
-              </Text>
-
-              <Text
-                style={[styles.currentBookingText, { color: colors.textMuted }]}
-              >
-                Current: {booking.service_name} on{" "}
-                {new Date(booking.date).toLocaleDateString()} at{" "}
-                {booking.start_time}
-              </Text>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
-                  New Date (YYYY-MM-DD)
-                </Text>
-                <TextInput
-                  style={[
-                    styles.dateInput,
-                    { backgroundColor: colors.inputBg, color: colors.text },
-                  ]}
-                  value={selectedDate}
-                  onChangeText={handleDateChange}
-                  placeholder="2024-12-25"
-                  placeholderTextColor={colors.textMuted}
-                />
-              </View>
-
-              {loadingSlots && (
-                <ActivityIndicator
-                  size="small"
-                  color={colors.accent}
-                  style={styles.loader}
-                />
-              )}
-
-              {availableSlots.length > 0 && (
-                <View style={styles.slotsContainer}>
+                <View style={styles.bookingDetails}>
                   <Text
-                    style={[styles.slotsLabel, { color: colors.textMuted }]}
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
                   >
-                    Available Time Slots:
+                    Customer:
                   </Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.slotsScroll}
+                  <Text style={[styles.detailValue, { color: colors.text }]}>
+                    {booking.customer_name}
+                  </Text>
+
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
                   >
-                    {availableSlots.map((slot, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={[
-                          styles.slotButton,
-                          {
-                            backgroundColor:
-                              selectedSlot === slot
-                                ? colors.accent
-                                : colors.inputBg,
-                            borderColor: colors.border,
-                          },
-                        ]}
-                        onPress={() => setSelectedSlot(slot)}
-                      >
-                        <Text
-                          style={[
-                            styles.slotText,
-                            {
-                              color:
-                                selectedSlot === slot ? "#151718" : colors.text,
-                            },
-                          ]}
-                        >
-                          {slot.start_time}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                    Service:
+                  </Text>
+                  <Text style={[styles.detailValue, { color: colors.text }]}>
+                    {booking.service_name}
+                  </Text>
+
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
+                    Date:
+                  </Text>
+                  <Text style={[styles.detailValue, { color: colors.text }]}>
+                    {new Date(booking.date).toLocaleDateString()}
+                  </Text>
+
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
+                    Time:
+                  </Text>
+                  <Text style={[styles.detailValue, { color: colors.text }]}>
+                    {booking.start_time} - {booking.end_time}
+                  </Text>
+
+                  <Text
+                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                  >
+                    Price:
+                  </Text>
+                  <Text style={[styles.detailValue, { color: colors.accent }]}>
+                    ${booking.cost}
+                  </Text>
                 </View>
-              )}
 
-              {!loadingSlots && selectedDate && availableSlots.length === 0 && (
-                <Text style={[styles.noSlotsText, { color: colors.textMuted }]}>
-                  No available slots for this date
-                </Text>
-              )}
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: colors.error },
+                    ]}
+                    onPress={handleDelete}
+                  >
+                    <Text style={styles.actionButtonText}>Cancel Booking</Text>
+                  </TouchableOpacity>
 
-              <View style={styles.rescheduleButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: colors.accent },
+                    ]}
+                    onPress={handleShowReschedule}
+                  >
+                    <Text style={styles.rescheduleButtonText}>
+                      Reschedule Booking
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 <TouchableOpacity
                   style={[
-                    styles.modalButton,
+                    styles.closeButton,
                     { backgroundColor: colors.inputBg },
                   ]}
-                  onPress={() => setShowReschedule(false)}
+                  onPress={handleClose}
                 >
                   <Text
-                    style={[styles.modalButtonText, { color: colors.text }]}
+                    style={[styles.closeButtonText, { color: colors.text }]}
                   >
-                    Back
+                    Close
                   </Text>
                 </TouchableOpacity>
+              </>
+            ) : (
+              // Reschedule View
+              <>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                  Reschedule Booking
+                </Text>
 
-                <TouchableOpacity
+                <Text
                   style={[
-                    styles.modalButton,
-                    { backgroundColor: colors.accent },
-                    { opacity: selectedSlot ? 1 : 0.5 },
+                    styles.currentBookingText,
+                    { color: colors.textMuted },
                   ]}
-                  onPress={handleConfirmReschedule}
-                  disabled={!selectedSlot || rescheduling}
                 >
-                  {rescheduling ? (
-                    <ActivityIndicator color="#151718" />
-                  ) : (
-                    <Text style={styles.modalButtonText}>Confirm</Text>
+                  Current: {booking.service_name} on{" "}
+                  {new Date(booking.date).toLocaleDateString()} at{" "}
+                  {booking.start_time}
+                </Text>
+
+                <View style={styles.inputGroup}>
+                  <Text
+                    style={[styles.inputLabel, { color: colors.textMuted }]}
+                  >
+                    New Date (YYYY-MM-DD)
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.dateInput,
+                      { backgroundColor: colors.inputBg, color: colors.text },
+                    ]}
+                    value={selectedDate}
+                    onChangeText={handleDateChange}
+                    placeholder="2024-12-25"
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </View>
+
+                {loadingSlots && (
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.accent}
+                    style={styles.loader}
+                  />
+                )}
+
+                {availableSlots.length > 0 && (
+                  <View style={styles.slotsContainer}>
+                    <Text
+                      style={[styles.slotsLabel, { color: colors.textMuted }]}
+                    >
+                      Available Time Slots:
+                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.slotsScroll}
+                    >
+                      {availableSlots.map((slot, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.slotButton,
+                            {
+                              backgroundColor:
+                                selectedSlot === slot
+                                  ? colors.accent
+                                  : colors.inputBg,
+                              borderColor: colors.border,
+                            },
+                          ]}
+                          onPress={() => {
+                            setSelectedSlot(slot);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.slotText,
+                              {
+                                color:
+                                  selectedSlot === slot
+                                    ? "#151718"
+                                    : colors.text,
+                              },
+                            ]}
+                          >
+                            {slot.start_time}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {!loadingSlots &&
+                  selectedDate &&
+                  availableSlots.length === 0 && (
+                    <Text
+                      style={[styles.noSlotsText, { color: colors.textMuted }]}
+                    >
+                      No available slots for this date
+                    </Text>
                   )}
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
+
+                <View style={styles.rescheduleButtons}>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      { backgroundColor: colors.inputBg },
+                    ]}
+                    onPress={() => setShowReschedule(false)}
+                  >
+                    <Text
+                      style={[styles.modalButtonText, { color: colors.text }]}
+                    >
+                      Back
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      { backgroundColor: colors.accent },
+                      { opacity: selectedSlot ? 1 : 0.5 },
+                    ]}
+                    onPress={handleConfirmReschedule}
+                    disabled={!selectedSlot || rescheduling}
+                  >
+                    {rescheduling ? (
+                      <ActivityIndicator color="#151718" />
+                    ) : (
+                      <Text style={styles.modalButtonText}>Confirm</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        visible={showDeleteConfirm}
+        title="Cancel Booking"
+        message={`Are you sure you want to cancel the booking for ${booking?.customer_name || "this customer"}? This action cannot be undone.`}
+        confirmText="Yes, Cancel"
+        cancelText="No, Keep It"
+        confirmStyle="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+        loading={deleting}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        visible={showSuccess}
+        message="Booking Cancelled Successfully"
+        onClose={() => setShowSuccess(false)}
+      />
+    </>
   );
 }
 

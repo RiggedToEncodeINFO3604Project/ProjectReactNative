@@ -7,6 +7,18 @@ export default function ManageBookingsScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
 
+  const handleNavigateToPending = () => {
+    router.push("/pending");
+  };
+
+  const handleNavigateToConfirmed = () => {
+    router.push("/confirmed");
+  };
+
+  const handleBackPress = () => {
+    router.replace("/");
+  };
+
   const colors = {
     background: isDarkMode ? "#151718" : "#f5f5f5",
     card: isDarkMode ? "#1e2333" : "#ffffff",
@@ -24,7 +36,7 @@ export default function ManageBookingsScreen() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.replace("/")}>
+        <TouchableOpacity onPress={handleBackPress}>
           <Text style={[styles.backText, { color: colors.accent }]}>
             ← Back
           </Text>
@@ -41,7 +53,7 @@ export default function ManageBookingsScreen() {
             styles.optionCard,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
-          onPress={() => router.push("/pending")}
+          onPress={handleNavigateToPending}
         >
           <Text style={[styles.optionIcon, { color: colors.accent }]}>📋</Text>
           <Text style={[styles.optionTitle, { color: colors.text }]}>
@@ -57,7 +69,7 @@ export default function ManageBookingsScreen() {
             styles.optionCard,
             { backgroundColor: colors.card, borderColor: colors.border },
           ]}
-          onPress={() => router.push("/confirmed")}
+          onPress={handleNavigateToConfirmed}
         >
           <Text style={[styles.optionIcon, { color: colors.accent }]}>✅</Text>
           <Text style={[styles.optionTitle, { color: colors.text }]}>

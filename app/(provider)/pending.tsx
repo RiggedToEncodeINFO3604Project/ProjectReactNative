@@ -1,3 +1,4 @@
+import ConfirmModal from "@/components/ConfirmModal";
 import { useTheme } from "@/context/ThemeContext";
 import {
   acceptBooking,
@@ -24,6 +25,8 @@ export default function PendingBookingsScreen() {
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [bookingToReject, setBookingToReject] = useState<string | null>(null);
 
   // Refresh bookings when screen comes into focus
   useFocusEffect(
@@ -33,14 +36,11 @@ export default function PendingBookingsScreen() {
   );
 
   const loadBookings = async () => {
-    console.log("DEBUG: Loading pending bookings...");
     setLoading(true);
     try {
       const results = await getPendingBookings();
-      console.log("DEBUG: Loaded pending bookings:", results);
       setBookings(results);
     } catch (error: any) {
-      console.error("DEBUG: Error loading pending bookings:", error);
       Alert.alert(
         "Error",
         error.response?.data?.detail || "Failed to load bookings",
@@ -67,32 +67,30 @@ export default function PendingBookingsScreen() {
   };
 
   const handleReject = async (bookingId: string) => {
-    Alert.alert(
-      "Reject Booking",
-      "Are you sure you want to reject this booking?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reject",
-          style: "destructive",
-          onPress: async () => {
-            setProcessing(bookingId);
-            try {
-              await rejectBooking(bookingId);
-              Alert.alert("Success", "Booking rejected");
-              loadBookings();
-            } catch (error: any) {
-              Alert.alert(
-                "Error",
-                error.response?.data?.detail || "Failed to reject booking",
-              );
-            } finally {
-              setProcessing(null);
-            }
-          },
-        },
-      ],
-    );
+    // Show the confirmation modal
+    setBookingToReject(bookingId);
+    setRejectModalVisible(true);
+  };
+
+  const confirmReject = async () => {
+    if (!bookingToReject) return;
+
+    setProcessing(bookingToReject);
+    setRejectModalVisible(false);
+
+    try {
+      await rejectBooking(bookingToReject);
+      Alert.alert("Success", "Booking rejected");
+      loadBookings();
+    } catch (error: any) {
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || "Failed to reject booking",
+      );
+    } finally {
+      setProcessing(null);
+      setBookingToReject(null);
+    }
   };
 
   const colors = {
@@ -201,6 +199,22 @@ export default function PendingBookingsScreen() {
           }
         />
       )}
+
+      {/* Reject Confirmation Modal */}
+      <ConfirmModal
+        visible={rejectModalVisible}
+        title="Reject Booking"
+        message="Are you sure you want to reject this booking? This action cannot be undone."
+        confirmText="Reject"
+        cancelText="Cancel"
+        confirmStyle="danger"
+        onConfirm={confirmReject}
+        onCancel={() => {
+          setRejectModalVisible(false);
+          setBookingToReject(null);
+        }}
+        loading={processing === bookingToReject}
+      />
     </View>
   );
 }
