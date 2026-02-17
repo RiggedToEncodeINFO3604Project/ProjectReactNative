@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   dayHeader: {
     width: "14.28%",
     alignItems: "center",
-    padding: 8,
+    paddingVertical: 8,
   },
   dayHeaderText: {
     fontSize: 12,
@@ -526,12 +526,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 8,
     borderWidth: 1,
-    margin: 2,
   },
   emptyDayCell: {
     width: "14.28%",
     aspectRatio: 1,
-    margin: 2,
   },
   dayText: {
     fontSize: 14,
