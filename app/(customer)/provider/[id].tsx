@@ -22,8 +22,25 @@ import {
   View,
 } from "react-native";
 
-// Days of week for display
-const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+// Days of week for display (Sunday first)
+const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// Helper function to parse date string (YYYY-MM-DD) without timezone issues
+const parseDateString = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+// Get day of week (0 = Sunday, 1 = Monday, etc.)
+const getDayOfWeek = (dateStr: string): number => {
+  return parseDateString(dateStr).getDay();
+};
+
+// Get day of month (1-31)
+const getDayOfMonth = (dateStr: string): number => {
+  return parseDateString(dateStr).getDate();
+};
+
 const MONTHS = [
   "January",
   "February",
@@ -57,7 +74,11 @@ export default function ProviderDetailsScreen() {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [loading, setLoading] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  // Initialize to first day of current month to avoid date overflow issues
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   useEffect(() => {
     if (id) {
@@ -284,6 +305,13 @@ export default function ProviderDetailsScreen() {
                 </Text>
               </View>
             ))}
+            {/* Empty cells for days before the 1st of the month */}
+            {calendarData.length > 0 &&
+              Array.from({
+                length: getDayOfWeek(calendarData[0].date),
+              }).map((_, index) => (
+                <View key={`empty-${index}`} style={styles.emptyDayCell} />
+              ))}
             {calendarData.map((day, index) => (
               <TouchableOpacity
                 key={day.date}
@@ -309,7 +337,7 @@ export default function ProviderDetailsScreen() {
                     },
                   ]}
                 >
-                  {new Date(day.date).getDate()}
+                  {getDayOfMonth(day.date)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -457,6 +485,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 8,
     borderWidth: 1,
+    margin: 2,
+  },
+  emptyDayCell: {
+    width: "14.28%",
+    aspectRatio: 1,
     margin: 2,
   },
   dayText: {

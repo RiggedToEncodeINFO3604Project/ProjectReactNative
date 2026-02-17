@@ -119,8 +119,6 @@ async def get_provider_calendar(
     
     # Get provider availability
     availability = await db.availability.find_one({"provider_id": provider_id})
-    if not availability:
-        return []
     
     # Get services
     services = await db.services.find({"provider_id": provider_id}).to_list(100)
@@ -159,12 +157,13 @@ async def get_provider_calendar(
         
         # Find day schedule
         day_schedule = None
-        for day in availability["schedule"]:
-            if day["day_of_week"] == day_of_week:
-                day_schedule = day
-                break
+        if availability:
+            for day in availability["schedule"]:
+                if day["day_of_week"] == day_of_week:
+                    day_schedule = day
+                    break
         
-        if not day_schedule or not day_schedule["time_slots"]:
+        if not availability or not day_schedule or not day_schedule["time_slots"]:
             status = "unavailable"
             available_percentage = 0.0
         else:
