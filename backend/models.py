@@ -151,3 +151,9 @@ class DayBookingStatus(BaseModel):
     date: str
     status: str  # "available", "partially_booked", "mostly_booked", "fully_booked"
     available_percentage: float
+
+
+class RescheduleRequest(BaseModel):
+    date: str  # Format: "YYYY-MM-DD"
+    start_time: str  # Format: "HH:MM"
+    end_time: str  # Format: "HH:MM"

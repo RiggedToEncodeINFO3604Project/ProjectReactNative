@@ -6,14 +6,17 @@
 import {
   AvailabilityResponse,
   AvailabilitySchedule,
+  AvailableSlot,
   AvailableSlotsResponse,
   BookingRequest,
   BookingWithDetails,
+  ConfirmedBooking,
   CustomerCreate,
   DayBookingStatus,
   MessageResponse,
   ProviderCreate,
   ProviderSearchResult,
+  RescheduleRequest,
   Service,
   ServiceCreate,
   TokenResponse,
@@ -307,6 +310,54 @@ export const rejectBooking = async (
 ): Promise<MessageResponse> => {
   const response = await api.post<MessageResponse>(
     `/provider/bookings/${bookingId}/reject`,
+  );
+  return response.data;
+};
+
+// Get confirmed bookings for the current provider
+export const getConfirmedBookings = async (): Promise<BookingWithDetails[]> => {
+  const response = await api.get<BookingWithDetails[]>(
+    "/provider/bookings/confirmed",
+  );
+  return response.data;
+};
+
+// Delete a booking
+export const deleteBooking = async (
+  bookingId: string,
+): Promise<MessageResponse> => {
+  const response = await api.delete<MessageResponse>(
+    `/provider/bookings/${bookingId}`,
+  );
+  return response.data;
+};
+
+// Reschedule a booking
+export const rescheduleBooking = async (
+  bookingId: string,
+  data: RescheduleRequest,
+): Promise<ConfirmedBooking> => {
+  const response = await api.put<ConfirmedBooking>(
+    `/provider/bookings/${bookingId}/reschedule`,
+    {
+      date: data.date,
+      start_time: data.start_time,
+      end_time: data.end_time,
+    },
+  );
+  return response.data;
+};
+
+// Get available slots for rescheduling a booking
+export const getAvailableSlotsForReschedule = async (
+  bookingId: string,
+  date: string,
+): Promise<AvailableSlot[]> => {
+  const response = await api.get<AvailableSlot[]>(
+    `/provider/bookings/${bookingId}/available-slots`,
+    {
+      params: { date },
+    },
   );
   return response.data;
 };

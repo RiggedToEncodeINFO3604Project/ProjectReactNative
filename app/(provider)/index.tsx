@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -32,19 +33,18 @@ export default function ProviderHomeScreen() {
 
   const menuItems = [
     {
-      title: "📅 Manage Availability",
-      description: "Set your weekly schedule and available time slots",
-      route: "availability",
+      title: "Manage Services & Availability",
+      description:
+        "Set your services, weekly schedule and available time slots",
+      route: "manage-sa",
+      icon: "settings-outline" as const,
     },
     {
-      title: "💼 Manage Services",
-      description: "Add or update the services you offer",
-      route: "services",
-    },
-    {
-      title: "📋 Pending Bookings",
-      description: "Review and approve booking requests",
-      route: "pending",
+      title: "Manage Bookings",
+      description:
+        "View and manage your booking requests and confirmed bookings",
+      route: "manage-bookings",
+      icon: "calendar-outline" as const,
     },
   ];
 
@@ -76,9 +76,17 @@ export default function ProviderHomeScreen() {
             ]}
             onPress={() => router.push(item.route as any)}
           >
-            <Text style={[styles.menuTitle, { color: colors.accent }]}>
-              {item.title}
-            </Text>
+            <View style={styles.menuCardHeader}>
+              <Ionicons
+                name={item.icon}
+                size={24}
+                color={colors.accent}
+                style={styles.menuIcon}
+              />
+              <Text style={[styles.menuTitle, { color: colors.accent }]}>
+                {item.title}
+              </Text>
+            </View>
             <Text style={[styles.menuDescription, { color: colors.textMuted }]}>
               {item.description}
             </Text>
@@ -116,10 +124,18 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
   },
+  menuCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  menuIcon: {
+    marginRight: 10,
+  },
   menuTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 8,
+    flex: 1,
   },
   menuDescription: {
     fontSize: 14,

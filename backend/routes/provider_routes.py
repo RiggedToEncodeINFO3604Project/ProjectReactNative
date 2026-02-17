@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Dict, Any
 from models import (
     Service, ServiceCreate, AvailabilitySchedule, ClientRecord,
-    UserInDB, DayAvailability
+    UserInDB, DayAvailability, RescheduleRequest
 )
 from auth import get_current_provider
 from database import get_database
 import uuid
-from datetime import datetime
+from datetime import datetime, date as date_type
 
 router = APIRouter(prefix="/provider", tags=["provider"])
 
@@ -298,3 +298,256 @@ async def reject_booking(
     )
     
     return {"message": "Booking rejected"}
+
+
+@router.get("/bookings/confirmed", response_model=List[dict])
+# Get all confirmed bookings for the current provider
+async def get_confirmed_bookings(current_user: UserInDB = Depends(get_current_provider)):
+    db = get_database()
+    
+    provider = await db.providers.find_one({"user_id": current_user.id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    # Get services for this provider
+    services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
+    service_ids = [service["_id"] for service in services]
+    
+    # Get confirmed bookings
+    bookings = await db.client_records.find({
+        "service_id": {"$in": service_ids},
+        "status": "confirmed"
+    }).to_list(100)
+    
+    # Enrich with customer and service details
+    result = []
+    for booking in bookings:
+        customer = await db.customers.find_one({"_id": booking["customer_id"]})
+        service = await db.services.find_one({"_id": booking["service_id"]})
+        
+        result.append({
+            "booking_id": booking["_id"],
+            "date": booking["date"].isoformat(),
+            "start_time": booking["start_time"],
+            "end_time": booking["end_time"],
+            "cost": booking["cost"],
+            "customer_name": customer["name"] if customer else "Unknown",
+            "customer_phone": customer["phone"] if customer else "Unknown",
+            "service_name": service["name"] if service else "Unknown",
+            "status": booking["status"]
+        })
+    
+    return result
+
+
+@router.delete("/bookings/{booking_id}", response_model=dict)
+# Delete a booking
+async def delete_booking(
+    booking_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    booking = await db.client_records.find_one({"_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    # Verify this booking belongs to this provider
+    service = await db.services.find_one({"_id": booking["service_id"]})
+    provider = await db.providers.find_one({"user_id": current_user.id})
+    
+    if not service or service["provider_id"] != provider["_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this booking")
+    
+    # Delete the booking document
+    await db.client_records.delete_one({"_id": booking_id})
+    
+    return {"message": "Booking deleted successfully"}
+
+
+@router.put("/bookings/{booking_id}/reschedule", response_model=dict)
+# Reschedule a booking
+async def reschedule_booking(
+    booking_id: str,
+    reschedule_data: RescheduleRequest,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    booking = await db.client_records.find_one({"_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    # Verify this booking belongs to this provider
+    service = await db.services.find_one({"_id": booking["service_id"]})
+    provider = await db.providers.find_one({"user_id": current_user.id})
+    
+    if not service or service["provider_id"] != provider["_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized to reschedule this booking")
+    
+    # Parse the new date
+    try:
+        new_date = datetime.strptime(reschedule_data.date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    # Get the day of week for the new date (0=Monday, 6=Sunday)
+    day_of_week = new_date.weekday()
+    
+    # Get provider's availability for this day
+    availability = await db.availability.find_one({"provider_id": provider["_id"]})
+    if not availability:
+        raise HTTPException(status_code=400, detail="No availability schedule found")
+    
+    # Find the schedule for the requested day
+    day_schedule = None
+    for day in availability.get("schedule", []):
+        if day.get("day_of_week") == day_of_week:
+            day_schedule = day
+            break
+    
+    if not day_schedule or not day_schedule.get("time_slots"):
+        raise HTTPException(status_code=400, detail="No availability for the requested day")
+    
+    # Check if the requested time slot is within availability
+    slot_available = False
+    for slot in day_schedule.get("time_slots", []):
+        if (slot.get("start_time") <= reschedule_data.start_time and 
+            slot.get("end_time") >= reschedule_data.end_time):
+            slot_available = True
+            break
+    
+    if not slot_available:
+        raise HTTPException(status_code=400, detail="Requested time slot is outside availability window")
+    
+    # Check if the slot is already booked by another booking
+    existing_booking = await db.client_records.find_one({
+        "service_id": {"$in": [s["_id"] for s in await db.services.find({"provider_id": provider["_id"]}).to_list(100)]},
+        "date": new_date,
+        "start_time": reschedule_data.start_time,
+        "end_time": reschedule_data.end_time,
+        "status": {"$in": ["pending", "confirmed"]},
+        "_id": {"$ne": booking_id}  # Exclude current booking
+    })
+    
+    if existing_booking:
+        raise HTTPException(status_code=400, detail="This time slot is already booked")
+    
+    # Store old values for response
+    old_date = booking["date"].isoformat()
+    old_time = f"{booking['start_time']}-{booking['end_time']}"
+    
+    # Update the booking
+    await db.client_records.update_one(
+        {"_id": booking_id},
+        {"$set": {
+            "date": new_date,
+            "start_time": reschedule_data.start_time,
+            "end_time": reschedule_data.end_time
+        }}
+    )
+    
+    return {
+        "message": "Booking rescheduled successfully",
+        "booking_id": booking_id,
+        "old_date": old_date,
+        "new_date": reschedule_data.date,
+        "old_time": old_time,
+        "new_time": f"{reschedule_data.start_time}-{reschedule_data.end_time}"
+    }
+
+
+@router.get("/bookings/{booking_id}/available-slots", response_model=dict)
+# Get available time slots for rescheduling a booking
+async def get_available_slots(
+    booking_id: str,
+    date: str = Query(..., description="Date in YYYY-MM-DD format"),
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    booking = await db.client_records.find_one({"_id": booking_id})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    # Verify this booking belongs to this provider
+    service = await db.services.find_one({"_id": booking["service_id"]})
+    provider = await db.providers.find_one({"user_id": current_user.id})
+    
+    if not service or service["provider_id"] != provider["_id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Parse the date
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    # Get the day of week (0=Monday, 6=Sunday)
+    day_of_week = target_date.weekday()
+    
+    # Get provider's availability for this day
+    availability = await db.availability.find_one({"provider_id": provider["_id"]})
+    if not availability:
+        return {"date": date, "available_slots": [], "message": "No availability schedule found"}
+    
+    # Find the schedule for the requested day
+    day_schedule = None
+    for day in availability.get("schedule", []):
+        if day.get("day_of_week") == day_of_week:
+            day_schedule = day
+            break
+    
+    if not day_schedule or not day_schedule.get("time_slots"):
+        return {"date": date, "available_slots": [], "message": "No availability for this day"}
+    
+    # Get all provider's service IDs
+    services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
+    service_ids = [s["_id"] for s in services]
+    
+    # Get all bookings for this date (pending or confirmed)
+    existing_bookings = await db.client_records.find({
+        "service_id": {"$in": service_ids},
+        "date": target_date,
+        "status": {"$in": ["pending", "confirmed"]}
+    }).to_list(100)
+    
+    # Extract booked slots
+    booked_slots = [
+        {"start_time": b["start_time"], "end_time": b["end_time"], "booking_id": b["_id"]}
+        for b in existing_bookings
+    ]
+    
+    # Generate available slots from availability schedule
+    available_slots = []
+    for slot in day_schedule.get("time_slots", []):
+        session_duration = slot.get("session_duration", 30)
+        start_time = slot.get("start_time")
+        end_time = slot.get("end_time")
+        
+        # Generate sessions for this time slot
+        sessions = generate_sessions(start_time, end_time, session_duration)
+        
+        for session in sessions.get("sessions", []):
+            # Check if this session is already booked
+            is_booked = False
+            for booked in booked_slots:
+                if (booked["start_time"] == session["start_time"] and 
+                    booked["end_time"] == session["end_time"] and
+                    booked["booking_id"] != booking_id):  # Exclude current booking
+                    is_booked = True
+                    break
+            
+            if not is_booked:
+                available_slots.append({
+                    "start_time": session["start_time"],
+                    "end_time": session["end_time"],
+                    "session_duration": session_duration
+                })
+    
+    return {
+        "date": date,
+        "day_of_week": DAYS[day_of_week],
+        "available_slots": available_slots,
+        "booked_slots": booked_slots
+    }

@@ -222,3 +222,35 @@ export interface AvailabilityResponse {
     total_remainder_minutes: number;
   };
 }
+
+// Reschedule request type
+export interface RescheduleRequest {
+  date: string; // Format: "YYYY-MM-DD"
+  start_time: string; // Format: "HH:MM"
+  end_time: string; // Format: "HH:MM"
+}
+
+// Confirmed booking with full details
+export interface ConfirmedBooking {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  customer_email?: string;
+  service_id: string;
+  service_name: string;
+  service_duration: number;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  total_price: number;
+  notes?: string;
+  created_at: string;
+}
+
+// Available slot for rescheduling
+export interface AvailableSlot {
+  start_time: string;
+  end_time: string;
+  available: boolean;
+}
