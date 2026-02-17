@@ -87,7 +87,7 @@ export interface ServiceCreate {
 export interface TimeSlot {
   start_time: string; // Format: "HH:MM"
   end_time: string; // Format: "HH:MM"
-  session_duration?: number; // Duration in minutes, default 30
+  session_duration: number; // Duration in minutes
 }
 
 export interface DayAvailability {
@@ -248,7 +248,46 @@ export interface ConfirmedBooking {
   created_at: string;
 }
 
-// Available slot for rescheduling
+export interface BookedSlot {
+  start_time: string;
+  end_time: string;
+  booking_id: string;
+}
+
+export interface RescheduleSlotsResponse {
+  date: string; // Format: "YYYY-MM-DD"
+  day_of_week: string; // e.g., "Monday"
+  available_slots: TimeSlot[];
+  booked_slots: BookedSlot[];
+  message?: string; // Optional error/info message
+}
+
+export interface DateScheduleData {
+  date: string;
+  dayOfWeek: string;
+  displayDate: string; // Formatted for display (e.g., "Mon, Jan 15")
+  isToday: boolean;
+  isTomorrow: boolean;
+  availableSlots: TimeSlot[];
+  bookedSlots: BookedSlot[];
+  hasAvailability: boolean;
+  totalSlots: number;
+  availableCount: number;
+}
+
+export interface DateRangeParams {
+  bookingId: string;
+  startDate: string; // Format: "YYYY-MM-DD"
+  endDate: string; // Format: "YYYY-MM-DD"
+}
+
+export interface DateRangeResponse {
+  dates: DateScheduleData[];
+  hasMore: boolean;
+  nextStartDate?: string;
+}
+
+// Legacy type - keeping for backward compatibility but prefer RescheduleSlotsResponse
 export interface AvailableSlot {
   start_time: string;
   end_time: string;

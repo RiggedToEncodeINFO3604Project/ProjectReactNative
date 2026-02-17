@@ -2,19 +2,24 @@ import ConfirmModal from "@/components/ConfirmModal";
 import SuccessModal from "@/components/SuccessModal";
 import { useTheme } from "@/context/ThemeContext";
 import {
-  getAvailableSlotsForReschedule,
+  addDays,
+  formatDate,
+  getAvailableSlotsForDateRange,
   rescheduleBooking,
 } from "@/services/schedulingApi";
-import { AvailableSlot, BookingWithDetails } from "@/types/scheduling";
-import React, { useState } from "react";
+import {
+  BookingWithDetails,
+  DateScheduleData,
+  TimeSlot,
+} from "@/types/scheduling";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Modal,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -36,11 +41,14 @@ export default function BookingActionModal({
 }: BookingActionModalProps) {
   const { isDarkMode } = useTheme();
 
+  // Reschedule state
   const [showReschedule, setShowReschedule] = useState(false);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [availableSlots, setAvailableSlots] = useState<AvailableSlot[]>([]);
-  const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
-  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [scheduleData, setScheduleData] = useState<DateScheduleData[]>([]);
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
   const [rescheduling, setRescheduling] = useState(false);
 
   // Delete confirmation modal state
@@ -60,14 +68,50 @@ export default function BookingActionModal({
     inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
     error: "#FF3B30",
     success: "#34C759",
+    available: isDarkMode ? "#1a3a2a" : "#d4edda",
+    unavailable: isDarkMode ? "#2a1a1a" : "#f8d7da",
+  };
+
+  // Load schedule data when reschedule view is shown
+  useEffect(() => {
+    if (showReschedule && booking) {
+      loadScheduleData();
+    }
+  }, [showReschedule, booking]);
+
+  const loadScheduleData = async () => {
+    if (!booking) return;
+
+    setLoadingSchedule(true);
+    setScheduleError(null);
+    setExpandedDate(null);
+    setSelectedSlot(null);
+    setSelectedDate(null);
+
+    try {
+      const today = new Date();
+      const startDate = formatDate(today);
+      const endDate = formatDate(addDays(today, 13)); // Next 14 days
+
+      const data = await getAvailableSlotsForDateRange(
+        booking.booking_id,
+        startDate,
+        endDate,
+      );
+
+      setScheduleData(data);
+    } catch (error: any) {
+      console.error("Failed to load schedule data:", error);
+      setScheduleError(
+        error.response?.data?.detail || "Failed to load available dates",
+      );
+    } finally {
+      setLoadingSchedule(false);
+    }
   };
 
   const handleDelete = () => {
-    if (!booking) {
-      return;
-    }
-
-    // Show the confirmation modal instead of Alert.alert
+    if (!booking) return;
     setShowDeleteConfirm(true);
   };
 
@@ -78,19 +122,13 @@ export default function BookingActionModal({
 
     try {
       await onDelete(booking.booking_id);
-
-      // Close the confirmation modal
       setShowDeleteConfirm(false);
-
-      // Show success modal
       setShowSuccess(true);
 
-      // Close the booking action modal after a short delay
       setTimeout(() => {
         onClose();
       }, 1500);
     } catch (error: any) {
-      // Close confirmation modal and show error
       setShowDeleteConfirm(false);
       Alert.alert(
         "Error",
@@ -103,45 +141,21 @@ export default function BookingActionModal({
 
   const handleShowReschedule = () => {
     setShowReschedule(true);
-    setSelectedDate("");
-    setAvailableSlots([]);
-    setSelectedSlot(null);
   };
 
-  const handleDateChange = (date: string) => {
+  const handleDateExpand = (date: string) => {
+    if (expandedDate === date) {
+      setExpandedDate(null);
+    } else {
+      setExpandedDate(date);
+      setSelectedSlot(null);
+      setSelectedDate(null);
+    }
+  };
+
+  const handleSlotSelect = (date: string, slot: TimeSlot) => {
     setSelectedDate(date);
-    setSelectedSlot(null);
-
-    if (date && booking) {
-      loadAvailableSlots(date);
-    }
-  };
-
-  const loadAvailableSlots = async (date: string) => {
-    if (!booking) {
-      return;
-    }
-
-    setLoadingSlots(true);
-
-    try {
-      const slots = await getAvailableSlotsForReschedule(
-        booking.booking_id,
-        date,
-      );
-
-      const availableSlots = slots.filter((slot) => slot.available);
-
-      setAvailableSlots(availableSlots);
-    } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error.response?.data?.detail || "Failed to load available slots",
-      );
-      setAvailableSlots([]);
-    } finally {
-      setLoadingSlots(false);
-    }
+    setSelectedSlot(slot);
   };
 
   const handleConfirmReschedule = async () => {
@@ -153,16 +167,13 @@ export default function BookingActionModal({
     setRescheduling(true);
 
     try {
-      const payload = {
+      await rescheduleBooking(booking.booking_id, {
         date: selectedDate,
         start_time: selectedSlot.start_time,
         end_time: selectedSlot.end_time,
-      };
-
-      await rescheduleBooking(booking.booking_id, payload);
+      });
 
       Alert.alert("Success", "Booking rescheduled successfully");
-
       setShowReschedule(false);
       onReschedule();
       onClose();
@@ -178,11 +189,180 @@ export default function BookingActionModal({
 
   const handleClose = () => {
     setShowReschedule(false);
-    setSelectedDate("");
-    setAvailableSlots([]);
+    setScheduleData([]);
+    setExpandedDate(null);
     setSelectedSlot(null);
+    setSelectedDate(null);
+    setScheduleError(null);
     onClose();
   };
+
+  const handleBack = () => {
+    setShowReschedule(false);
+    setScheduleData([]);
+    setExpandedDate(null);
+    setSelectedSlot(null);
+    setSelectedDate(null);
+    setScheduleError(null);
+  };
+
+  const renderDateItem = ({ item }: { item: DateScheduleData }) => {
+    const isExpanded = expandedDate === item.date;
+    const isSelected = selectedDate === item.date;
+
+    return (
+      <View style={styles.dateItemContainer}>
+        <TouchableOpacity
+          style={[
+            styles.dateItem,
+            {
+              backgroundColor: isSelected
+                ? colors.accent + "20"
+                : colors.inputBg,
+              borderColor: isSelected ? colors.accent : colors.border,
+            },
+          ]}
+          onPress={() => handleDateExpand(item.date)}
+          disabled={!item.hasAvailability}
+          activeOpacity={0.7}
+        >
+          <View style={styles.dateItemLeft}>
+            <Text
+              style={[
+                styles.dateText,
+                {
+                  color: item.hasAvailability ? colors.text : colors.textMuted,
+                },
+              ]}
+            >
+              {item.displayDate}
+              {item.isToday && " (Today)"}
+              {item.isTomorrow && " (Tomorrow)"}
+            </Text>
+            <Text style={[styles.dayText, { color: colors.textMuted }]}>
+              {item.dayOfWeek}
+            </Text>
+          </View>
+          <View style={styles.dateItemRight}>
+            {item.hasAvailability ? (
+              <>
+                <Text style={[styles.slotCount, { color: colors.success }]}>
+                  {item.availableCount} slots
+                </Text>
+                <Text style={[styles.expandIcon, { color: colors.textMuted }]}>
+                  {isExpanded ? "v" : ">"}
+                </Text>
+              </>
+            ) : (
+              <Text style={[styles.noSlots, { color: colors.textMuted }]}>
+                No slots
+              </Text>
+            )}
+          </View>
+        </TouchableOpacity>
+
+        {isExpanded && item.hasAvailability && (
+          <View
+            style={[
+              styles.slotsContainer,
+              { backgroundColor: colors.inputBg, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.slotsLabel, { color: colors.textMuted }]}>
+              Available Times:
+            </Text>
+            <View style={styles.slotsGrid}>
+              {item.availableSlots.map((slot, index) => {
+                const isSlotSelected =
+                  selectedDate === item.date &&
+                  selectedSlot?.start_time === slot.start_time;
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.slotButton,
+                      {
+                        backgroundColor: isSlotSelected
+                          ? colors.accent
+                          : colors.card,
+                        borderColor: isSlotSelected
+                          ? colors.accent
+                          : colors.border,
+                      },
+                    ]}
+                    onPress={() => handleSlotSelect(item.date, slot)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.slotText,
+                        {
+                          color: isSlotSelected ? "#151718" : colors.text,
+                        },
+                      ]}
+                    >
+                      {slot.start_time}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.slotDuration,
+                        {
+                          color: isSlotSelected ? "#151718" : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {slot.session_duration}min
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderEmptyState = () => {
+    if (loadingSchedule) return null;
+
+    return (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyIcon}>X</Text>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>
+          No Available Slots
+        </Text>
+        <Text style={[styles.emptyMessage, { color: colors.textMuted }]}>
+          No available slots found for the next 14 days.
+        </Text>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.accent }]}
+          onPress={loadScheduleData}
+        >
+          <Text style={styles.retryButtonText}>Refresh</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderErrorState = () => (
+    <View style={styles.errorState}>
+      <Text style={styles.errorIcon}>!</Text>
+      <Text style={[styles.errorTitle, { color: colors.error }]}>
+        Failed to Load
+      </Text>
+      <Text style={[styles.errorMessage, { color: colors.textMuted }]}>
+        {scheduleError}
+      </Text>
+      <TouchableOpacity
+        style={[styles.retryButton, { backgroundColor: colors.accent }]}
+        onPress={loadScheduleData}
+      >
+        <Text style={styles.retryButtonText}>Retry</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   if (!booking) {
     return null;
@@ -296,7 +476,7 @@ export default function BookingActionModal({
                 </TouchableOpacity>
               </>
             ) : (
-              // Reschedule View
+              // Reschedule View - Static Date List
               <>
                 <Text style={[styles.modalTitle, { color: colors.text }]}>
                   Reschedule Booking
@@ -313,89 +493,48 @@ export default function BookingActionModal({
                   {booking.start_time}
                 </Text>
 
-                <View style={styles.inputGroup}>
-                  <Text
-                    style={[styles.inputLabel, { color: colors.textMuted }]}
-                  >
-                    New Date (YYYY-MM-DD)
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.dateInput,
-                      { backgroundColor: colors.inputBg, color: colors.text },
-                    ]}
-                    value={selectedDate}
-                    onChangeText={handleDateChange}
-                    placeholder="2024-12-25"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                </View>
+                <Text
+                  style={[styles.selectPrompt, { color: colors.textMuted }]}
+                >
+                  Select a New Date & Time
+                </Text>
 
-                {loadingSlots && (
-                  <ActivityIndicator
-                    size="small"
-                    color={colors.accent}
-                    style={styles.loader}
+                {loadingSchedule ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.accent} />
+                    <Text
+                      style={[styles.loadingText, { color: colors.textMuted }]}
+                    >
+                      Loading available dates...
+                    </Text>
+                  </View>
+                ) : scheduleError ? (
+                  renderErrorState()
+                ) : (
+                  <FlatList
+                    data={scheduleData}
+                    renderItem={renderDateItem}
+                    keyExtractor={(item) => item.date}
+                    style={styles.dateList}
+                    contentContainerStyle={styles.dateListContent}
+                    ListEmptyComponent={renderEmptyState}
+                    showsVerticalScrollIndicator={false}
                   />
                 )}
 
-                {availableSlots.length > 0 && (
-                  <View style={styles.slotsContainer}>
-                    <Text
-                      style={[styles.slotsLabel, { color: colors.textMuted }]}
-                    >
-                      Available Time Slots:
+                {/* Selected slot summary */}
+                {selectedSlot && selectedDate && (
+                  <View
+                    style={[
+                      styles.selectedSummary,
+                      { backgroundColor: colors.accent + "20" },
+                    ]}
+                  >
+                    <Text style={[styles.summaryText, { color: colors.text }]}>
+                      Selected: {selectedDate} at {selectedSlot.start_time}
                     </Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={styles.slotsScroll}
-                    >
-                      {availableSlots.map((slot, index) => (
-                        <TouchableOpacity
-                          key={index}
-                          style={[
-                            styles.slotButton,
-                            {
-                              backgroundColor:
-                                selectedSlot === slot
-                                  ? colors.accent
-                                  : colors.inputBg,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                          onPress={() => {
-                            setSelectedSlot(slot);
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.slotText,
-                              {
-                                color:
-                                  selectedSlot === slot
-                                    ? "#151718"
-                                    : colors.text,
-                              },
-                            ]}
-                          >
-                            {slot.start_time}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
                   </View>
                 )}
-
-                {!loadingSlots &&
-                  selectedDate &&
-                  availableSlots.length === 0 && (
-                    <Text
-                      style={[styles.noSlotsText, { color: colors.textMuted }]}
-                    >
-                      No available slots for this date
-                    </Text>
-                  )}
 
                 <View style={styles.rescheduleButtons}>
                   <TouchableOpacity
@@ -403,7 +542,7 @@ export default function BookingActionModal({
                       styles.modalButton,
                       { backgroundColor: colors.inputBg },
                     ]}
-                    onPress={() => setShowReschedule(false)}
+                    onPress={handleBack}
                   >
                     <Text
                       style={[styles.modalButtonText, { color: colors.text }]}
@@ -467,6 +606,7 @@ const styles = StyleSheet.create({
   modalContent: {
     width: "90%",
     maxWidth: 400,
+    maxHeight: "85%",
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
@@ -521,50 +661,174 @@ const styles = StyleSheet.create({
   currentBookingText: {
     fontSize: 14,
     textAlign: "center",
-    marginBottom: 20,
-  },
-  inputGroup: {
-    marginBottom: 15,
-  },
-  inputLabel: {
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  dateInput: {
-    padding: 12,
-    borderRadius: 8,
-    fontSize: 16,
-    textAlign: "center",
-  },
-  loader: {
-    marginVertical: 15,
-  },
-  slotsContainer: {
-    marginBottom: 15,
-  },
-  slotsLabel: {
-    fontSize: 14,
     marginBottom: 10,
   },
-  slotsScroll: {
-    flexGrow: 0,
+  selectPrompt: {
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 15,
+    fontWeight: "500",
   },
-  slotButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginRight: 8,
+  // Date list styles
+  dateList: {
+    flex: 1,
+    minHeight: 200,
+  },
+  dateListContent: {
+    paddingBottom: 10,
+  },
+  dateItemContainer: {
+    marginBottom: 8,
+  },
+  dateItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 10,
     borderWidth: 1,
   },
-  slotText: {
+  dateItemLeft: {
+    flex: 1,
+  },
+  dateText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  dayText: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  dateItemRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  slotCount: {
     fontSize: 14,
     fontWeight: "500",
   },
-  noSlotsText: {
-    textAlign: "center",
-    marginVertical: 15,
+  expandIcon: {
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  noSlots: {
     fontSize: 14,
   },
+  // Slots container
+  slotsContainer: {
+    marginTop: 8,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  slotsLabel: {
+    fontSize: 12,
+    marginBottom: 10,
+    textTransform: "uppercase",
+  },
+  slotsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  slotButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    minWidth: 70,
+  },
+  slotText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  slotDuration: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  // Loading state
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 200,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+  },
+  // Empty state
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+    color: "#9BA1A6",
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  // Error state
+  errorState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+    color: "#FF3B30",
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  // Retry button
+  retryButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#151718",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // Selected summary
+  selectedSummary: {
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  summaryText: {
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  // Bottom buttons
   rescheduleButtons: {
     flexDirection: "row",
     gap: 10,

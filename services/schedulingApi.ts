@@ -6,17 +6,18 @@
 import {
   AvailabilityResponse,
   AvailabilitySchedule,
-  AvailableSlot,
   AvailableSlotsResponse,
   BookingRequest,
   BookingWithDetails,
   ConfirmedBooking,
   CustomerCreate,
+  DateScheduleData,
   DayBookingStatus,
   MessageResponse,
   ProviderCreate,
   ProviderSearchResult,
   RescheduleRequest,
+  RescheduleSlotsResponse,
   Service,
   ServiceCreate,
   TokenResponse,
@@ -282,7 +283,14 @@ export const getAvailability = async (): Promise<AvailabilitySchedule> => {
 
   return {
     providerId: response.data.provider_id,
-    schedule: response.data.schedule,
+    schedule: response.data.schedule.map((day) => ({
+      day_of_week: day.day_of_week,
+      time_slots: day.time_slots.map((slot) => ({
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        session_duration: slot.session_duration ?? 30, // Default to 30 if not provided
+      })),
+    })),
   };
 };
 
@@ -352,14 +360,115 @@ export const rescheduleBooking = async (
 export const getAvailableSlotsForReschedule = async (
   bookingId: string,
   date: string,
-): Promise<AvailableSlot[]> => {
-  const response = await api.get<AvailableSlot[]>(
+): Promise<RescheduleSlotsResponse> => {
+  const response = await api.get<RescheduleSlotsResponse>(
     `/provider/bookings/${bookingId}/available-slots`,
     {
       params: { date },
     },
   );
   return response.data;
+};
+
+// ============================================================
+// DATE UTILITY FUNCTIONS
+// ============================================================
+
+// Formatting
+export const formatDate = (date: Date): string => {
+  return date.toISOString().split("T")[0];
+};
+
+// Add days to a date and return a new Date
+export const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+// Format a date for display (e.g., "Mon, Jan 15")
+export const formatDisplayDate = (date: Date): string => {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const dayName = days[date.getDay()];
+  const monthName = months[date.getMonth()];
+  const dayNum = date.getDate();
+
+  return `${dayName}, ${monthName} ${dayNum}`;
+};
+
+// Transform API response to UI-ready format
+export const transformToScheduleData = (
+  response: RescheduleSlotsResponse,
+  today: Date = new Date(),
+): DateScheduleData => {
+  const dateObj = new Date(response.date + "T00:00:00");
+  const todayStr = formatDate(today);
+  const tomorrowStr = formatDate(addDays(today, 1));
+
+  // Defensive: Handle missing properties with defaults
+  const availableSlots = response.available_slots || [];
+  const bookedSlots = response.booked_slots || [];
+
+  return {
+    date: response.date,
+    dayOfWeek: response.day_of_week,
+    displayDate: formatDisplayDate(dateObj),
+    isToday: response.date === todayStr,
+    isTomorrow: response.date === tomorrowStr,
+    availableSlots: availableSlots,
+    bookedSlots: bookedSlots,
+    hasAvailability: availableSlots.length > 0,
+    totalSlots: availableSlots.length + bookedSlots.length,
+    availableCount: availableSlots.length,
+  };
+};
+
+// Generate an array of date strings between start and end dates (inclusive)
+export const generateDateRange = (
+  startDate: string,
+  endDate: string,
+): string[] => {
+  const dates: string[] = [];
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(endDate + "T00:00:00");
+
+  while (start <= end) {
+    dates.push(formatDate(start));
+    start.setDate(start.getDate() + 1);
+  }
+
+  return dates;
+};
+
+// Get available slots for a date range
+export const getAvailableSlotsForDateRange = async (
+  bookingId: string,
+  startDate: string,
+  endDate: string,
+): Promise<DateScheduleData[]> => {
+  const dates = generateDateRange(startDate, endDate);
+  const today = new Date();
+
+  const responses = await Promise.all(
+    dates.map((date) => getAvailableSlotsForReschedule(bookingId, date)),
+  );
+
+  return responses.map((response) => transformToScheduleData(response, today));
 };
 
 // Export the axios instance for custom requests

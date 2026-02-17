@@ -487,7 +487,7 @@ async def get_available_slots(
     # Get provider's availability for this day
     availability = await db.availability.find_one({"provider_id": provider["_id"]})
     if not availability:
-        return {"date": date, "available_slots": [], "message": "No availability schedule found"}
+        return {"date": date, "day_of_week": DAYS[day_of_week], "available_slots": [], "booked_slots": [], "message": "No availability schedule found"}
     
     # Find the schedule for the requested day
     day_schedule = None
@@ -497,7 +497,7 @@ async def get_available_slots(
             break
     
     if not day_schedule or not day_schedule.get("time_slots"):
-        return {"date": date, "available_slots": [], "message": "No availability for this day"}
+        return {"date": date, "day_of_week": DAYS[day_of_week], "available_slots": [], "booked_slots": [], "message": "No availability for this day"}
     
     # Get all provider's service IDs
     services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
