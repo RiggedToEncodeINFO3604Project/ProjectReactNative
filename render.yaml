@@ -1,9 +1,31 @@
 services:
+  # Frontend service (existing)
   - type: web
     name: expo-app
     runtime: docker
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: GEMINI_API_KEY
         sync: false
       - key: EXPO_PUBLIC_GEMINI_API_KEY
         sync: false
+      - key: FASTAPI_HOST
+        value: fastapi-backend.onrender.com
+      - key: NODE_ENV
+        value: production
+
+  # Backend service (new)
+  - type: web
+    name: fastapi-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: MONGODB_URL
+        sync: false
+      - key: DATABASE_NAME
+        value: scheduling_db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.11.0
