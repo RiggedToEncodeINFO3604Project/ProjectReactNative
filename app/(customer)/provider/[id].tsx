@@ -15,6 +15,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -74,6 +75,7 @@ export default function ProviderDetailsScreen() {
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [loading, setLoading] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
   // Initialize to first day of current month to avoid date overflow issues
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
@@ -132,14 +134,21 @@ export default function ProviderDetailsScreen() {
         startTime: selectedSlot.start_time,
         endTime: selectedSlot.end_time,
       });
-      Alert.alert("Success", "Booking request created successfully!", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+
+      // Show success modal
+      setSuccessModalVisible(true);
+
+      // Auto-dismiss after 2.5 seconds and navigate back
+      setTimeout(() => {
+        setSuccessModalVisible(false);
+        router.back();
+      }, 2500);
     } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error.response?.data?.detail || "Failed to create booking",
-      );
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.message ||
+        "Failed to create booking";
+      Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -179,219 +188,251 @@ export default function ProviderDetailsScreen() {
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
-      <View
-        style={[
-          styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
-        ]}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            {"<"} Back
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.providerInfo, { backgroundColor: colors.card }]}>
-        <Text style={[styles.providerName, { color: colors.text }]}>
-          {provider.provider_name}
-        </Text>
-        <Text style={[styles.businessName, { color: colors.textMuted }]}>
-          {provider.business_name}
-        </Text>
-        <Text style={[styles.bio, { color: colors.textMuted }]}>
-          {provider.bio}
-        </Text>
-        <Text style={[styles.address, { color: colors.textMuted }]}>
-          {provider.provider_address}
-        </Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Select Service
-        </Text>
-        {provider.services.map((service) => (
-          <TouchableOpacity
-            key={service.id}
-            style={[
-              styles.serviceItem,
-              {
-                backgroundColor:
-                  selectedService?.id === service.id
-                    ? colors.accent
-                    : colors.card,
-                borderColor: colors.border,
-              },
-            ]}
-            onPress={() => setSelectedService(service)}
-          >
-            <Text
-              style={[
-                styles.serviceName,
-                {
-                  color:
-                    selectedService?.id === service.id
-                      ? "#151718"
-                      : colors.text,
-                },
-              ]}
-            >
-              {service.name}
-            </Text>
-            <Text
-              style={[
-                styles.servicePrice,
-                {
-                  color:
-                    selectedService?.id === service.id
-                      ? "#151718"
-                      : colors.accent,
-                },
-              ]}
-            >
-              ${service.price}
+        <View
+          style={[
+            styles.header,
+            { backgroundColor: colors.card, borderBottomColor: colors.border },
+          ]}
+        >
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={[styles.backText, { color: colors.accent }]}>
+              {"<"} Back
             </Text>
           </TouchableOpacity>
-        ))}
-      </View>
-
-      {selectedService && (
-        <View style={styles.section}>
-          <View style={styles.monthHeader}>
-            <TouchableOpacity
-              onPress={() =>
-                setCurrentMonth(
-                  new Date(
-                    currentMonth.getFullYear(),
-                    currentMonth.getMonth() - 1,
-                  ),
-                )
-              }
-            >
-              <Text style={[styles.monthNav, { color: colors.accent }]}>
-                &#8592;
-              </Text>
-            </TouchableOpacity>
-            <Text style={[styles.monthTitle, { color: colors.text }]}>
-              {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </Text>
-            <TouchableOpacity
-              onPress={() =>
-                setCurrentMonth(
-                  new Date(
-                    currentMonth.getFullYear(),
-                    currentMonth.getMonth() + 1,
-                  ),
-                )
-              }
-            >
-              <Text style={[styles.monthNav, { color: colors.accent }]}>
-                &#8594;
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.calendarGrid}>
-            {DAYS_OF_WEEK.map((day) => (
-              <View key={day} style={styles.dayHeader}>
-                <Text
-                  style={[styles.dayHeaderText, { color: colors.textMuted }]}
-                >
-                  {day}
-                </Text>
-              </View>
-            ))}
-            {/* Empty cells for days before the 1st of the month */}
-            {calendarData.length > 0 &&
-              Array.from({
-                length: getDayOfWeek(calendarData[0].date),
-              }).map((_, index) => (
-                <View key={`empty-${index}`} style={styles.emptyDayCell} />
-              ))}
-            {calendarData.map((day, index) => (
-              <TouchableOpacity
-                key={day.date}
-                style={[
-                  styles.dayCell,
-                  {
-                    backgroundColor:
-                      selectedDate === day.date
-                        ? colors.accent
-                        : getDayColor(day.status),
-                    borderColor: colors.border,
-                  },
-                ]}
-                onPress={() =>
-                  day.status !== "unavailable" && setSelectedDate(day.date)
-                }
-              >
-                <Text
-                  style={[
-                    styles.dayText,
-                    {
-                      color: selectedDate === day.date ? "#151718" : "#fff",
-                    },
-                  ]}
-                >
-                  {getDayOfMonth(day.date)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
-      )}
 
-      {selectedDate && availableSlots.length > 0 && (
+        <View style={[styles.providerInfo, { backgroundColor: colors.card }]}>
+          <Text style={[styles.providerName, { color: colors.text }]}>
+            {provider.provider_name}
+          </Text>
+          <Text style={[styles.businessName, { color: colors.textMuted }]}>
+            {provider.business_name}
+          </Text>
+          <Text style={[styles.bio, { color: colors.textMuted }]}>
+            {provider.bio}
+          </Text>
+          <Text style={[styles.address, { color: colors.textMuted }]}>
+            {provider.provider_address}
+          </Text>
+        </View>
+
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Available Time Slots
+            Select Service
           </Text>
-          <View style={styles.slotsContainer}>
-            {availableSlots.map((slot, index) => (
-              <TouchableOpacity
-                key={index}
+          {provider.services.map((service) => (
+            <TouchableOpacity
+              key={service.id}
+              style={[
+                styles.serviceItem,
+                {
+                  backgroundColor:
+                    selectedService?.id === service.id
+                      ? colors.accent
+                      : colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setSelectedService(service)}
+            >
+              <Text
                 style={[
-                  styles.slotButton,
+                  styles.serviceName,
                   {
-                    backgroundColor:
-                      selectedSlot === slot ? colors.accent : colors.card,
-                    borderColor: colors.border,
+                    color:
+                      selectedService?.id === service.id
+                        ? "#151718"
+                        : colors.text,
                   },
                 ]}
-                onPress={() => setSelectedSlot(slot)}
               >
-                <Text
-                  style={[
-                    styles.slotText,
-                    { color: selectedSlot === slot ? "#151718" : colors.text },
-                  ]}
-                >
-                  {slot.start_time} - {slot.end_time}
+                {service.name}
+              </Text>
+              <Text
+                style={[
+                  styles.servicePrice,
+                  {
+                    color:
+                      selectedService?.id === service.id
+                        ? "#151718"
+                        : colors.accent,
+                  },
+                ]}
+              >
+                ${service.price}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {selectedService && (
+          <View style={styles.section}>
+            <View style={styles.monthHeader}>
+              <TouchableOpacity
+                onPress={() =>
+                  setCurrentMonth(
+                    new Date(
+                      currentMonth.getFullYear(),
+                      currentMonth.getMonth() - 1,
+                    ),
+                  )
+                }
+              >
+                <Text style={[styles.monthNav, { color: colors.accent }]}>
+                  &#8592;
                 </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
+              <Text style={[styles.monthTitle, { color: colors.text }]}>
+                {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+              </Text>
+              <TouchableOpacity
+                onPress={() =>
+                  setCurrentMonth(
+                    new Date(
+                      currentMonth.getFullYear(),
+                      currentMonth.getMonth() + 1,
+                    ),
+                  )
+                }
+              >
+                <Text style={[styles.monthNav, { color: colors.accent }]}>
+                  &#8594;
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-      {selectedSlot && (
+            <View style={styles.calendarGrid}>
+              {DAYS_OF_WEEK.map((day) => (
+                <View key={day} style={styles.dayHeader}>
+                  <Text
+                    style={[styles.dayHeaderText, { color: colors.textMuted }]}
+                  >
+                    {day}
+                  </Text>
+                </View>
+              ))}
+              {/* Empty cells for days before the 1st of the month */}
+              {calendarData.length > 0 &&
+                Array.from({
+                  length: getDayOfWeek(calendarData[0].date),
+                }).map((_, index) => (
+                  <View key={`empty-${index}`} style={styles.emptyDayCell} />
+                ))}
+              {calendarData.map((day, index) => (
+                <TouchableOpacity
+                  key={day.date}
+                  style={[
+                    styles.dayCell,
+                    {
+                      backgroundColor:
+                        selectedDate === day.date
+                          ? colors.accent
+                          : getDayColor(day.status),
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={() =>
+                    day.status !== "unavailable" && setSelectedDate(day.date)
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.dayText,
+                      {
+                        color: selectedDate === day.date ? "#151718" : "#fff",
+                      },
+                    ]}
+                  >
+                    {getDayOfMonth(day.date)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {selectedDate && availableSlots.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Available Time Slots
+            </Text>
+            <View style={styles.slotsContainer}>
+              {availableSlots.map((slot, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.slotButton,
+                    {
+                      backgroundColor:
+                        selectedSlot === slot ? colors.accent : colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                  onPress={() => setSelectedSlot(slot)}
+                >
+                  <Text
+                    style={[
+                      styles.slotText,
+                      {
+                        color: selectedSlot === slot ? "#151718" : colors.text,
+                      },
+                    ]}
+                  >
+                    {slot.start_time} - {slot.end_time}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {selectedSlot && (
+          <TouchableOpacity
+            style={[styles.bookButton, { backgroundColor: colors.accent }]}
+            onPress={handleBooking}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#151718" />
+            ) : (
+              <Text style={styles.bookButtonText}>Book Appointment</Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      {/* Success Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={successModalVisible}
+        onRequestClose={() => setSuccessModalVisible(false)}
+      >
         <TouchableOpacity
-          style={[styles.bookButton, { backgroundColor: colors.accent }]}
-          onPress={handleBooking}
-          disabled={loading}
+          style={styles.successModalOverlay}
+          activeOpacity={1}
+          onPress={() => setSuccessModalVisible(false)}
         >
-          {loading ? (
-            <ActivityIndicator color="#151718" />
-          ) : (
-            <Text style={styles.bookButtonText}>Book Appointment</Text>
-          )}
+          <View
+            style={[
+              styles.successModalContent,
+              { backgroundColor: colors.card },
+            ]}
+          >
+            <View style={styles.successCircle}>
+              <Text style={styles.successCheckmark}>✓</Text>
+            </View>
+            <Text style={[styles.successMessage, { color: colors.text }]}>
+              Booking Request Sent Successfully
+            </Text>
+          </View>
         </TouchableOpacity>
-      )}
-    </ScrollView>
+      </Modal>
+    </View>
   );
 }
 
@@ -525,5 +566,40 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 50,
     fontSize: 16,
+  },
+  successModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  successModalContent: {
+    borderRadius: 20,
+    padding: 30,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  successCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#34C759",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  successCheckmark: {
+    fontSize: 40,
+    color: "#ffffff",
+    fontWeight: "bold",
+  },
+  successMessage: {
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });

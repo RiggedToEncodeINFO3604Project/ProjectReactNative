@@ -70,7 +70,7 @@ export interface ProviderCreate {
 // Service types
 export interface Service {
   id: string;
-  providerId: string;
+  provider_id: string;
   name: string;
   description: string;
   price: number;
@@ -150,16 +150,16 @@ export interface AvailableSlotsResponse {
 
 // Booking with details (for display purposes)
 export interface BookingWithDetails {
-  bookingId: string;
+  booking_id: string;
   date: string;
-  startTime: string;
-  endTime: string;
+  start_time: string;
+  end_time: string;
   cost: number;
   status: BookingStatus;
-  serviceName: string;
-  providerName?: string;
-  customerName?: string;
-  customerPhone?: string;
+  service_name: string;
+  provider_name?: string;
+  customer_name?: string;
+  customer_phone?: string;
 }
 
 // Registration types

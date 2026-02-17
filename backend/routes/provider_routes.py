@@ -52,7 +52,7 @@ def generate_sessions(start_time: str, end_time: str, session_duration: int) -> 
     }
 
 
-@router.post("/services", response_model=Service)
+@router.post("/services")
 # Add a new service for the provider
 async def add_service(
     service: ServiceCreate,
@@ -74,10 +74,17 @@ async def add_service(
     }
     
     await db.services.insert_one(service_dict)
-    return Service(**service_dict)
+    # Return service with id field (not _id)
+    return {
+        "id": service_dict["_id"],
+        "provider_id": service_dict["provider_id"],
+        "name": service_dict["name"],
+        "description": service_dict["description"],
+        "price": service_dict["price"]
+    }
 
 
-@router.get("/services", response_model=List[Service])
+@router.get("/services")
 # Get all services for the current provider
 async def get_my_services(current_user: UserInDB = Depends(get_current_provider)):
     db = get_database()
@@ -87,7 +94,17 @@ async def get_my_services(current_user: UserInDB = Depends(get_current_provider)
         raise HTTPException(status_code=404, detail="Provider profile not found")
     
     services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
-    return [Service(**service) for service in services]
+    # Return services with id field (not _id)
+    return [
+        {
+            "id": service["_id"],
+            "provider_id": service["provider_id"],
+            "name": service["name"],
+            "description": service["description"],
+            "price": service["price"]
+        }
+        for service in services
+    ]
 
 
 @router.post("/availability", response_model=dict)
@@ -111,17 +128,12 @@ async def set_availability(
             # Get session duration (default to 30 if not provided)
             session_duration = getattr(slot, 'session_duration', None) or 30
             
-            # Debug logging
-            print(f"DEBUG: Processing slot {slot.start_time}-{slot.end_time} with session_duration={session_duration}")
-            
             # Generate sessions to check for overflow
             result = generate_sessions(
                 slot.start_time,
                 slot.end_time,
                 session_duration
             )
-            
-            print(f"DEBUG: Generated {result['sessions_created']} sessions, remainder={result['remainder_minutes']} minutes")
             
             summary['total_slots_created'] += result['sessions_created']
             

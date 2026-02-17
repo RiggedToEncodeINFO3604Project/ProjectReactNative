@@ -2,16 +2,16 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cancelBooking, getMyBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function MyBookingsScreen() {
@@ -22,15 +22,22 @@ export default function MyBookingsScreen() {
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadBookings();
-  }, []);
+  // Refresh bookings when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadBookings();
+    }, []),
+  );
 
   const loadBookings = async () => {
+    console.log("DEBUG: Loading bookings...");
+    setLoading(true);
     try {
       const results = await getMyBookings();
+      console.log("DEBUG: Loaded bookings:", results);
       setBookings(results);
     } catch (error: any) {
+      console.error("DEBUG: Error loading bookings:", error);
       Alert.alert(
         "Error",
         error.response?.data?.detail || "Failed to load bookings",
@@ -99,21 +106,21 @@ export default function MyBookingsScreen() {
     >
       <View style={styles.bookingHeader}>
         <Text style={[styles.serviceName, { color: colors.text }]}>
-          {item.serviceName}
+          {item.service_name}
         </Text>
         <Text style={[styles.status, { color: getStatusColor(item.status) }]}>
           {item.status.toUpperCase()}
         </Text>
       </View>
       <Text style={[styles.providerName, { color: colors.textMuted }]}>
-        {item.providerName}
+        {item.provider_name}
       </Text>
       <View style={styles.bookingDetails}>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
           📅 {new Date(item.date).toLocaleDateString()}
         </Text>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
-          🕐 {item.startTime} - {item.endTime}
+          🕐 {item.start_time} - {item.end_time}
         </Text>
         <Text style={[styles.detailText, { color: colors.accent }]}>
           ${item.cost}
@@ -122,7 +129,7 @@ export default function MyBookingsScreen() {
       {(item.status === "pending" || item.status === "confirmed") && (
         <TouchableOpacity
           style={[styles.cancelButton, { borderColor: "#FF3B30" }]}
-          onPress={() => handleCancelBooking(item.bookingId)}
+          onPress={() => handleCancelBooking(item.booking_id)}
         >
           <Text style={styles.cancelButtonText}>Cancel Booking</Text>
         </TouchableOpacity>
@@ -157,7 +164,7 @@ export default function MyBookingsScreen() {
         <FlatList
           data={bookings}
           renderItem={renderBooking}
-          keyExtractor={(item) => item.bookingId}
+          keyExtractor={(item) => item.booking_id}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>

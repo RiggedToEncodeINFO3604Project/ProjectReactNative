@@ -103,37 +103,27 @@ export const login = async (
   email: string,
   password: string,
 ): Promise<TokenResponse> => {
-  console.log("API URL:", API_URL);
-  console.log("Login attempt for:", email);
-
   const formData = new FormData();
   formData.append("username", email);
   formData.append("password", password);
 
-  try {
-    const response = await axios.post<TokenResponse>(
-      `${API_URL}/auth/login`,
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+  const response = await axios.post<TokenResponse>(
+    `${API_URL}/auth/login`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
       },
-    );
+    },
+  );
 
-    console.log("Login response:", response.data);
-
-    if (response.data.access_token) {
-      await AsyncStorage.setItem("token", response.data.access_token);
-      await AsyncStorage.setItem("role", response.data.role);
-      await AsyncStorage.setItem("userId", response.data.user_id);
-    }
-
-    return response.data;
-  } catch (error: any) {
-    console.error("Login API error:", error.response?.data || error.message);
-    throw error;
+  if (response.data.access_token) {
+    await AsyncStorage.setItem("token", response.data.access_token);
+    await AsyncStorage.setItem("role", response.data.role);
+    await AsyncStorage.setItem("userId", response.data.user_id);
   }
+
+  return response.data;
 };
 
 // Logout and clear stored credentials
@@ -178,6 +168,7 @@ export const searchProviders = async (
       params,
     },
   );
+
   return response.data;
 };
 

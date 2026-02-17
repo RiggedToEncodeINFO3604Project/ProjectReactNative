@@ -1,20 +1,20 @@
 import { useTheme } from "@/context/ThemeContext";
 import {
-    acceptBooking,
-    getPendingBookings,
-    rejectBooking,
+  acceptBooking,
+  getPendingBookings,
+  rejectBooking,
 } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function PendingBookingsScreen() {
@@ -25,15 +25,22 @@ export default function PendingBookingsScreen() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadBookings();
-  }, []);
+  // Refresh bookings when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadBookings();
+    }, []),
+  );
 
   const loadBookings = async () => {
+    console.log("DEBUG: Loading pending bookings...");
+    setLoading(true);
     try {
       const results = await getPendingBookings();
+      console.log("DEBUG: Loaded pending bookings:", results);
       setBookings(results);
     } catch (error: any) {
+      console.error("DEBUG: Error loading pending bookings:", error);
       Alert.alert(
         "Error",
         error.response?.data?.detail || "Failed to load bookings",
@@ -108,7 +115,7 @@ export default function PendingBookingsScreen() {
     >
       <View style={styles.bookingHeader}>
         <Text style={[styles.serviceName, { color: colors.text }]}>
-          {item.serviceName}
+          {item.service_name}
         </Text>
         <Text style={[styles.cost, { color: colors.accent }]}>
           ${item.cost}
@@ -117,26 +124,26 @@ export default function PendingBookingsScreen() {
 
       <View style={styles.bookingDetails}>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
-          👤 {item.customerName}
+          👤 {item.customer_name}
         </Text>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
-          📞 {item.customerPhone}
+          📞 {item.customer_phone}
         </Text>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
           📅 {new Date(item.date).toLocaleDateString()}
         </Text>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
-          🕐 {item.startTime} - {item.endTime}
+          🕐 {item.start_time} - {item.end_time}
         </Text>
       </View>
 
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={[styles.acceptButton, { backgroundColor: colors.success }]}
-          onPress={() => handleAccept(item.bookingId)}
-          disabled={processing === item.bookingId}
+          onPress={() => handleAccept(item.booking_id)}
+          disabled={processing === item.booking_id}
         >
-          {processing === item.bookingId ? (
+          {processing === item.booking_id ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <Text style={styles.acceptButtonText}>Accept</Text>
@@ -145,8 +152,8 @@ export default function PendingBookingsScreen() {
 
         <TouchableOpacity
           style={[styles.rejectButton, { borderColor: colors.error }]}
-          onPress={() => handleReject(item.bookingId)}
-          disabled={processing === item.bookingId}
+          onPress={() => handleReject(item.booking_id)}
+          disabled={processing === item.booking_id}
         >
           <Text style={[styles.rejectButtonText, { color: colors.error }]}>
             Reject
@@ -185,7 +192,7 @@ export default function PendingBookingsScreen() {
         <FlatList
           data={bookings}
           renderItem={renderBooking}
-          keyExtractor={(item) => item.bookingId}
+          keyExtractor={(item) => item.booking_id}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>

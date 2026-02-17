@@ -105,8 +105,7 @@ class Service(ServiceBase):
     id: str = Field(alias="_id")
     provider_id: str
 
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
 
 
 class ClientRecordBase(BaseModel):

@@ -49,7 +49,7 @@ def generate_sessions(start_time: str, end_time: str, session_duration: int) -> 
     }
 
 
-@router.get("/providers/search", response_model=List[ProviderSearchResult])
+@router.get("/providers/search")
 # Search for providers by name or ID
 async def search_providers(
     name: Optional[str] = Query(None),
@@ -70,6 +70,19 @@ async def search_providers(
     result = []
     for provider in providers:
         services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
+        
+        # Convert services to proper format with id field
+        formatted_services = []
+        for service in services:
+            formatted_service = {
+                "id": service["_id"],
+                "provider_id": service["provider_id"],
+                "name": service["name"],
+                "description": service["description"],
+                "price": service["price"]
+            }
+            formatted_services.append(formatted_service)
+        
         result.append({
             "id": provider["_id"],
             "provider_name": provider["provider_name"],
@@ -77,7 +90,7 @@ async def search_providers(
             "bio": provider["bio"],
             "provider_address": provider["provider_address"],
             "is_active": provider["is_active"],
-            "services": [Service(**service) for service in services]
+            "services": formatted_services
         })
     
     return result
