@@ -1,37 +1,79 @@
-# Base image
-FROM node:20-alpine AS base
+# Combined Dockerfile for Frontend + Backend in single container
+# This runs both Express (frontend) and FastAPI (backend) on one Render service
 
-# Install dependencies for Expo
+# Start with Node.js base
+FROM node:20-alpine
+
+# Install Python and build dependencies
 RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    python3-dev \
+    build-base \
     ruby \
     ruby-dev \
-    build-base \
-    python3 \
     git \
-    && gem install bundler
+    bash \
+    curl
+
+# Create symlinks for python
+RUN ln -sf python3 /usr/bin/python
 
 # Install Expo CLI globally
 RUN npm install -g expo-cli@latest
 
-
-# Create app directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies
+# Install Node.js dependencies
 RUN npm install
 
-# Copy source code
+# Copy Python requirements and install
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r backend/requirements.txt
+
+# Copy all source code
 COPY . .
 
-# Expose port for Expo
-EXPOSE 8081
-
-# Build the web app
+# Build Expo web app
 RUN npx expo export --platform web
 
-# Default command - run the Express server with API proxy
-CMD ["npm", "run", "serve"]
+# Create startup script that runs both FastAPI and Express
+RUN echo '#!/bin/bash\n\
+echo "========================================"\n\
+echo "Starting FastAPI backend on port 8000..."\n\
+echo "========================================"\n\
+cd /app/backend\n\
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &\n\
+BACKEND_PID=$!\n\
+echo "FastAPI started with PID $BACKEND_PID"\n\
+\n\
+# Wait for FastAPI to be ready\n\
+echo "Waiting for FastAPI to be ready..."\n\
+for i in {1..30}; do\n\
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then\n\
+        echo "FastAPI is ready!"\n\
+        break\n\
+    fi\n\
+    sleep 1\n\
+done\n\
+\n\
+echo "========================================"\n\
+echo "Starting Express server on port ${PORT:-8081}..."\n\
+echo "========================================"\n\
+cd /app\n\
+npm run serve\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# Expose port (Render sets PORT env var, defaults to 8081)
+EXPOSE 8081
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health && curl -f http://localhost:${PORT:-8081}/ || exit 1
+
+# Run both servers
+CMD ["/app/start.sh"]

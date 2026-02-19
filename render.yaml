@@ -4,7 +4,7 @@ services:
   - type: web
     name: expo-scheduling
     runtime: docker
-    dockerfilePath: ./Dockerfile.combined
+    dockerfilePath: ./Dockerfile
     # Combined service needs all environment variables
     envVars:
       # MongoDB Configuration (for FastAPI backend)
