@@ -1,0 +1,77 @@
+# Combined Dockerfile for Frontend + Backend in single container
+# This runs both Express (frontend) and FastAPI (backend) on one Render service
+
+# Start with Node.js base
+FROM node:20-alpine
+
+# Install Python and build dependencies
+RUN apk add --no-cache \
+    python3 \
+    py3-pip \
+    python3-dev \
+    build-base \
+    ruby \
+    ruby-dev \
+    git \
+    bash
+
+# Create symlinks for python
+RUN ln -sf python3 /usr/bin/python
+
+# Install Expo CLI globally
+RUN npm install -g expo-cli@latest
+
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install Node.js dependencies
+RUN npm install
+
+# Copy Python requirements and install
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r backend/requirements.txt
+
+# Copy all source code
+COPY . .
+
+# Build Expo web app
+RUN npx expo export --platform web
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+echo "Starting FastAPI backend on port 8000..."\n\
+cd /app/backend\n\
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &\n\
+BACKEND_PID=$!\n\
+echo "FastAPI started with PID $BACKEND_PID"\n\
+\n\
+# Wait for FastAPI to be ready\n\
+echo "Waiting for FastAPI to be ready..."\n\
+for i in {1..30}; do\n\
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then\n\
+        echo "FastAPI is ready!"\n\
+        break\n\
+    fi\n\
+    sleep 1\n\
+done\n\
+\n\
+echo "Starting Express server on port ${PORT:-8081}..."\n\
+cd /app\n\
+npm run serve\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Expose port (Render sets PORT env var, defaults to 8081)
+EXPOSE 8081
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health && curl -f http://localhost:${PORT:-8081}/ || exit 1
+
+# Run both servers
+CMD ["/app/start.sh"]

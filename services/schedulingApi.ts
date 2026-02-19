@@ -26,8 +26,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, { AxiosError, AxiosInstance } from "axios";
 
-// API URL - change this for production
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "";
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
