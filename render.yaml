@@ -10,7 +10,7 @@ services:
       - key: EXPO_PUBLIC_GEMINI_API_KEY
         sync: false
       - key: FASTAPI_HOST
-        value: fastapi-backend.onrender.com
+        value: expo-scheduling.onrender.com
       - key: NODE_ENV
         value: production
 
