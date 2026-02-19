@@ -41,32 +41,9 @@ COPY . .
 # Build Expo web app
 RUN npx expo export --platform web
 
-# Create startup script that runs both FastAPI and Express
-RUN echo '#!/bin/bash\n\
-echo "========================================"\n\
-echo "Starting FastAPI backend on port 8000..."\n\
-echo "========================================"\n\
-cd /app/backend\n\
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &\n\
-BACKEND_PID=$!\n\
-echo "FastAPI started with PID $BACKEND_PID"\n\
-\n\
-# Wait for FastAPI to be ready\n\
-echo "Waiting for FastAPI to be ready..."\n\
-for i in {1..30}; do\n\
-    if curl -s http://localhost:8000/health > /dev/null 2>&1; then\n\
-        echo "FastAPI is ready!"\n\
-        break\n\
-    fi\n\
-    sleep 1\n\
-done\n\
-\n\
-echo "========================================"\n\
-echo "Starting Express server on port ${PORT:-8081}..."\n\
-echo "========================================"\n\
-cd /app\n\
-npm run serve\n\
-' > /app/start.sh && chmod +x /app/start.sh
+# Copy and set permissions for startup script
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Expose port (Render sets PORT env var, defaults to 8081)
 EXPOSE 8081
