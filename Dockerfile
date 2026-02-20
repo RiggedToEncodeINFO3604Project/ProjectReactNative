@@ -4,7 +4,7 @@
 # Start with Node.js base
 FROM node:20-alpine
 
-# Install Python and build dependencies
+# Install Python, build dependencies, and CA certificates (required for MongoDB Atlas SSL)
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -14,7 +14,12 @@ RUN apk add --no-cache \
     ruby-dev \
     git \
     bash \
-    curl
+    curl \
+    ca-certificates \
+    openssl
+
+# Update CA certificates
+RUN update-ca-certificates
 
 # Create symlinks for python
 RUN ln -sf python3 /usr/bin/python
