@@ -7,77 +7,104 @@ const app = express();
 const PORT = process.env.PORT || 8081;
 const BACKEND_PORT = 8000;
 
-// Middleware
-app.use(express.json());
+// Middleware - serve static files first
 app.use(express.static(path.join(__dirname, "dist")));
 
 // ============================================
 // PROXY TO LOCAL FASTAPI BACKEND (Port 8000)
 // ============================================
 
-// Generic proxy function to forward requests to local FastAPI backend
+/**
+ * Proxy function that properly handles both JSON and FormData requests
+ * Uses raw body to preserve multipart/form-data for login
+ */
 function proxyToLocalBackend(req, res, targetPath) {
-  const bodyData = req.method !== "GET" ? JSON.stringify(req.body) : "";
+  const chunks = [];
 
-  const options = {
-    hostname: "localhost",
-    port: BACKEND_PORT,
-    path: targetPath,
-    method: req.method,
-    headers: {
-      "Content-Type": "application/json",
-      "Content-Length": Buffer.byteLength(bodyData),
+  // Collect raw body data
+  req.on("data", (chunk) => {
+    chunks.push(chunk);
+  });
+
+  req.on("end", () => {
+    const bodyData = Buffer.concat(chunks);
+
+    // Forward the original content-type header (important for FormData)
+    const headers = {
       ...req.headers,
       host: `localhost:${BACKEND_PORT}`,
-    },
-  };
+    };
 
-  console.log(
-    `[Proxy] ${req.method} ${targetPath} -> localhost:${BACKEND_PORT}`,
-  );
+    // Update content-length if we have body data
+    if (bodyData.length > 0) {
+      headers["content-length"] = bodyData.length;
+    }
 
-  const proxyReq = http.request(options, (proxyRes) => {
-    let data = Buffer.alloc(0);
+    const options = {
+      hostname: "localhost",
+      port: BACKEND_PORT,
+      path: targetPath,
+      method: req.method,
+      headers: headers,
+    };
 
-    proxyRes.on("data", (chunk) => {
-      data = Buffer.concat([data, chunk]);
+    console.log(
+      `[Proxy] ${req.method} ${targetPath} -> localhost:${BACKEND_PORT}`,
+    );
+    console.log(`[Proxy] Content-Type: ${req.headers["content-type"]}`);
+
+    const proxyReq = http.request(options, (proxyRes) => {
+      let data = Buffer.alloc(0);
+
+      proxyRes.on("data", (chunk) => {
+        data = Buffer.concat([data, chunk]);
+      });
+
+      proxyRes.on("end", () => {
+        // Forward the status code and headers
+        res.status(proxyRes.statusCode);
+
+        // Copy relevant headers
+        if (proxyRes.headers["content-type"]) {
+          res.setHeader("Content-Type", proxyRes.headers["content-type"]);
+        }
+        if (proxyRes.headers["access-control-allow-origin"]) {
+          res.setHeader(
+            "Access-Control-Allow-Origin",
+            proxyRes.headers["access-control-allow-origin"],
+          );
+        }
+
+        // Send the response body
+        res.send(data);
+      });
     });
 
-    proxyRes.on("end", () => {
-      // Forward the status code and headers
-      res.status(proxyRes.statusCode);
-
-      // Copy relevant headers
-      if (proxyRes.headers["content-type"]) {
-        res.setHeader("Content-Type", proxyRes.headers["content-type"]);
-      }
-
-      // Send the response body
-      res.send(data);
+    proxyReq.on("error", (error) => {
+      console.error(
+        `[Proxy Error] ${req.method} ${targetPath}:`,
+        error.message,
+      );
+      res.status(503).json({
+        error: "Backend service unavailable",
+        details: error.message,
+      });
     });
+
+    // Write body data if present
+    if (bodyData.length > 0) {
+      proxyReq.write(bodyData);
+    }
+
+    proxyReq.end();
   });
-
-  proxyReq.on("error", (error) => {
-    console.error(`[Proxy Error] ${req.method} ${targetPath}:`, error.message);
-    res.status(503).json({
-      error: "Backend service unavailable",
-      details: error.message,
-    });
-  });
-
-  // Write body data for POST/PUT/PATCH requests
-  if (bodyData) {
-    proxyReq.write(bodyData);
-  }
-
-  proxyReq.end();
 }
 
 // ============================================
 // AUTH ROUTES PROXY
 // ============================================
 
-// Login endpoint
+// Login endpoint - handles multipart/form-data
 app.post("/auth/login", (req, res) => {
   proxyToLocalBackend(req, res, "/auth/login");
 });
@@ -215,7 +242,7 @@ app.get("/provider/bookings/:bookingId/available-slots", (req, res) => {
 // ============================================
 
 // Proxy endpoint for chatbot - forwards to external FastAPI RAG server
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", express.json(), async (req, res) => {
   try {
     const { message, history } = req.body;
 
