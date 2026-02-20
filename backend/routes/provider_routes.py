@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Dict, Any
 from models import (
     Service, ServiceCreate, AvailabilitySchedule, ClientRecord,
-    UserInDB, DayAvailability, RescheduleRequest
+    UserInDB, DayAvailability, RescheduleRequest, CustomerSnapshot,
+    CustomerNote, CustomerTag
 )
 from auth import get_current_provider
 from database import get_database
@@ -549,3 +550,107 @@ async def get_available_slots(
         "available_slots": available_slots,
         "booked_slots": booked_slots
     }
+
+
+# snapshot starts here:
+@router.get("/customer/{customer_id}/snapshot", response_model=dict)
+# snapshot view, will provide a quick list of information on a specific customer given that they have booked with you previously
+async def get_customer_snapshot(
+    customer_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    # make sure provider exists
+    provider = await db.providers.find_one({"user_id": current_user.id})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    # get customer
+    customer = await db.customers.find_one({"_id": customer_id})
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # get email from customer table - just making sure it really finds the correct person will add into view for presentation
+    user = await db.users.find_one({"_id": customer.get("user_id")})
+    customer_email = user.get("email") if user else "Not available"
+    
+    # get the services that the provider offers
+    services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
+    service_ids = [service["_id"] for service in services]
+    
+    # get all prev bookings for this one customer
+    bookings = await db.client_records.find({
+        "customer_id": customer_id,
+        "service_id": {"$in": service_ids},
+        "status": {"$in": ["confirmed", "completed"]}
+    }).sort("date", -1).to_list(100)
+    
+    # calculate relevant snapshot data
+    total_visits = len(bookings)
+    total_spent = sum(booking.get("cost", 0) for booking in bookings) # might need to adjust - either test data is messed up or my brain doesn't work
+    
+    print(f"\n SNAPSHOT: {customer.get('name')} | Visits: {total_visits} | Spent: ${total_spent}") 
+    
+    last_service_date = None
+    last_service_name = None
+    if bookings:
+        latest_booking = bookings[0]
+        last_service_date = latest_booking.get("date").isoformat() if latest_booking.get("date") else None
+        service = await db.services.find_one({"_id": latest_booking.get("service_id")})
+        last_service_name = service.get("name") if service else "Unknown Service"
+        print(f"   Last Service: {last_service_name} on {last_service_date}")
+    
+    # grab tags 
+    tags_docs = await db.customer_tags.find({
+        "customer_id": customer_id,
+        "provider_id": provider["_id"]
+    }).to_list(100)
+    
+    tags = [
+        {
+            "id": tag.get("_id"),
+            "tag": tag.get("tag"),
+            "color": tag.get("color", "#f0c85a")
+        }
+        for tag in tags_docs
+    ]
+    print(f"   Tags: {len(tags)}")
+    
+    # grab notes - this and the tags should be specific to provider, should test later
+    notes_docs = await db.customer_notes.find({
+        "customer_id": customer_id,
+        "provider_id": provider["_id"]
+    }).sort("created_at", -1).to_list(100)
+    
+    notes = [
+        {
+            "id": note.get("_id"),
+            "note": note.get("note"),
+            "created_at": note.get("created_at").isoformat() if note.get("created_at") else None,
+            "updated_at": note.get("updated_at").isoformat() if note.get("updated_at") else None
+        }
+        for note in notes_docs
+    ]
+    print(f"   Total Notes: {len(notes)}\n")
+    
+    #  using placeholder for test purposes - revisit later
+    payment_preference = "Not specified"
+    
+    return {
+        "customer_id": customer_id,
+        "customer_name": customer.get("name"),
+        "customer_email": customer_email,
+        "customer_phone": customer.get("phone"),
+        "total_visits": total_visits,
+        "last_service_date": last_service_date,
+        "last_service_name": last_service_name,
+        "payment_preference": payment_preference,
+        "total_spent": total_spent,
+        "tags": tags,
+        "notes": notes
+    }
+    
+    # I DID ASK AI TO REFORMAT MY CODE BUT I DIDN'T NOTICE ANY EDITS TO THE ACTUAL CODE ~ LEVI
+    # nothing should be broken (prettier wasn't working for me and idk why but i didn't wanna waste time fixing it)
+    # it doesn't work with python i might be an idiot and now i'm tempted to undo the reformatting and leave it how i wrote it

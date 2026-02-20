@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 from enum import Enum
 
@@ -157,3 +157,43 @@ class RescheduleRequest(BaseModel):
     date: str  # Format: "YYYY-MM-DD"
     start_time: str  # Format: "HH:MM"
     end_time: str  # Format: "HH:MM"
+
+# snapshot starts here:
+# still relearning pydantic - might be jank, will ask ai to review and provide feedback
+# updated and formatted properly: 
+class CustomerNote(BaseModel):
+    id: str = Field(alias="_id")
+    customer_id: str
+    provider_id: str
+    note: str
+    created_at: datetime # i see that we used strings for dates in most other stuff but this is just most convenient for me but i can adjust to whatever format we want later on
+    updated_at: datetime
+
+    class Config:
+        populate_by_name = True
+
+
+class CustomerTag(BaseModel):
+    id: str = Field(alias="_id")
+    customer_id: str
+    provider_id: str
+    tag: str
+    color: Optional[str] = "#42bbeb"  # Light blue-ish by default
+    created_at: datetime
+
+    class Config:
+        populate_by_name = True
+
+
+class CustomerSnapshot(BaseModel):
+    customer_id: str
+    customer_name: str
+    customer_email: str
+    customer_phone: str
+    total_visits: int
+    last_service_date: Optional[str] # should be optional because it would be left blank if you tried to access a customer who just booked but didn't technically have a service done yet
+    last_service_name: Optional[str] # same as above comment
+    payment_preference: Optional[str] = "Not specified" # Could be left blank for people who don't really have a preference, or we don't have enough data to determine it
+    tags: List[Dict[str, str]] = [] 
+    notes: List[Dict[str, str]] = []
+    total_spent: Optional[float] = 0.0 
