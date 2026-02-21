@@ -1,96 +1,38 @@
-# Docker Environment for Expo/React Project
+# Docker Deployment
 
-## Quick Start
+This project can be deployed using Docker.
 
-### Development Mode
-
-1. **Build and start the development container:**
-
-   ```bash
-   docker-compose up --build
-   ```
-
-2. **Access the Expo development server:**
-   - Open your browser to `http://localhost:8081`
-   - For web preview: `http://localhost:19000` or `http://localhost:19001`
-
-3. **Stop the containers:**
-   ```bash
-   docker-compose down
-   ```
-
-### Web Preview Mode
-
-Build and run the web preview:
+## Build and Run Locally
 
 ```bash
-docker-compose --profile web up --build web-preview
-```
-
-## Manual Docker Commands
-
-### Build the image:
-
-```bash
+# Build the image
 docker build -t expo-app .
+
+# Run the container
+docker run -p 8081:8081 expo-app
 ```
 
-### Run the container:
+## Using Docker Compose
 
 ```bash
-docker run -p 8081:8081 -p 19000:19000 -p 19001:19001 -v .:/app -v /app/node_modules expo-app
-```
-
-## Port Reference
-
-| Port  | Service                    |
-| ----- | -------------------------- |
-| 8081  | Metro Bundler              |
-| 19000 | Expo Dev Tools (HTTP)      |
-| 19001 | Expo Dev Tools (WebSocket) |
-| 3000  | Web Preview                |
-
-## Useful Commands
-
-- **Restart container:** `docker-compose restart`
-- **View logs:** `docker-compose logs -f`
-- **Remove volumes:** `docker-compose down -v`
-- **Install new packages:**
-  ```bash
-  docker-compose exec expo-app npm install <package-name>
-  ```
-
-## Hot Reload
-
-Volume mounting is configured for hot reload. Changes to your source code will be reflected automatically in the running Expo server.
-
-## Troubleshooting
-
-### Metro bundler cache issues
-
-Clear the cache and restart:
-
-```bash
-docker-compose exec expo-app npx expo start --clear
-```
-
-### Node modules issues
-
-Reinstall dependencies:
-
-```bash
-docker-compose down -v
+# Build and start the service
 docker-compose up --build
+
+# Start the service (without rebuilding)
+docker-compose up
+
+# Stop the service
+docker-compose down
 ```
 
-### Port already in use
+## Environment Variables
 
-Stop the containers and check for processes using the ports:
+The following environment variables can be passed to the container:
 
-```bash
-# Windows
-netstat -ano | findstr :8081
+- `EXPO_PUBLIC_GEMINI_API_KEY`: Gemini API key for the chatbot
 
-# Linux/Mac
-lsof -i :8081
-```
+## Notes
+
+- The container builds the Expo web app and serves it using `npx serve`
+- The web app is served on port 8081
+- The container uses Node.js 20 Alpine base image

@@ -1,13 +1,7 @@
 import { Link } from "expo-router";
-import {
-  Platform,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Platform, StatusBar, StyleSheet, Text, View } from "react-native";
 
+import AnimatedButton from "@/components/ui/animated-button";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function HomeScreen() {
@@ -34,9 +28,7 @@ export default function HomeScreen() {
         <Text style={styles.brandName}>SkeduleIt</Text>
 
         <Link href="/support" asChild>
-          <TouchableOpacity style={styles.button} activeOpacity={0.8}>
-            <Text style={styles.buttonText}>Support Assistant</Text>
-          </TouchableOpacity>
+          <AnimatedButton title="Support Assistant" />
         </Link>
       </View>
     </View>
@@ -83,24 +75,5 @@ const styles = StyleSheet.create({
     textShadowRadius: 20,
     marginBottom: 60,
     letterSpacing: -1,
-  },
-  button: {
-    backgroundColor: "#f0c85a",
-    borderRadius: 24,
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    minWidth: 200,
-    alignItems: "center",
-    shadowColor: "#f0c85a",
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  buttonText: {
-    fontFamily: "serif",
-    fontSize: 18,
-    fontWeight: "400",
-    color: "#0c0e12",
-    letterSpacing: 1,
   },
 });
