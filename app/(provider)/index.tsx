@@ -46,6 +46,12 @@ export default function ProviderHomeScreen() {
       route: "manage-bookings",
       icon: "calendar-outline" as const,
     },
+    {
+      title: "View Your Calendar",
+      description: "See all your scheduled appointments",
+      route: "calendar",
+      icon: "calendar-outline" as const,
+    },
   ];
 
   return (
