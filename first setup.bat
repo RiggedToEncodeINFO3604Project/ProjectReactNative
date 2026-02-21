@@ -14,6 +14,9 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo Frontend dependencies installed successfully!
+
+echo Running npm audit fix to address vulnerabilities...
+call npm audit fix
 echo.
 
 echo [2/5] Setting up backend...
@@ -21,10 +24,11 @@ cd backend
 
 echo Checking for Python virtual environment...
 if not exist "venv" (
-    echo Creating virtual environment...
-    python -m venv venv
+    echo Creating virtual environment with Python 3.11...
+    py -3.11 -m venv venv
     if %errorlevel% neq 0 (
         echo Error: Failed to create virtual environment!
+        echo Make sure Python 3.11 is installed.
         cd ..
         pause
         exit /b 1

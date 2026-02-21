@@ -14,6 +14,9 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo Frontend dependencies updated!
+
+echo Running npm audit fix to address vulnerabilities...
+call npm audit fix
 echo.
 
 echo [2/2] Updating backend dependencies...
