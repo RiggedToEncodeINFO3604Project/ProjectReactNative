@@ -11,9 +11,8 @@ ENV_FILE = ROOT_DIR / ".env"
 
 class Settings(BaseSettings):
     
-    # MongoDB Configuration
-    mongodb_url: str = "mongodb://localhost:27017"
-    database_name: str = "scheduling_db"
+    # Firebase Configuration
+    firebase_credentials: str = ""  # JSON string of Firebase service account
     
     # JWT Configuration
     secret_key: str
