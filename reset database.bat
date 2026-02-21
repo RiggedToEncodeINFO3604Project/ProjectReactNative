@@ -2,7 +2,7 @@
 cd /d "%~dp0"
 
 echo ============================================
-echo   Reset MongoDB Database
+echo   Reset Firebase Firestore Database
 echo ============================================
 echo.
 
@@ -18,7 +18,7 @@ if /i not "%confirm%"=="y" (
 )
 
 echo.
-echo Dropping database...
+echo Deleting all documents from collections...
 echo.
 
 cd backend
@@ -56,8 +56,8 @@ if %errorlevel% equ 0 (
     echo   Database Reset Failed!
     echo ============================================
     echo.
-    echo Could not connect to MongoDB.
-    echo Please check your MONGODB_URL in .env file.
+    echo Could not connect to Firebase.
+    echo Please check your firebase-credentials.json file.
 )
 
 echo.
