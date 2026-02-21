@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+plans/
 
 # Expo
 .expo/
@@ -33,6 +34,7 @@ yarn-error.*
 # local env files
 .env*.local
 .env
+
 # typescript
 *.tsbuildinfo
 
@@ -44,3 +46,12 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Backend
+backend/venv/
+backend/.env
+backend/__pycache__/
+backend/routes/__pycache__/
+backend/*.pyc
+backend/*.db
+

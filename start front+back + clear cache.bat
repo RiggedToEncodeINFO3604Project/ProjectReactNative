@@ -2,7 +2,7 @@
 cd /d "%~dp0"
 
 echo ============================================
-echo   Starting SkeduleIt Servers
+echo   Starting SkeduleIt Servers (Clear Cache)
 echo ============================================
 echo.
 
@@ -16,5 +16,5 @@ cd ..
 echo Backend server started!
 echo.
 
-echo [2/2] Starting Frontend Server...
-npx expo start
+echo [2/2] Starting Frontend Server (with cache clear)...
+npx expo start --clear

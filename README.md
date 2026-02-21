@@ -1,50 +1,266 @@
-# Welcome to your Expo app 👋
+# SkeduleIt - Scheduling Service Application
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A full-stack scheduling service built with React Native Expo (frontend) and FastAPI (backend) using MongoDB (NoSQL database). The system allows customers to book appointments with service providers.
 
-## Get started
+## Features
 
-1. Install dependencies
+### Customer Features
 
-   ```bash
-   npm install
-   ```
+- Register and login
+- Search providers by name or Provider ID
+- View provider services and availability
+- Interactive calendar with color-coded booking status:
+  - Red: Fully booked days
+  - Yellow: 60%+ of available time booked
+  - Green: Available days
+  - Gray: Provider unavailable
+- Book appointments with time slot selection
+- View and manage bookings
+- Cancel bookings
 
-2. Start the app
+### Provider Features
 
-   ```bash
-   npx expo start
-   ```
+- Register and login
+- Set weekly availability schedules
+- Manage services (add services with pricing)
+- View pending booking requests
+- Accept or reject booking requests
 
-In the output, you'll find options to open the app in a
+## Technology Stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Frontend
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- **Framework**: React Native with Expo
+- **Navigation**: Expo Router (file-based routing)
+- **Language**: TypeScript
+- **State Management**: React Context
+- **HTTP Client**: Axios
+- **Theme**: Custom light/dark mode support
 
-## Get a fresh project
+### Backend
 
-When you're ready, run:
+- **Framework**: FastAPI (Python)
+- **Database**: MongoDB (NoSQL)
+- **Authentication**: JWT (JSON Web Tokens)
+- **Password Hashing**: bcrypt
 
-```bash
-npm run reset-project
+## Project Structure
+
+```
+├── app/                          # Expo Router screens
+│   ├── _layout.tsx              # Root layout with auth routing
+│   ├── (auth)/                  # Authentication screens
+│   │   ├── login.tsx
+│   │   └── register/
+│   │       ├── index.tsx
+│   │       ├── customer.tsx
+│   │       └── provider.tsx
+│   ├── (customer)/              # Customer screens
+│   │   ├── index.tsx
+│   │   ├── bookings.tsx
+│   │   └── provider/[id].tsx
+│   ├── (provider)/              # Provider screens
+│   │   ├── index.tsx
+│   │   ├── services.tsx
+│   │   ├── availability.tsx
+│   │   └── pending.tsx
+│   └── (tabs)/                  # Main app tabs
+├── backend/                      # FastAPI backend
+│   ├── main.py                  # App entry point
+│   ├── config.py                # Configuration
+│   ├── database.py              # MongoDB connection
+│   ├── models.py                # Pydantic models
+│   ├── auth.py                  # JWT authentication
+│   └── routes/                  # API endpoints
+│       ├── auth_routes.py
+│       ├── customer_routes.py
+│       └── provider_routes.py
+├── components/                   # Reusable components
+├── context/                      # React Context providers
+│   ├── AuthContext.tsx          # Authentication state
+│   └── ThemeContext.tsx         # Theme state
+├── services/                     # API services
+│   └── schedulingApi.ts         # Backend API client
+├── types/                        # TypeScript types
+│   └── scheduling.ts            # Scheduling types
+└── constants/                    # App constants
+    └── theme.ts                 # Theme colors
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Prerequisites
 
-## Learn more
+- Node.js 18+
+- Python 3.8+
+- MongoDB (local or MongoDB Atlas)
+- Expo CLI
 
-To learn more about developing your project with Expo, look at the following resources:
+## Installation & Setup
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 1. Backend Setup
 
-## Join the community
+```bash
+# Navigate to backend directory
+cd backend
 
-Join our community of developers creating universal apps.
+# Create virtual environment
+python -m venv venv
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file
+cp .env.example .env
+
+# Edit .env with your MongoDB connection
+# MONGODB_URL=mongodb://localhost:27017
+# DATABASE_NAME=scheduling_db
+# SECRET_KEY=your-secret-key
+
+# Run the server
+python main.py
+```
+
+The API will be available at `http://localhost:8000`
+API documentation: `http://localhost:8000/docs`
+
+### 2. Frontend Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Create .env file for API URL
+cp .env.example .env
+
+# Edit .env if needed
+# EXPO_PUBLIC_API_URL=http://localhost:8000
+
+# Start the app
+npm start
+```
+
+Run on device/emulator:
+
+- Press `i` for iOS simulator
+- Press `a` for Android emulator
+- Scan QR code with Expo Go for physical device
+
+## API Endpoints
+
+### Authentication
+
+- `POST /auth/register/customer` - Register as customer
+- `POST /auth/register/provider` - Register as provider
+- `POST /auth/login` - Login (returns JWT token)
+
+### Customer Endpoints
+
+- `GET /customer/providers/search` - Search providers
+- `GET /customer/providers/{provider_id}/availability/{date}` - Get available slots
+- `GET /customer/providers/{provider_id}/calendar/{year}/{month}` - Get monthly calendar
+- `POST /customer/bookings` - Create booking request
+- `GET /customer/bookings` - Get my bookings
+- `DELETE /customer/bookings/{booking_id}` - Cancel booking
+
+### Provider Endpoints
+
+- `POST /provider/services` - Add service
+- `GET /provider/services` - Get my services
+- `POST /provider/availability` - Set availability
+- `GET /provider/availability` - Get availability
+- `GET /provider/bookings/pending` - Get pending bookings
+- `POST /provider/bookings/{booking_id}/accept` - Accept booking
+- `POST /provider/bookings/{booking_id}/reject` - Reject booking
+
+## Database Schema
+
+### Collections
+
+1. **users** - User accounts
+2. **customers** - Customer profiles
+3. **providers** - Provider profiles
+4. **services** - Provider services
+5. **availability** - Provider availability schedules
+6. **client_records** - Bookings
+
+## Usage Flow
+
+### Customer Journey
+
+1. Register/Login as Customer
+2. Search for providers by name or ID
+3. Select a provider to view their services
+4. View calendar with availability
+5. Select date, service, and time slot
+6. Submit booking request
+7. Wait for provider approval
+8. View/manage bookings in "My Bookings"
+
+### Provider Journey
+
+1. Register/Login as Provider
+2. Add services with pricing
+3. Set weekly availability schedule
+4. Review pending booking requests
+5. Accept or reject bookings
+
+## Deployment
+
+### Backend (Render)
+
+1. Create a MongoDB Atlas cluster (free tier)
+2. Push code to GitHub
+3. Create a Web Service on Render:
+   - Root Directory: `backend`
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+4. Add environment variables:
+   - `MONGODB_URL`: MongoDB Atlas connection string
+   - `DATABASE_NAME`: scheduling_db
+   - `SECRET_KEY`: Secure random key
+
+### Frontend
+
+Update `EXPO_PUBLIC_API_URL` in `.env` to point to your Render backend URL.
+
+Build options:
+
+- **Android APK**: `eas build --platform android`
+- **iOS**: `eas build --platform ios`
+- **Expo Go**: Use `npx expo start` for development
+
+## Development Notes
+
+- All passwords are hashed using bcrypt
+- JWT tokens expire after 30 minutes (configurable)
+- Time format: "HH:MM" (24-hour format)
+- Date format: "YYYY-MM-DD"
+- Days of week: 0 = Monday, 6 = Sunday
+
+## Troubleshooting
+
+### Backend Issues
+
+- **MongoDB Connection Error**: Verify MongoDB is running and connection string is correct
+- **Import Errors**: Run `pip install -r requirements.txt`
+- **Port Already in Use**: Change port in main.py or stop other services
+
+### Frontend Issues
+
+- **Network Error**: Verify backend is running and `EXPO_PUBLIC_API_URL` is correct
+- **Cannot Connect on Physical Device**: Use your computer's IP address instead of localhost
+- **Expo Issues**: Try clearing cache with `npx expo start -c`
+
+## License
+
+This is an undergraduate project for educational purposes.
+
+## Contributors
+
+Project team members can be listed here.

@@ -1,20 +1,252 @@
 const express = require("express");
 const path = require("path");
 const https = require("https");
+const http = require("http");
 
 const app = express();
 const PORT = process.env.PORT || 8081;
+const BACKEND_PORT = 8000;
 
-// Middleware
-app.use(express.json());
+// Middleware - serve static files first
 app.use(express.static(path.join(__dirname, "dist")));
 
-// Proxy endpoint for chatbot - forwards to FastAPI server
-app.post("/api/chat", async (req, res) => {
+// ============================================
+// PROXY TO LOCAL FASTAPI BACKEND (Port 8000)
+// ============================================
+
+/**
+ * Proxy function that properly handles both JSON and FormData requests
+ * Uses raw body to preserve multipart/form-data for login
+ */
+function proxyToLocalBackend(req, res, targetPath) {
+  const chunks = [];
+
+  // Collect raw body data
+  req.on("data", (chunk) => {
+    chunks.push(chunk);
+  });
+
+  req.on("end", () => {
+    const bodyData = Buffer.concat(chunks);
+
+    // Forward the original content-type header (important for FormData)
+    const headers = {
+      ...req.headers,
+      host: `localhost:${BACKEND_PORT}`,
+    };
+
+    // Update content-length if we have body data
+    if (bodyData.length > 0) {
+      headers["content-length"] = bodyData.length;
+    }
+
+    const options = {
+      hostname: "localhost",
+      port: BACKEND_PORT,
+      path: targetPath,
+      method: req.method,
+      headers: headers,
+    };
+
+    console.log(
+      `[Proxy] ${req.method} ${targetPath} -> localhost:${BACKEND_PORT}`,
+    );
+    console.log(`[Proxy] Content-Type: ${req.headers["content-type"]}`);
+
+    const proxyReq = http.request(options, (proxyRes) => {
+      let data = Buffer.alloc(0);
+
+      proxyRes.on("data", (chunk) => {
+        data = Buffer.concat([data, chunk]);
+      });
+
+      proxyRes.on("end", () => {
+        // Forward the status code and headers
+        res.status(proxyRes.statusCode);
+
+        // Copy relevant headers
+        if (proxyRes.headers["content-type"]) {
+          res.setHeader("Content-Type", proxyRes.headers["content-type"]);
+        }
+        if (proxyRes.headers["access-control-allow-origin"]) {
+          res.setHeader(
+            "Access-Control-Allow-Origin",
+            proxyRes.headers["access-control-allow-origin"],
+          );
+        }
+
+        // Send the response body
+        res.send(data);
+      });
+    });
+
+    proxyReq.on("error", (error) => {
+      console.error(
+        `[Proxy Error] ${req.method} ${targetPath}:`,
+        error.message,
+      );
+      res.status(503).json({
+        error: "Backend service unavailable",
+        details: error.message,
+      });
+    });
+
+    // Write body data if present
+    if (bodyData.length > 0) {
+      proxyReq.write(bodyData);
+    }
+
+    proxyReq.end();
+  });
+}
+
+// ============================================
+// AUTH ROUTES PROXY
+// ============================================
+
+// Login endpoint - handles multipart/form-data
+app.post("/auth/login", (req, res) => {
+  proxyToLocalBackend(req, res, "/auth/login");
+});
+
+// Register customer
+app.post("/auth/register/customer", (req, res) => {
+  proxyToLocalBackend(req, res, "/auth/register/customer");
+});
+
+// Register provider
+app.post("/auth/register/provider", (req, res) => {
+  proxyToLocalBackend(req, res, "/auth/register/provider");
+});
+
+// ============================================
+// CUSTOMER ROUTES PROXY
+// ============================================
+
+// Search providers
+app.get("/customer/providers/search", (req, res) => {
+  proxyToLocalBackend(
+    req,
+    res,
+    `/customer/providers/search${req.url.replace("/customer/providers/search", "")}`,
+  );
+});
+
+// Get provider availability
+app.get("/customer/providers/:providerId/availability/:date", (req, res) => {
+  const { providerId, date } = req.params;
+  proxyToLocalBackend(
+    req,
+    res,
+    `/customer/providers/${providerId}/availability/${date}`,
+  );
+});
+
+// Get provider calendar
+app.get("/customer/providers/:providerId/calendar/:year/:month", (req, res) => {
+  const { providerId, year, month } = req.params;
+  proxyToLocalBackend(
+    req,
+    res,
+    `/customer/providers/${providerId}/calendar/${year}/${month}`,
+  );
+});
+
+// Create booking
+app.post("/customer/bookings", (req, res) => {
+  proxyToLocalBackend(req, res, "/customer/bookings");
+});
+
+// Get customer bookings
+app.get("/customer/bookings", (req, res) => {
+  proxyToLocalBackend(req, res, "/customer/bookings");
+});
+
+// Cancel booking
+app.delete("/customer/bookings/:bookingId", (req, res) => {
+  const { bookingId } = req.params;
+  proxyToLocalBackend(req, res, `/customer/bookings/${bookingId}`);
+});
+
+// ============================================
+// PROVIDER ROUTES PROXY
+// ============================================
+
+// Get provider services
+app.get("/provider/services", (req, res) => {
+  proxyToLocalBackend(req, res, "/provider/services");
+});
+
+// Add service
+app.post("/provider/services", (req, res) => {
+  proxyToLocalBackend(req, res, "/provider/services");
+});
+
+// Get availability
+app.get("/provider/availability", (req, res) => {
+  proxyToLocalBackend(req, res, "/provider/availability");
+});
+
+// Set availability
+app.post("/provider/availability", (req, res) => {
+  proxyToLocalBackend(req, res, "/provider/availability");
+});
+
+// Get pending bookings
+app.get("/provider/bookings/pending", (req, res) => {
+  proxyToLocalBackend(req, res, "/provider/bookings/pending");
+});
+
+// Get confirmed bookings
+app.get("/provider/bookings/confirmed", (req, res) => {
+  proxyToLocalBackend(req, res, "/provider/bookings/confirmed");
+});
+
+// Accept booking
+app.post("/provider/bookings/:bookingId/accept", (req, res) => {
+  const { bookingId } = req.params;
+  proxyToLocalBackend(req, res, `/provider/bookings/${bookingId}/accept`);
+});
+
+// Reject booking
+app.post("/provider/bookings/:bookingId/reject", (req, res) => {
+  const { bookingId } = req.params;
+  proxyToLocalBackend(req, res, `/provider/bookings/${bookingId}/reject`);
+});
+
+// Delete booking
+app.delete("/provider/bookings/:bookingId", (req, res) => {
+  const { bookingId } = req.params;
+  proxyToLocalBackend(req, res, `/provider/bookings/${bookingId}`);
+});
+
+// Reschedule booking
+app.put("/provider/bookings/:bookingId/reschedule", (req, res) => {
+  const { bookingId } = req.params;
+  proxyToLocalBackend(req, res, `/provider/bookings/${bookingId}/reschedule`);
+});
+
+// Get available slots for reschedule
+app.get("/provider/bookings/:bookingId/available-slots", (req, res) => {
+  const { bookingId } = req.params;
+  const queryString = req.url.split("?")[1] || "";
+  proxyToLocalBackend(
+    req,
+    res,
+    `/provider/bookings/${bookingId}/available-slots${queryString ? "?" + queryString : ""}`,
+  );
+});
+
+// ============================================
+// EXTERNAL RAG SERVER PROXY (Chatbot)
+// ============================================
+
+// Proxy endpoint for chatbot - forwards to external FastAPI RAG server
+app.post("/api/chat", express.json(), async (req, res) => {
   try {
     const { message, history } = req.body;
 
-    // Forward to FastAPI server (RAG Server)
+    // Forward to external FastAPI server (RAG Server)
     const FASTAPI_HOST =
       process.env.FASTAPI_HOST || "rag-server-bf1a.onrender.com";
     const FASTAPI_PATH = "/api/chat";
@@ -95,11 +327,29 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// Serve React app for all other routes
+// ============================================
+// HEALTH CHECK
+// ============================================
+
+app.get("/health", (req, res) => {
+  res.json({ status: "healthy", service: "express" });
+});
+
+// ============================================
+// SERVE REACT APP FOR ALL OTHER ROUTES
+// ============================================
+
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// ============================================
+// START SERVER
+// ============================================
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`========================================`);
+  console.log(`Express server running on port ${PORT}`);
+  console.log(`Proxying API requests to localhost:${BACKEND_PORT}`);
+  console.log(`========================================`);
 });
