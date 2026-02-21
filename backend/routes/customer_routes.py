@@ -5,7 +5,7 @@ from models import (
     ClientRecordCreate, UserInDB, DayBookingStatus
 )
 from auth import get_current_customer
-from database import get_database
+from firebase_db import get_database
 import uuid
 from datetime import datetime, timedelta
 
@@ -58,40 +58,71 @@ async def search_providers(
 ):
     db = get_database()
     
-    query = {"is_active": True}
+    result = []
     
     if provider_id:
-        query["_id"] = provider_id
-    elif name:
-        query["provider_name"] = {"$regex": name, "$options": "i"}
-    
-    providers = await db.providers.find(query).to_list(100)
-    
-    result = []
-    for provider in providers:
-        services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
+        # Get specific provider by ID
+        provider_doc = db.collection("providers").document(provider_id).get()
+        if provider_doc.exists:
+            provider_data = provider_doc.to_dict()
+            if provider_data.get("is_active", True):
+                # Get services for this provider
+                services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+                formatted_services = []
+                for service_doc in services_docs:
+                    service_data = service_doc.to_dict()
+                    formatted_service = {
+                        "id": service_doc.id,
+                        "provider_id": service_data["provider_id"],
+                        "name": service_data["name"],
+                        "description": service_data["description"],
+                        "price": service_data["price"]
+                    }
+                    formatted_services.append(formatted_service)
+                
+                result.append({
+                    "id": provider_doc.id,
+                    "provider_name": provider_data["provider_name"],
+                    "business_name": provider_data["business_name"],
+                    "bio": provider_data["bio"],
+                    "provider_address": provider_data["provider_address"],
+                    "is_active": provider_data.get("is_active", True),
+                    "services": formatted_services
+                })
+    else:
+        # Get all active providers
+        providers_docs = db.collection("providers").where("is_active", "==", True).get()
         
-        # Convert services to proper format with id field
-        formatted_services = []
-        for service in services:
-            formatted_service = {
-                "id": service["_id"],
-                "provider_id": service["provider_id"],
-                "name": service["name"],
-                "description": service["description"],
-                "price": service["price"]
-            }
-            formatted_services.append(formatted_service)
-        
-        result.append({
-            "id": provider["_id"],
-            "provider_name": provider["provider_name"],
-            "business_name": provider["business_name"],
-            "bio": provider["bio"],
-            "provider_address": provider["provider_address"],
-            "is_active": provider["is_active"],
-            "services": formatted_services
-        })
+        for provider_doc in providers_docs:
+            provider_data = provider_doc.to_dict()
+            
+            # Filter by name if provided (Firestore doesn't support regex)
+            if name and name.lower() not in provider_data.get("provider_name", "").lower():
+                continue
+            
+            # Get services for this provider
+            services_docs = db.collection("services").where("provider_id", "==", provider_doc.id).get()
+            formatted_services = []
+            for service_doc in services_docs:
+                service_data = service_doc.to_dict()
+                formatted_service = {
+                    "id": service_doc.id,
+                    "provider_id": service_data["provider_id"],
+                    "name": service_data["name"],
+                    "description": service_data["description"],
+                    "price": service_data["price"]
+                }
+                formatted_services.append(formatted_service)
+            
+            result.append({
+                "id": provider_doc.id,
+                "provider_name": provider_data["provider_name"],
+                "business_name": provider_data["business_name"],
+                "bio": provider_data["bio"],
+                "provider_address": provider_data["provider_address"],
+                "is_active": provider_data.get("is_active", True),
+                "services": formatted_services
+            })
     
     return result
 
@@ -114,9 +145,12 @@ async def get_provider_availability(
     day_of_week = target_date.weekday()
     
     # Get provider availability
-    availability = await db.availability.find_one({"provider_id": provider_id})
-    if not availability:
+    availability_docs = db.collection("availability").where("provider_id", "==", provider_id).limit(1).get()
+    if len(availability_docs) == 0:
         return {"available_slots": []}
+    
+    availability_doc = availability_docs[0]
+    availability = availability_doc.to_dict()
     
     # Find the day's schedule
     day_schedule = None
@@ -132,14 +166,23 @@ async def get_provider_availability(
     start_of_day = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
     end_of_day = start_of_day + timedelta(days=1)
     
-    services = await db.services.find({"provider_id": provider_id}).to_list(100)
-    service_ids = [service["_id"] for service in services]
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
     
-    bookings = await db.client_records.find({
-        "service_id": {"$in": service_ids},
-        "date": {"$gte": start_of_day, "$lt": end_of_day},
-        "status": {"$in": ["pending", "confirmed"]}
-    }).to_list(100)
+    # Get bookings for these services on this date
+    bookings = []
+    if service_ids:
+        # Firestore "in" query supports max 10 values
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).get()
+            for doc in bookings_docs:
+                booking_data = doc.to_dict()
+                booking_date = booking_data["date"]
+                # Filter by date range
+                if start_of_day <= booking_date < end_of_day:
+                    if booking_data["status"] in ["pending", "confirmed"]:
+                        bookings.append(booking_data)
     
     # Generate sessions from time slots
     all_sessions = []
@@ -180,11 +223,14 @@ async def get_provider_calendar(
     db = get_database()
     
     # Get provider availability
-    availability = await db.availability.find_one({"provider_id": provider_id})
+    availability_docs = db.collection("availability").where("provider_id", "==", provider_id).limit(1).get()
+    availability = None
+    if len(availability_docs) > 0:
+        availability = availability_docs[0].to_dict()
     
     # Get services
-    services = await db.services.find({"provider_id": provider_id}).to_list(100)
-    service_ids = [service["_id"] for service in services]
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
     
     # Calculate days in month
     if month == 12:
@@ -195,11 +241,19 @@ async def get_provider_calendar(
     start_of_month = datetime(year, month, 1)
     
     # Get all bookings for the month
-    bookings = await db.client_records.find({
-        "service_id": {"$in": service_ids},
-        "date": {"$gte": start_of_month, "$lt": next_month},
-        "status": {"$in": ["pending", "confirmed"]}
-    }).to_list(1000)
+    bookings = []
+    if service_ids:
+        # Firestore "in" query supports max 10 values
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).get()
+            for doc in bookings_docs:
+                booking_data = doc.to_dict()
+                booking_date = booking_data["date"]
+                # Filter by date range
+                if start_of_month <= booking_date < next_month:
+                    if booking_data["status"] in ["pending", "confirmed"]:
+                        bookings.append(booking_data)
     
     # Group bookings by date
     bookings_by_date = {}
@@ -281,14 +335,20 @@ async def create_booking(
     db = get_database()
     
     # Get customer profile
-    customer = await db.customers.find_one({"user_id": current_user.id})
-    if not customer:
+    customer_docs = db.collection("customers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(customer_docs) == 0:
         raise HTTPException(status_code=404, detail="Customer profile not found")
     
+    customer_doc = customer_docs[0]
+    customer_data = customer_doc.to_dict()
+    customer_id = customer_doc.id
+    
     # Verify service exists
-    service = await db.services.find_one({"_id": booking_request.service_id})
-    if not service:
+    service_doc = db.collection("services").document(booking_request.service_id).get()
+    if not service_doc.exists:
         raise HTTPException(status_code=404, detail="Service not found")
+    
+    service_data = service_doc.to_dict()
     
     # Parse date
     try:
@@ -298,10 +358,12 @@ async def create_booking(
     
     # Check if time slot is available
     day_of_week = booking_date.weekday()
-    availability = await db.availability.find_one({"provider_id": booking_request.provider_id})
+    availability_docs = db.collection("availability").where("provider_id", "==", booking_request.provider_id).limit(1).get()
     
-    if not availability:
+    if len(availability_docs) == 0:
         raise HTTPException(status_code=400, detail="Provider has no availability set")
+    
+    availability = availability_docs[0].to_dict()
     
     # Generate all valid sessions for this day and verify the requested time matches one
     is_valid_slot = False
@@ -332,38 +394,43 @@ async def create_booking(
     start_of_day = booking_date.replace(hour=0, minute=0, second=0, microsecond=0)
     end_of_day = start_of_day + timedelta(days=1)
     
-    conflicts = await db.client_records.find({
-        "service_id": booking_request.service_id,
-        "date": {"$gte": start_of_day, "$lt": end_of_day},
-        "status": {"$in": ["pending", "confirmed"]},
-        "$or": [
-            {
-                "start_time": {"$lt": booking_request.end_time},
-                "end_time": {"$gt": booking_request.start_time}
-            }
-        ]
-    }).to_list(10)
+    # Get all bookings for this service on this date
+    bookings_docs = db.collection("client_records").where("service_id", "==", booking_request.service_id).get()
+    conflicts = []
+    for doc in bookings_docs:
+        booking_data = doc.to_dict()
+        booking_data_date = booking_data["date"]
+        # Filter by date
+        if not (start_of_day <= booking_data_date < end_of_day):
+            continue
+        # Filter by status
+        if booking_data["status"] not in ["pending", "confirmed"]:
+            continue
+        # Check time overlap
+        if (booking_data["start_time"] < booking_request.end_time and
+            booking_data["end_time"] > booking_request.start_time):
+            conflicts.append(booking_data)
     
     if conflicts:
         raise HTTPException(status_code=400, detail="Time slot is already booked")
     
     # Create booking
+    booking_id = str(uuid.uuid4())
     booking_dict = {
-        "_id": str(uuid.uuid4()),
         "date": booking_date,
-        "cost": service["price"],
-        "customer_id": customer["_id"],
+        "cost": service_data["price"],
+        "customer_id": customer_id,
         "service_id": booking_request.service_id,
         "start_time": booking_request.start_time,
         "end_time": booking_request.end_time,
         "status": "pending"
     }
     
-    await db.client_records.insert_one(booking_dict)
+    db.collection("client_records").document(booking_id).set(booking_dict)
     
     return {
         "message": "Booking request created successfully",
-        "booking_id": booking_dict["_id"]
+        "booking_id": booking_id
     }
 
 
@@ -372,26 +439,38 @@ async def create_booking(
 async def get_my_bookings(current_user: UserInDB = Depends(get_current_customer)):
     db = get_database()
     
-    customer = await db.customers.find_one({"user_id": current_user.id})
-    if not customer:
+    customer_docs = db.collection("customers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(customer_docs) == 0:
         raise HTTPException(status_code=404, detail="Customer profile not found")
     
-    bookings = await db.client_records.find({"customer_id": customer["_id"]}).to_list(100)
+    customer_doc = customer_docs[0]
+    customer_id = customer_doc.id
+    
+    bookings_docs = db.collection("client_records").where("customer_id", "==", customer_id).get()
     
     result = []
-    for booking in bookings:
-        service = await db.services.find_one({"_id": booking["service_id"]})
-        provider = await db.providers.find_one({"_id": service["provider_id"]}) if service else None
+    for booking_doc in bookings_docs:
+        booking_data = booking_doc.to_dict()
+        
+        service_doc = db.collection("services").document(booking_data["service_id"]).get()
+        service_data = service_doc.to_dict() if service_doc.exists else None
+        
+        provider_name = "Unknown"
+        if service_data:
+            provider_doc = db.collection("providers").document(service_data["provider_id"]).get()
+            if provider_doc.exists:
+                provider_data = provider_doc.to_dict()
+                provider_name = provider_data.get("provider_name", "Unknown")
         
         result.append({
-            "booking_id": booking["_id"],
-            "date": booking["date"].isoformat(),
-            "start_time": booking["start_time"],
-            "end_time": booking["end_time"],
-            "cost": booking["cost"],
-            "status": booking["status"],
-            "service_name": service["name"] if service else "Unknown",
-            "provider_name": provider["provider_name"] if provider else "Unknown"
+            "booking_id": booking_doc.id,
+            "date": booking_data["date"].isoformat(),
+            "start_time": booking_data["start_time"],
+            "end_time": booking_data["end_time"],
+            "cost": booking_data["cost"],
+            "status": booking_data["status"],
+            "service_name": service_data["name"] if service_data else "Unknown",
+            "provider_name": provider_name
         })
     
     return result
@@ -404,21 +483,21 @@ async def cancel_booking(
 ):
     db = get_database()
     
-    customer = await db.customers.find_one({"user_id": current_user.id})
-    if not customer:
+    customer_docs = db.collection("customers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(customer_docs) == 0:
         raise HTTPException(status_code=404, detail="Customer profile not found")
     
-    booking = await db.client_records.find_one({
-        "_id": booking_id,
-        "customer_id": customer["_id"]
-    })
+    customer_doc = customer_docs[0]
+    customer_id = customer_doc.id
     
-    if not booking:
+    booking_doc = db.collection("client_records").document(booking_id).get()
+    if not booking_doc.exists:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    await db.client_records.update_one(
-        {"_id": booking_id},
-        {"$set": {"status": "cancelled"}}
-    )
+    booking_data = booking_doc.to_dict()
+    if booking_data["customer_id"] != customer_id:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    db.collection("client_records").document(booking_id).update({"status": "cancelled"})
     
     return {"message": "Booking cancelled successfully"}
