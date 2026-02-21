@@ -2,17 +2,17 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from database import connect_to_mongo, close_mongo_connection
+from firebase_db import initialize_firebase, close_firebase
 from routes import auth_routes, provider_routes, customer_routes
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    await connect_to_mongo()
+    # Startup - Firebase initialization is synchronous
+    initialize_firebase()
     yield
     # Shutdown
-    await close_mongo_connection()
+    close_firebase()
 
 
 app = FastAPI(title="Scheduling Service API", lifespan=lifespan)
