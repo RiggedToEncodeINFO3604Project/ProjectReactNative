@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Literal
 from datetime import datetime
 from enum import Enum
 
@@ -157,3 +157,62 @@ class RescheduleRequest(BaseModel):
     date: str  # Format: "YYYY-MM-DD"
     start_time: str  # Format: "HH:MM"
     end_time: str  # Format: "HH:MM"
+
+
+# ── Messaging ─────────────────────────────────────────────────────────
+
+class MessageType(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+ 
+    
+class MessageBase(BaseModel):
+    sender_id: str
+    sender_role: UserRole
+    content: str
+    message_type: MessageType = MessageType.TEXT
+    image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+
+
+class MessageCreate(MessageBase):
+    conversation_id: str
+    
+    
+class Message(MessageBase):
+    id: str = Field(alias="_id")
+    conversation_id: str
+    created_at: datetime
+    read: bool = False
+    
+    class Config:
+        populate_by_name = True
+        
+        
+class ConversationBase(BaseModel):
+    customer_id: str
+    provider_id: str
+
+
+class ConversationCreate(ConversationBase):
+    pass
+
+
+class Conversation(ConversationBase):
+    id: str = Field(alias="_id")
+    created_at: datetime
+    updated_at: datetime
+    last_message: Optional[str] = None
+    last_message_time: Optional[datetime] = None
+    customer_unread_count: int = 0
+    provider_unread_count: int = 0
+    
+    class Config:
+        populate_by_name = True
+
+
+class SendMessageRequest(BaseModel):
+    recipient_id: str  # Provider ID (if customer) or Customer ID (if provider)
+    content: str = Field(..., min_length=1, max_length=2000)
+    message_type: MessageType = MessageType.TEXT
+    image_url: Optional[str] = None
