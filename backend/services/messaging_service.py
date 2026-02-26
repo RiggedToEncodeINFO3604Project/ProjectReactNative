@@ -152,3 +152,31 @@ def send_message(
     conv_ref.update(update_data)
     
     return message_id
+
+
+def get_conversation_messages(
+    conversation_id: str,
+    limit: int = 50,
+    before_timestamp: Optional[datetime] = None
+) -> List[dict]:
+    """
+    Get messages in a conversation 
+    """
+    db = get_database()
+    messages_ref = db.collection('messages')
+    
+    query = messages_ref.where('conversation_id', '==', conversation_id)\
+                        .order_by('created_at', direction=firestore.Query.DESCENDING)\
+                        .limit(limit)
+    
+    # Pagination support
+    if before_timestamp:
+        query = query.where('created_at', '<', before_timestamp)
+    
+    messages = []
+    for doc in query.stream():
+        data = doc.to_dict()
+        data['_id'] = doc.id
+        messages.append(data)
+    
+    return messages
