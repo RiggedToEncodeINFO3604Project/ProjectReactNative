@@ -38,3 +38,29 @@ def get_or_create_conversation(customer_id: str, provider_id: str) -> str:
     
     _, doc_ref = conversations_ref.add(conversation_data)
     return doc_ref.id
+
+
+def get_user_conversations(user_id: str, role: str) -> List[dict]:
+    """
+    Get all conversations for a user.
+    Returns list of conversation objects sorted by most recent
+    """
+    
+    db = get_database()
+    conversations_ref = db.collection('conversations')
+    
+    if role == "Customer":
+        query = conversations_ref.where('customer_id', '==', user_id)
+    else:
+        query = conversations_ref.where('provider_id', '==', user_id)
+    
+    # Sort by most recent activity
+    query = query.order_by('updated_at', direction=firestore.Query.DESCENDING)
+    
+    conversations = []
+    for doc in query.stream():
+        data = doc.to_dict()
+        data['_id'] = doc.id
+        conversations.append(data)
+    
+    return conversations
