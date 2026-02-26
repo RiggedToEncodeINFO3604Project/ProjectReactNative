@@ -64,3 +64,21 @@ def get_user_conversations(user_id: str, role: str) -> List[dict]:
         conversations.append(data)
     
     return conversations
+
+
+def get_conversation_by_id(conversation_id: str) -> Optional[dict]: 
+    """
+    Get a specific conversation by ID.
+    Returns conversation data or None if not found
+    """
+    
+    db = get_database()
+    conv_ref = db.collection('conversations').document(conversation_id)
+    conv_doc = conv_ref.get()
+    
+    if not conv_doc.exists:
+        return None
+    
+    data = conv_doc.to_dict()
+    data['_id'] = conv_doc.id
+    return data
