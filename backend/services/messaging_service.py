@@ -82,3 +82,20 @@ def get_conversation_by_id(conversation_id: str) -> Optional[dict]:
     data = conv_doc.to_dict()
     data['_id'] = conv_doc.id
     return data
+
+
+def verify_user_in_conversation(conversation_id: str, user_id: str, role: str) -> bool:
+    """
+    Verify that a user is a participant in a conversation.
+    Returns True if user is a participant, False otherwise
+    """
+    
+    conversation = get_conversation_by_id(conversation_id)
+    
+    if not conversation:
+        return False
+    
+    if role == "Customer":
+        return conversation.get('customer_id') == user_id
+    else:  # Provider
+        return conversation.get('provider_id') == user_id
