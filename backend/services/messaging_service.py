@@ -99,3 +99,56 @@ def verify_user_in_conversation(conversation_id: str, user_id: str, role: str) -
         return conversation.get('customer_id') == user_id
     else:  # Provider
         return conversation.get('provider_id') == user_id
+
+
+
+#  MESSAGE OPERATIONS
+
+def send_message(
+    conversation_id: str,
+    sender_id: str,
+    sender_role: str,
+    content: str,
+    message_type: str = "text",
+    image_url: Optional[str] = None
+) -> str:
+    
+    """
+    Send a message in a conversation.
+    """
+    
+    db = get_database()
+    
+    # Verify conversation exists
+    conv_ref = db.collection('conversations').document(conversation_id)
+    conv_data = conv_ref.get().to_dict()
+    
+    if not conv_data:
+        raise ValueError("Conversation not found")
+    
+    # Create message
+    message_data = {
+        'conversation_id': conversation_id,
+        'sender_id': sender_id,
+        'sender_role': sender_role,
+        'content': content,
+        'message_type': message_type,
+        'image_url': image_url,
+        'thumbnail_url': None,  # Can be added later for image optimization
+        'created_at': datetime.utcnow(),
+    }
+    
+    messages_ref = db.collection('messages')
+    _, doc_ref = messages_ref.add(message_data)
+    message_id = doc_ref.id
+    
+    # Update conversation metadata
+    update_data = {
+        'updated_at': datetime.utcnow(),
+        'last_message': content[:50],  # Preview (first 50 chars)
+        'last_message_time': datetime.utcnow(),
+    }
+    
+    conv_ref.update(update_data)
+    
+    return message_id
