@@ -112,3 +112,45 @@ async def get_conversation(conversation_id: str, current_user: User = Depends(ge
             status_code=500,
             detail=f"Failed to fetch conversation: {str(e)}"
         )      
+        
+        
+        
+# MESSAGE ENDPOINTS
+
+@router.get("/conversations/{conversation_id}/messages", response_model=List[Message])
+async def get_messages(
+    conversation_id: str,
+    limit: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get messages in a conversation.
+    
+    - Returns messages in reverse chronological order (newest first)
+    - User must be a participant in the conversation.
+    
+    """
+    try:
+        if not verify_user_in_conversation(conversation_id, current_user.id, current_user.role):
+            raise HTTPException(
+                status_code=403,
+                detail="You are not a participant in this conversation"
+            )
+        
+        messages = get_conversation_messages(
+            conversation_id=conversation_id,
+            limit=limit
+        )
+        
+        log.info(f"User {current_user.id} retrieved {len(messages)} messages from conversation {conversation_id}")
+        
+        return messages
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Error fetching messages: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch messages: {str(e)}"
+        )      
