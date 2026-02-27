@@ -154,3 +154,53 @@ async def get_messages(
             status_code=500,
             detail=f"Failed to fetch messages: {str(e)}"
         )      
+
+
+@router.post("/conversations/{conversation_id}/messages", response_model=dict)
+async def send_message_endpoint(
+    conversation_id: str,
+    request: SendMessageRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Send a message in a conversation
+    
+    - User must be a participant in the conversation.
+    - Message content is limited to 2000 characters
+    
+    Returns message_id of the created message
+    """
+    try:
+        if not verify_user_in_conversation(conversation_id, current_user.id, current_user.role):
+            raise HTTPException(
+                status_code=403,
+                detail="You are not a participant in this conversation"
+            )
+        
+        message_id = send_message(
+            conversation_id=conversation_id,
+            sender_id=current_user.id,
+            sender_role=current_user.role,
+            content=request.content,
+            message_type=request.message_type,
+            image_url=request.image_url
+        )
+        
+        log.info(f"User {current_user.id} sent message {message_id} in conversation {conversation_id}")
+        
+        # TODO: Send push notification to recipient
+        # - Get recipient_id from conversation
+        # - Send Expo push notification
+        
+        return {"message_id": message_id}
+    
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        log.error(f"Error sending message: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send message: {str(e)}"
+        ) 
