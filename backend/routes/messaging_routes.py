@@ -80,3 +80,35 @@ async def start_conversation(recipient_id: str, current_user: User = Depends(get
             status_code=500,
             detail=f"Failed to create conversation: {str(e)}"
         )       
+        
+
+@router.get("/conversations/{conversation_id}", response_model=Conversation)
+async def get_conversation(conversation_id: str, current_user: User = Depends(get_current_user)):
+    """
+    Get details of a specific conversation
+    User must be a participant in the conversation.
+    """
+    try:
+        # Verify user is in this conversation
+        if not verify_user_in_conversation(conversation_id, current_user.id, current_user.role):
+            raise HTTPException(
+                status_code=403,
+                detail="You are not a participant in this conversation"
+            )
+        
+        from services.messaging_service import get_conversation_by_id
+        conversation = get_conversation_by_id(conversation_id)
+        
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        
+        return conversation
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Error fetching conversation: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch conversation: {str(e)}"
+        )      
