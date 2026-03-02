@@ -5,7 +5,7 @@
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Avatar } from "./Avatar";
 
 interface ChatHeaderProps {
@@ -13,7 +13,14 @@ interface ChatHeaderProps {
   avatar?: string;
   status?: string;
   onBack?: () => void;
-  onSearch?: () => void;
+  onSearch?: (query: string) => void;
+  isSearching?: boolean;
+  searchQuery?: string;
+  onSearchClose?: () => void;
+  searchResultCount?: number;
+  currentResultIndex?: number;
+  onNavigatePrevious?: () => void;
+  onNavigateNext?: () => void;
 }
 
 const PRIMARY_COLOR = "#0a7ea4";
@@ -24,8 +31,92 @@ export function ChatHeader({
   status,
   onBack,
   onSearch,
+  isSearching = false,
+  searchQuery = "",
+  onSearchClose,
+  searchResultCount = 0,
+  currentResultIndex = 0,
+  onNavigatePrevious,
+  onNavigateNext,
 }: ChatHeaderProps) {
   const isOnline = status?.toLowerCase() === "online";
+
+  if (isSearching) {
+    return (
+      <View style={styles.container}>
+        {/* Search Input */}
+        <View style={styles.searchContainer}>
+          <IconSymbol
+            name="magnifyingglass"
+            size={20}
+            color={Colors.light.icon}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search messages..."
+            placeholderTextColor={Colors.light.icon}
+            value={searchQuery}
+            onChangeText={onSearch}
+            autoFocus
+          />
+          {searchQuery.length > 0 && (
+            <Pressable
+              onPress={() => onSearch?.("")}
+              style={styles.clearButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <IconSymbol
+                name="xmark.circle.fill"
+                size={20}
+                color={Colors.light.icon}
+              />
+            </Pressable>
+          )}
+        </View>
+
+        {/* Search Navigation */}
+        {searchResultCount > 0 && (
+          <View style={styles.navigationContainer}>
+            <Pressable
+              onPress={onNavigatePrevious}
+              style={styles.navButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <IconSymbol
+                name="chevron.up"
+                size={20}
+                color={Colors.light.text}
+              />
+            </Pressable>
+            <Text style={styles.resultCounter}>
+              {currentResultIndex + 1} of {searchResultCount}
+            </Text>
+            <Pressable
+              onPress={onNavigateNext}
+              style={styles.navButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <IconSymbol
+                name="chevron.down"
+                size={20}
+                color={Colors.light.text}
+              />
+            </Pressable>
+          </View>
+        )}
+
+        {/* Close Search */}
+        <Pressable
+          onPress={onSearchClose}
+          style={styles.closeButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.closeButtonText}>Cancel</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -65,12 +156,12 @@ export function ChatHeader({
       <View style={styles.rightSection}>
         {onSearch && (
           <Pressable
-            onPress={onSearch}
+            onPress={() => onSearch("")}
             style={styles.iconButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <IconSymbol
-              name="paperplane.fill"
+              name="magnifyingglass"
               size={22}
               color={Colors.light.icon}
             />
@@ -148,6 +239,53 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: Colors.light.icon,
+  },
+  // Search styles
+  searchContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.light.text,
+    paddingVertical: 4,
+  },
+  clearButton: {
+    padding: 4,
+  },
+  navigationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  navButton: {
+    padding: 6,
+  },
+  resultCounter: {
+    fontSize: 13,
+    color: Colors.light.text,
+    fontWeight: "500",
+    minWidth: 50,
+    textAlign: "center",
+  },
+  closeButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  closeButtonText: {
+    fontSize: 15,
+    color: PRIMARY_COLOR,
+    fontWeight: "500",
   },
 });
 

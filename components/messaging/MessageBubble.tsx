@@ -5,18 +5,22 @@
 
 import { Colors } from "@/constants/theme";
 import { Message, MessageStatus } from "@/types/scheduling";
+import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 interface MessageBubbleProps {
   message: Message;
   isCurrentUser: boolean;
   showStatus?: boolean;
+  highlightQuery?: string;
+  isHighlighted?: boolean;
 }
 
 const PRIMARY_COLOR = "#0a7ea4";
 const RECEIVED_BG = "#e9ecef";
 const CHECK_ICON = "✓";
 const DOUBLE_CHECK_ICON = "✓✓";
+const HIGHLIGHT_COLOR = "#ffeb3b"; // Yellow highlight
 
 function formatTime(timestamp: string): string {
   const date = new Date(timestamp);
@@ -45,10 +49,48 @@ function getStatusColor(status?: MessageStatus): string {
   }
 }
 
+// Function to split text and wrap matching parts with highlight
+function HighlightedText({
+  text,
+  highlight,
+  style,
+  highlightStyle,
+}: {
+  text: string;
+  highlight?: string;
+  style: any;
+  highlightStyle: any;
+}) {
+  if (!highlight || highlight.trim() === "") {
+    return <Text style={style}>{text}</Text>;
+  }
+
+  const parts = text.split(
+    new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"),
+  );
+
+  return (
+    <Text style={style}>
+      {parts.map((part, index) => {
+        const isMatch = part.toLowerCase() === highlight.toLowerCase();
+        return isMatch ? (
+          <Text key={index} style={highlightStyle}>
+            {part}
+          </Text>
+        ) : (
+          <Text key={index}>{part}</Text>
+        );
+      })}
+    </Text>
+  );
+}
+
 export function MessageBubble({
   message,
   isCurrentUser,
   showStatus = true,
+  highlightQuery = "",
+  isHighlighted = false,
 }: MessageBubbleProps) {
   const isImage = message.message_type === "image";
   const statusIcon = getStatusIcon(message.status);
@@ -59,6 +101,7 @@ export function MessageBubble({
       style={[
         styles.container,
         isCurrentUser ? styles.sentContainer : styles.receivedContainer,
+        isHighlighted && styles.highlightedContainer,
       ]}
     >
       <View
@@ -66,6 +109,7 @@ export function MessageBubble({
           styles.bubble,
           isCurrentUser ? styles.sentBubble : styles.receivedBubble,
           isImage && styles.imageBubble,
+          isHighlighted && styles.highlightedBubble,
         ]}
       >
         {/* Tail for WhatsApp-style bubbles */}
@@ -73,20 +117,25 @@ export function MessageBubble({
           style={[
             styles.tail,
             isCurrentUser ? styles.sentTail : styles.receivedTail,
+            isHighlighted &&
+              (isCurrentUser
+                ? styles.highlightedSentTail
+                : styles.highlightedReceivedTail),
           ]}
         />
 
         {isImage && message.image_url ? (
           <Image source={{ uri: message.image_url }} style={styles.image} />
         ) : (
-          <Text
+          <HighlightedText
+            text={message.content}
+            highlight={highlightQuery}
             style={[
               styles.content,
               isCurrentUser ? styles.sentContent : styles.receivedContent,
             ]}
-          >
-            {message.content}
-          </Text>
+            highlightStyle={styles.highlightText}
+          />
         )}
 
         {/* Timestamp and status row */}
@@ -123,6 +172,10 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     marginLeft: 8,
   },
+  highlightedContainer: {
+    // Add subtle scale or shadow for highlighted messages
+    transform: [{ scale: 1.02 }],
+  },
   bubble: {
     borderRadius: 16,
     paddingHorizontal: 12,
@@ -136,6 +189,10 @@ const styles = StyleSheet.create({
   receivedBubble: {
     backgroundColor: RECEIVED_BG,
     borderBottomLeftRadius: 4,
+  },
+  highlightedBubble: {
+    borderWidth: 2,
+    borderColor: HIGHLIGHT_COLOR,
   },
   imageBubble: {
     paddingHorizontal: 4,
@@ -172,6 +229,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 8,
     borderTopColor: "transparent",
   },
+  highlightedSentTail: {
+    borderLeftColor: HIGHLIGHT_COLOR,
+    borderBottomColor: HIGHLIGHT_COLOR,
+  },
+  highlightedReceivedTail: {
+    borderRightColor: HIGHLIGHT_COLOR,
+    borderBottomColor: HIGHLIGHT_COLOR,
+  },
   content: {
     fontSize: 16,
     lineHeight: 22,
@@ -181,6 +246,11 @@ const styles = StyleSheet.create({
   },
   receivedContent: {
     color: Colors.light.text,
+  },
+  highlightText: {
+    backgroundColor: HIGHLIGHT_COLOR,
+    color: "#000",
+    borderRadius: 2,
   },
   image: {
     width: 200,

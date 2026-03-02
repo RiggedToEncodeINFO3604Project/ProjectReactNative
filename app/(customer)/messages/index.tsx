@@ -11,25 +11,31 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import {
-    getConversations,
-    getMessages,
-    messagingSocket,
-    sendMessage,
+  getConversations,
+  getMessages,
+  messagingSocket,
+  sendMessage,
 } from "@/services/messagingApi";
 import { Conversation, ConversationPreview, Message } from "@/types/scheduling";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
-    ActivityIndicator,
-    Dimensions,
-    FlatList,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 const PRIMARY_COLOR = "#0a7ea4";
@@ -93,7 +99,13 @@ export default function MessagesScreen() {
   const [isMobile, setIsMobile] = useState(SCREEN_WIDTH < MOBILE_BREAKPOINT);
   const [showChatOnMobile, setShowChatOnMobile] = useState(false);
 
+  // Message search state
+  const [isMessageSearching, setIsMessageSearching] = useState(false);
+  const [messageSearchQuery, setMessageSearchQuery] = useState("");
+  const [currentResultIndex, setCurrentResultIndex] = useState(0);
+
   const messagesScrollViewRef = useRef<ScrollView>(null);
+  const messageRefs = useRef<Map<string, View>>(new Map());
 
   // Get selected conversation details
   const selectedConversation = conversations.find(
@@ -102,6 +114,16 @@ export default function MessagesScreen() {
   const selectedPreview = selectedConversation
     ? toConversationPreview(selectedConversation, currentUserId)
     : null;
+
+  // Search results - filter messages based on search query
+  const searchResults = useMemo(() => {
+    if (!messageSearchQuery.trim()) return [];
+    const query = messageSearchQuery.toLowerCase();
+    return messages.filter(
+      (m) =>
+        m.message_type === "text" && m.content.toLowerCase().includes(query),
+    );
+  }, [messages, messageSearchQuery]);
 
   // Handle screen resize for responsive layout
   useEffect(() => {
@@ -240,12 +262,36 @@ export default function MessagesScreen() {
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (messages.length > 0 && messagesScrollViewRef.current) {
+    if (
+      messages.length > 0 &&
+      messagesScrollViewRef.current &&
+      !isMessageSearching
+    ) {
       setTimeout(() => {
         messagesScrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages]);
+  }, [messages, isMessageSearching]);
+
+  // Scroll to current search result
+  useEffect(() => {
+    if (searchResults.length > 0 && currentResultIndex < searchResults.length) {
+      const currentMessage = searchResults[currentResultIndex];
+      const messageRef = messageRefs.current.get(currentMessage.id);
+      if (messageRef) {
+        messageRef.measureLayout(
+          messagesScrollViewRef.current?.getInnerViewNode(),
+          (x, y) => {
+            messagesScrollViewRef.current?.scrollTo({
+              y: y - 100,
+              animated: true,
+            });
+          },
+          () => {},
+        );
+      }
+    }
+  }, [currentResultIndex, searchResults]);
 
   // Filter conversations based on search query
   useEffect(() => {
@@ -278,6 +324,10 @@ export default function MessagesScreen() {
   const handleSelectConversation = useCallback(
     (conversationId: string) => {
       setSelectedConversationId(conversationId);
+      // Clear message search when changing conversations
+      setIsMessageSearching(false);
+      setMessageSearchQuery("");
+      setCurrentResultIndex(0);
       if (isMobile) {
         setShowChatOnMobile(true);
       }
@@ -289,7 +339,44 @@ export default function MessagesScreen() {
   const handleBackToList = useCallback(() => {
     setShowChatOnMobile(false);
     setSelectedConversationId(null);
+    setIsMessageSearching(false);
+    setMessageSearchQuery("");
+    setCurrentResultIndex(0);
   }, []);
+
+  // Handle message search
+  const handleMessageSearch = useCallback((query: string) => {
+    setMessageSearchQuery(query);
+    setCurrentResultIndex(0);
+    if (query.trim()) {
+      setIsMessageSearching(true);
+    } else {
+      setIsMessageSearching(false);
+    }
+  }, []);
+
+  // Handle search close
+  const handleSearchClose = useCallback(() => {
+    setIsMessageSearching(false);
+    setMessageSearchQuery("");
+    setCurrentResultIndex(0);
+  }, []);
+
+  // Navigate to previous search result
+  const handleNavigatePrevious = useCallback(() => {
+    if (searchResults.length === 0) return;
+    setCurrentResultIndex((prev) =>
+      prev > 0 ? prev - 1 : searchResults.length - 1,
+    );
+  }, [searchResults.length]);
+
+  // Navigate to next search result
+  const handleNavigateNext = useCallback(() => {
+    if (searchResults.length === 0) return;
+    setCurrentResultIndex((prev) =>
+      prev < searchResults.length - 1 ? prev + 1 : 0,
+    );
+  }, [searchResults.length]);
 
   // Handle sending a message
   const handleSendMessage = useCallback(
@@ -498,6 +585,14 @@ export default function MessagesScreen() {
               avatar={selectedPreview.other_user_avatar}
               status={undefined}
               onBack={isMobile ? handleBackToList : undefined}
+              onSearch={handleMessageSearch}
+              isSearching={isMessageSearching}
+              searchQuery={messageSearchQuery}
+              onSearchClose={handleSearchClose}
+              searchResultCount={searchResults.length}
+              currentResultIndex={currentResultIndex}
+              onNavigatePrevious={handleNavigatePrevious}
+              onNavigateNext={handleNavigateNext}
             />
 
             {/* Messages */}
@@ -519,12 +614,28 @@ export default function MessagesScreen() {
                   </View>
                 ) : (
                   messages.map((message, index) => (
-                    <MessageBubble
+                    <View
                       key={message.id}
-                      message={message}
-                      isCurrentUser={message.sender_id === currentUserId}
-                      showStatus={index === messages.length - 1}
-                    />
+                      ref={(ref) => {
+                        if (ref) {
+                          messageRefs.current.set(message.id, ref);
+                        }
+                      }}
+                    >
+                      <MessageBubble
+                        message={message}
+                        isCurrentUser={message.sender_id === currentUserId}
+                        showStatus={index === messages.length - 1}
+                        highlightQuery={
+                          isMessageSearching ? messageSearchQuery : ""
+                        }
+                        isHighlighted={
+                          isMessageSearching &&
+                          searchResults.length > 0 &&
+                          searchResults[currentResultIndex]?.id === message.id
+                        }
+                      />
+                    </View>
                   ))
                 )}
               </ScrollView>
