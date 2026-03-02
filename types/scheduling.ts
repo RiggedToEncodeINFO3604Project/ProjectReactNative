@@ -158,6 +158,7 @@ export interface BookingWithDetails {
   status: BookingStatus;
   service_name: string;
   provider_name?: string;
+  customer_id: string;
   customer_name?: string;
   customer_phone?: string;
 }
