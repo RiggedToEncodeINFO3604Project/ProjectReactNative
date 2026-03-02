@@ -1,19 +1,21 @@
 // =====================================================
 // = MessageInput Component                            =
-// = Text input area with send button & attachment     =
+// = Text input area with send button, emoji & attach  =
 // =====================================================
 
+import { EmojiPicker } from "@/components/messaging/EmojiPicker";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    StyleSheet,
-    TextInput,
-    View,
-    type TextInput as TextInputType,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type TextInput as TextInputType,
 } from "react-native";
 
 interface MessageInputProps {
@@ -32,6 +34,8 @@ export function MessageInput({
 }: MessageInputProps) {
   const [text, setText] = useState("");
   const [inputHeight, setInputHeight] = useState(44);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [recentEmojis, setRecentEmojis] = useState<string[]>([]);
   const inputRef = useRef<TextInputType>(null);
 
   const isEmpty = text.trim().length === 0;
@@ -44,10 +48,29 @@ export function MessageInput({
     onSend(trimmedText);
     setText("");
     setInputHeight(44);
+    setShowEmojiPicker(false);
 
     // Reset input height after sending
     inputRef.current?.setNativeProps({ text: "" });
   };
+
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    setText((prevText) => prevText + emoji);
+
+    // Add to recent emojis (limit to 20)
+    setRecentEmojis((prev) => {
+      const filtered = prev.filter((e) => e !== emoji);
+      return [emoji, ...filtered].slice(0, 20);
+    });
+  }, []);
+
+  const toggleEmojiPicker = useCallback(() => {
+    setShowEmojiPicker((prev) => !prev);
+    if (showEmojiPicker) {
+      // Focus back on input when closing picker
+      inputRef.current?.focus();
+    }
+  }, [showEmojiPicker]);
 
   const handleContentSizeChange = (event: {
     nativeEvent: { contentSize: { height: number } };
@@ -66,6 +89,16 @@ export function MessageInput({
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       <View style={styles.container}>
+        {/* Emoji button */}
+        <Pressable
+          onPress={toggleEmojiPicker}
+          disabled={disabled}
+          style={[styles.iconButton, disabled && styles.disabledButton]}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.emojiButtonText}>😊</Text>
+        </Pressable>
+
         {/* Attachment button */}
         {onAttachment && (
           <Pressable
@@ -113,6 +146,14 @@ export function MessageInput({
           <IconSymbol name="paperplane.fill" size={20} color="#fff" />
         </Pressable>
       </View>
+
+      {/* Emoji Picker Modal */}
+      <EmojiPicker
+        visible={showEmojiPicker}
+        onClose={() => setShowEmojiPicker(false)}
+        onEmojiSelect={handleEmojiSelect}
+        recentEmojis={recentEmojis}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -133,6 +174,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     height: 44,
+  },
+  emojiButtonText: {
+    fontSize: 24,
   },
   disabledButton: {
     opacity: 0.5,
