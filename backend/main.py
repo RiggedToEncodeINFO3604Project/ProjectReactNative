@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from firebase_db import initialize_firebase, close_firebase
-from routes import auth_routes, provider_routes, customer_routes
+from routes import auth_routes, provider_routes, customer_routes, messaging_routes
 
 
 @asynccontextmanager
@@ -30,6 +30,7 @@ app.add_middleware(
 app.include_router(auth_routes.router)
 app.include_router(provider_routes.router)
 app.include_router(customer_routes.router)
+app.include_router(messaging_routes.router, prefix="/api/messaging", tags=["messaging"])
 
 
 @app.get("/")
