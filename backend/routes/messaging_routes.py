@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List
 import logging
@@ -11,7 +12,9 @@ from services.messaging_service import (
     send_message,
     get_conversation_messages,
     verify_user_in_conversation,
+    get_conversation_by_id,
 )
+from websocket_manager import websocket_manager
 
 
 from auth import get_current_user
@@ -96,7 +99,6 @@ async def get_conversation(conversation_id: str, current_user: User = Depends(ge
                 detail="You are not a participant in this conversation"
             )
         
-        from services.messaging_service import get_conversation_by_id
         conversation = get_conversation_by_id(conversation_id)
         
         if not conversation:
@@ -188,9 +190,31 @@ async def send_message_endpoint(
         
         log.info(f"User {current_user.id} sent message {message_id} in conversation {conversation_id}")
         
-        # TODO: Send push notification to recipient
+        # Prepare message data for WebSocket broadcast
+        message_data = {
+            "_id": message_id,
+            "conversation_id": conversation_id,
+            "sender_id": current_user.id,
+            "sender_role": current_user.role,
+            "content": request.content,
+            "message_type": request.message_type,
+            "image_url": request.image_url,
+            "thumbnail_url": None,
+            "created_at": datetime.utcnow().isoformat(),
+            "read": False
+        }
+        
+        # Broadcast to all participants in the conversation via WebSocket
+        await websocket_manager.broadcast_to_conversation(
+            conversation_id=conversation_id,
+            message=message_data,
+            exclude_user_id=current_user.id  # Don't send to sender (they already have the message)
+        )
+        
+        # TODO: Send push notification to recipient if not online
         # - Get recipient_id from conversation
-        # - Send Expo push notification
+        # - Check if recipient has active WebSocket connection
+        # - If not, send Expo push notification
         
         return {"message_id": message_id}
     
