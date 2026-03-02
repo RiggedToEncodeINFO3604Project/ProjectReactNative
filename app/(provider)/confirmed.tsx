@@ -122,9 +122,17 @@ export default function ConfirmedBookingsScreen() {
         <View style={[styles.statusBadge, { backgroundColor: colors.success }]}>
           <Text style={styles.statusText}>Confirmed</Text>
         </View>
-        {processing === item.booking_id && (
-          <ActivityIndicator size="small" color={colors.accent} />
-        )}
+        <View style={styles.actionRow}>
+          <MessageCustomerButton
+            customerId={item.customer_id}
+            customerName={item.customer_name}
+            size="small"
+            showLabel={false}
+          />
+          {processing === item.booking_id && (
+            <ActivityIndicator size="small" color={colors.accent} />
+          )}
+        </View>
       </View>
 
       <Text style={[styles.tapHint, { color: colors.textMuted }]}>
@@ -239,6 +247,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   statusBadge: {
     paddingHorizontal: 10,
