@@ -206,6 +206,8 @@ class Conversation(ConversationBase):
     last_message_time: Optional[datetime] = None
     customer_unread_count: int = 0
     provider_unread_count: int = 0
+    customer_name: Optional[str] = None
+    provider_name: Optional[str] = None
     
     class Config:
         populate_by_name = True

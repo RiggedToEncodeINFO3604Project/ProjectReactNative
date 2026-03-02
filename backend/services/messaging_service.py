@@ -5,6 +5,32 @@ from firebase_db import get_database
 
 
 
+def _get_customer_name(db, customer_id: str) -> str:
+    """Fetch customer name from database."""
+    try:
+        # Query by user_id field since customer_id is the user_id
+        customer_docs = db.collection('customers').where('user_id', '==', customer_id).limit(1).get()
+        if customer_docs:
+            customer_data = customer_docs[0].to_dict()
+            return customer_data.get('name', 'Unknown Customer')
+        return 'Unknown Customer'
+    except Exception:
+        return 'Unknown Customer'
+
+
+def _get_provider_name(db, provider_id: str) -> str:
+    """Fetch provider name from database."""
+    try:
+        # Query by user_id field since provider_id is the user_id
+        provider_docs = db.collection('providers').where('user_id', '==', provider_id).limit(1).get()
+        if provider_docs:
+            provider_data = provider_docs[0].to_dict()
+            return provider_data.get('provider_name', 'Unknown Provider')
+        return 'Unknown Provider'
+    except Exception:
+        return 'Unknown Provider'
+
+
 #  CONVERSATION OPERATIONS
 
 def get_or_create_conversation(customer_id: str, provider_id: str) -> str:
@@ -26,10 +52,16 @@ def get_or_create_conversation(customer_id: str, provider_id: str) -> str:
     if docs:
         return docs[0].id
     
+    # Fetch names for both participants
+    customer_name = _get_customer_name(db, customer_id)
+    provider_name = _get_provider_name(db, provider_id)
+    
     # Create new conversation
     conversation_data = {
         'customer_id': customer_id,
         'provider_id': provider_id,
+        'customer_name': customer_name,
+        'provider_name': provider_name,
         'created_at': datetime.utcnow(),
         'updated_at': datetime.utcnow(),
         'last_message': None,
@@ -60,6 +92,13 @@ def get_user_conversations(user_id: str, role: str) -> List[dict]:
     for doc in query.stream():
         data = doc.to_dict()
         data['_id'] = doc.id
+        
+        # Enrich with names if missing (for existing conversations)
+        if not data.get('customer_name'):
+            data['customer_name'] = _get_customer_name(db, data.get('customer_id', ''))
+        if not data.get('provider_name'):
+            data['provider_name'] = _get_provider_name(db, data.get('provider_id', ''))
+        
         conversations.append(data)
     
     # Sort by updated_at in Python (most recent first)
@@ -86,6 +125,13 @@ def get_conversation_by_id(conversation_id: str) -> Optional[dict]:
     
     data = conv_doc.to_dict()
     data['_id'] = conv_doc.id
+    
+    # Enrich with names if missing (for existing conversations)
+    if not data.get('customer_name'):
+        data['customer_name'] = _get_customer_name(db, data.get('customer_id', ''))
+    if not data.get('provider_name'):
+        data['provider_name'] = _get_provider_name(db, data.get('provider_id', ''))
+    
     return data
 
 
