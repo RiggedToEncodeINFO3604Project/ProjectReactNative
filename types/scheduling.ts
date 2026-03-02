@@ -293,3 +293,61 @@ export interface AvailableSlot {
   end_time: string;
   available: boolean;
 }
+
+// Messaging types                                                     =
+
+// Message type union
+export type MessageType = "text" | "image";
+
+// Message status union
+export type MessageStatus = "sent" | "delivered" | "read";
+
+// Individual message interface
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_role: "Customer" | "Provider";
+  content: string;
+  message_type: MessageType;
+  image_url?: string;
+  created_at: string; // ISO timestamp
+  read: boolean;
+  status?: MessageStatus; // For UI tracking
+}
+
+// Conversation interface
+export interface Conversation {
+  id: string;
+  customer_id: string;
+  provider_id: string;
+  created_at: string;
+  updated_at: string;
+  last_message?: Message;
+  unread_count_customer: number;
+  unread_count_provider: number;
+  customer_name?: string; // For display
+  provider_name?: string; // For display
+  customer_avatar?: string;
+  provider_avatar?: string;
+}
+
+// Send message request interface
+export interface SendMessageRequest {
+  content: string;
+  message_type: MessageType;
+  image_url?: string;
+}
+
+// Conversation preview for inbox list
+export interface ConversationPreview {
+  id: string;
+  other_user_name: string;
+  other_user_avatar?: string;
+  other_user_id: string;
+  other_user_role: "Customer" | "Provider";
+  last_message_content?: string;
+  last_message_time?: string;
+  unread_count: number;
+  is_last_message_from_me: boolean;
+}
