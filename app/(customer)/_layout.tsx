@@ -16,6 +16,7 @@ export default function CustomerLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="bookings" />
       <Stack.Screen name="messages/index" />
+      <Stack.Screen name="messages/[id]" />
       <Stack.Screen name="provider/[id]" />
     </Stack>
   );

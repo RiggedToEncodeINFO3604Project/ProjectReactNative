@@ -3,12 +3,12 @@ import { startConversation } from "@/services/messagingApi";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface MessageCustomerButtonProps {
@@ -50,14 +50,8 @@ export function MessageCustomerButton({
       const result = await startConversation(customerId);
       const conversationId = result.conversation_id;
 
-      // Navigate to messages screen with the conversation
-      router.push({
-        pathname: "/messages",
-        params: {
-          conversationId,
-          recipientName: customerName || "Customer",
-        },
-      });
+      // Navigate to chat screen with the conversation
+      router.push(`/messages/${conversationId}`);
     } catch (error: any) {
       Alert.alert(
         "Error",

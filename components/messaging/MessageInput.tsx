@@ -49,9 +49,6 @@ export function MessageInput({
     setText("");
     setInputHeight(44);
     setShowEmojiPicker(false);
-
-    // Reset input height after sending
-    inputRef.current?.setNativeProps({ text: "" });
   };
 
   const handleEmojiSelect = useCallback((emoji: string) => {

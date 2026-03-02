@@ -162,11 +162,8 @@ export default function ProviderDetailsScreen() {
     setLoading(true);
     try {
       const result = await startConversation(provider.id);
-      // Navigate to messages screen with the conversation
-      router.push({
-        pathname: "/messages",
-        params: { conversationId: result.conversation_id },
-      });
+      // Navigate to chat screen with the conversation
+      router.push(`/messages/${result.conversation_id}`);
     } catch (error: any) {
       const errorMessage =
         error.response?.data?.detail ||
