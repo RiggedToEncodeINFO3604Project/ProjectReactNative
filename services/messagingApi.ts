@@ -271,13 +271,13 @@ export class MessagingWebSocket {
     const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
 
     if (apiUrl.startsWith("https://")) {
-      return apiUrl.replace("https://", "wss://") + "/ws/messaging";
+      return apiUrl.replace("https://", "wss://") + "/ws";
     } else if (apiUrl.startsWith("http://")) {
-      return apiUrl.replace("http://", "ws://") + "/ws/messaging";
+      return apiUrl.replace("http://", "ws://") + "/ws";
     }
 
     // Fallback - assume ws for localhost development
-    return `ws://${apiUrl}/ws/messaging`;
+    return `ws://${apiUrl}/ws`;
   }
 
   /**

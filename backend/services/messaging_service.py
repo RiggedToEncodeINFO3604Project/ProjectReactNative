@@ -49,19 +49,24 @@ def get_user_conversations(user_id: str, role: str) -> List[dict]:
     db = get_database()
     conversations_ref = db.collection('conversations')
     
+    # Query by user role only (no composite index needed)
     if role == "Customer":
         query = conversations_ref.where('customer_id', '==', user_id)
     else:
         query = conversations_ref.where('provider_id', '==', user_id)
     
-    # Sort by most recent activity
-    query = query.order_by('updated_at', direction=firestore.Query.DESCENDING)
-    
+    # Fetch all results and sort in Python to avoid composite index requirement
     conversations = []
     for doc in query.stream():
         data = doc.to_dict()
         data['_id'] = doc.id
         conversations.append(data)
+    
+    # Sort by updated_at in Python (most recent first)
+    conversations.sort(
+        key=lambda x: x.get('updated_at') or datetime.min,
+        reverse=True
+    )
     
     return conversations
 
