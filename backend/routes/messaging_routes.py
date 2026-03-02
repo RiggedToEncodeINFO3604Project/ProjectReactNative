@@ -21,7 +21,7 @@ from auth import get_current_user
 
 log = logging.getLogger("skedulelt.messaging")
 
-router = APIRouter(prefix="/api/messaging", tags=["messaging"])
+router = APIRouter(tags=["messaging"])
 
 
 # CONVERSATION ENDPOINTS
