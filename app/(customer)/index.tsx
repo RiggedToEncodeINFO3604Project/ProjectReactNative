@@ -48,6 +48,10 @@ export default function CustomerHomeScreen() {
     router.push("bookings" as never);
   };
 
+  const handleViewMessages = () => {
+    router.push("/messages" as never);
+  };
+
   const handleProviderPress = (provider: ProviderSearchResult) => {
     router.push(
       `provider/${provider.id}?provider=${encodeURIComponent(JSON.stringify(provider))}` as never,
@@ -147,12 +151,22 @@ export default function CustomerHomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={[styles.myBookingsButton, { backgroundColor: colors.success }]}
-        onPress={handleViewBookings}
-      >
-        <Text style={styles.myBookingsText}>My Bookings</Text>
-      </TouchableOpacity>
+      <View style={styles.dashboardButtonsContainer}>
+        <TouchableOpacity
+          style={[styles.dashboardButton, { backgroundColor: colors.success }]}
+          onPress={handleViewBookings}
+        >
+          <Text style={styles.dashboardButtonText}>My Bookings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.dashboardButton, { backgroundColor: colors.accent }]}
+          onPress={handleViewMessages}
+        >
+          <Text style={[styles.dashboardButtonText, { color: "#151718" }]}>
+            Messages
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {loading ? (
         <ActivityIndicator
@@ -218,14 +232,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  myBookingsButton: {
+  dashboardButtonsContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 15,
+    marginBottom: 10,
+    gap: 10,
+  },
+  dashboardButton: {
+    flex: 1,
     padding: 15,
-    marginHorizontal: 15,
     borderRadius: 8,
     alignItems: "center",
-    marginBottom: 10,
   },
-  myBookingsText: {
+  dashboardButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",

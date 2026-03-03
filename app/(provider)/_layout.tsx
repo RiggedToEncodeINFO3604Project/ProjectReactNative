@@ -17,6 +17,8 @@ export default function ProviderLayout() {
       <Stack.Screen name="services" />
       <Stack.Screen name="availability" />
       <Stack.Screen name="pending" />
+      <Stack.Screen name="messages/index" />
+      <Stack.Screen name="messages/[id]" />
     </Stack>
   );
 }
