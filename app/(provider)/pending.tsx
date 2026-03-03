@@ -1,4 +1,5 @@
 import ConfirmModal from "@/components/ConfirmModal";
+import MessageCustomerButton from "@/components/MessageCustomerButton";
 import { useTheme } from "@/context/ThemeContext";
 import {
   acceptBooking,
@@ -157,6 +158,14 @@ export default function PendingBookingsScreen() {
             Reject
           </Text>
         </TouchableOpacity>
+
+        <MessageCustomerButton
+          customerId={item.customer_id}
+          customerName={item.customer_name}
+          size="small"
+          showLabel={false}
+          style={styles.messageButton}
+        />
       </View>
     </View>
   );
@@ -271,6 +280,9 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: "row",
     gap: 10,
+  },
+  messageButton: {
+    minWidth: 44,
   },
   acceptButton: {
     flex: 1,

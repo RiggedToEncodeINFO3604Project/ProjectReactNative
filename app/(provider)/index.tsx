@@ -46,6 +46,12 @@ export default function ProviderHomeScreen() {
       route: "manage-bookings",
       icon: "calendar-outline" as const,
     },
+    {
+      title: "Messages",
+      description: "View and respond to messages from your customers",
+      route: "/messages",
+      icon: "chatbubble-outline" as const,
+    },
   ];
 
   return (
