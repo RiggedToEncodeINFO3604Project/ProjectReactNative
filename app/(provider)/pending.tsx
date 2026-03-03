@@ -18,6 +18,8 @@ import {
   View,
 } from "react-native";
 
+import * as Calendar from "expo-calendar";
+
 export default function PendingBookingsScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
@@ -50,11 +52,32 @@ export default function PendingBookingsScreen() {
     }
   };
 
+  // const handleAccept = async (bookingId: string) => {
+  //   setProcessing(bookingId);
+  //   try {
+  //     await acceptBooking(bookingId);
+  //     Alert.alert("Success", "Booking accepted");
+  //     loadBookings();
+  //   } catch (error: any) {
+  //     Alert.alert(
+  //       "Error",
+  //       error.response?.data?.detail || "Failed to accept booking",
+  //     );
+  //   } finally {
+  //     setProcessing(null);
+  //   }
+  // };
+
+  // New handleAccept that also adds to calendar
   const handleAccept = async (bookingId: string) => {
     setProcessing(bookingId);
     try {
-      await acceptBooking(bookingId);
-      Alert.alert("Success", "Booking accepted");
+      const booking = bookings.find((b) => b.booking_id === bookingId);
+
+      await acceptBooking(bookingId); // Saves to Firebase
+      if (booking) await addBookingToCalendar(booking); // Adds to device calendar
+
+      Alert.alert("Success", "Booking accepted and added to calendar");
       loadBookings();
     } catch (error: any) {
       Alert.alert(
@@ -63,6 +86,50 @@ export default function PendingBookingsScreen() {
       );
     } finally {
       setProcessing(null);
+    }
+  };
+
+  // Function to add booking to calendar
+  const addBookingToCalendar = async (booking: BookingWithDetails) => {
+    try {
+      const calendars = await Calendar.getCalendarsAsync(
+        Calendar.EntityTypes.EVENT,
+      );
+
+      const writableCalendar =
+        calendars.find(
+          (cal) => cal.allowsModifications && cal.source?.isLocalAccount,
+        ) || calendars.find((cal) => cal.allowsModifications);
+
+      if (!writableCalendar) {
+        console.log("No writable calendar found");
+        return;
+      }
+
+      const baseDate = new Date(booking.date);
+
+      const [startHour, startMinute] = booking.start_time
+        .split(":")
+        .map(Number);
+      const [endHour, endMinute] = booking.end_time.split(":").map(Number);
+
+      const startDate = new Date(baseDate);
+      startDate.setHours(startHour, startMinute, 0);
+
+      const endDate = new Date(baseDate);
+      endDate.setHours(endHour, endMinute, 0);
+
+      await Calendar.createEventAsync(writableCalendar.id, {
+        title: `Booking: ${booking.service_name}`,
+        startDate,
+        endDate,
+        notes: `Customer: ${booking.customer_name}\nPhone: ${booking.customer_phone}`,
+        timeZone: "GMT",
+      });
+
+      console.log("Calendar event created successfully");
+    } catch (error) {
+      console.log("Calendar Error:", error);
     }
   };
 

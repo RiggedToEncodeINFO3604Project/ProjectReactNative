@@ -1,6 +1,6 @@
 import * as Calendar from "expo-calendar";
 import React, { useEffect, useState } from "react";
-import { Alert, Button, FlatList, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
 import { CalendarList } from "react-native-calendars";
 
 export default function CalendarScreen() {
@@ -63,40 +63,41 @@ export default function CalendarScreen() {
     setMarkedDates(marks);
   };
 
-  const createEvent = async () => {
-    const calendars = await Calendar.getCalendarsAsync(
-      Calendar.EntityTypes.EVENT,
-    );
-    const writableCalendar =
-      calendars.find(
-        (cal) => cal.allowsModifications && cal.source?.isLocalAccount,
-      ) || calendars.find((cal) => cal.allowsModifications);
+  //wont be needing write for now but keeping this here for reference
+  // const createEvent = async () => {
+  //   const calendars = await Calendar.getCalendarsAsync(
+  //     Calendar.EntityTypes.EVENT,
+  //   );
+  //   const writableCalendar =
+  //     calendars.find(
+  //       (cal) => cal.allowsModifications && cal.source?.isLocalAccount,
+  //     ) || calendars.find((cal) => cal.allowsModifications);
 
-    if (!writableCalendar) {
-      Alert.alert("No writable calendar found");
-      return;
-    }
+  //   if (!writableCalendar) {
+  //     Alert.alert("No writable calendar found");
+  //     return;
+  //   }
 
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() + 1);
-    startDate.setHours(10, 0, 0);
-    const endDate = new Date(startDate);
-    endDate.setHours(11, 0, 0);
+  //   const startDate = new Date();
+  //   startDate.setDate(startDate.getDate() + 1);
+  //   startDate.setHours(10, 0, 0);
+  //   const endDate = new Date(startDate);
+  //   endDate.setHours(11, 0, 0);
 
-    try {
-      const eventId = await Calendar.createEventAsync(writableCalendar.id, {
-        title: "Test Event from My App",
-        startDate,
-        endDate,
-        notes: "Created from SkeduleIt",
-        timeZone: "GMT",
-      });
-      Alert.alert("Success", `Event created and added`);
-      loadEvents();
-    } catch (error) {
-      Alert.alert("Error", error.message);
-    }
-  };
+  //   try {
+  //     const eventId = await Calendar.createEventAsync(writableCalendar.id, {
+  //       title: "Test Event from My App",
+  //       startDate,
+  //       endDate,
+  //       notes: "Created from SkeduleIt",
+  //       timeZone: "GMT",
+  //     });
+  //     Alert.alert("Success", `Event created and added`);
+  //     loadEvents();
+  //   } catch (error) {
+  //     Alert.alert("Error", error.message);
+  //   }
+  // };
 
   const renderEvent = ({ item }) => (
     <View style={styles.eventItem}>
@@ -134,10 +135,10 @@ export default function CalendarScreen() {
               scrollEnabled={false}
               showScrollIndicator={false}
             />
-            <Button
+            {/* <Button
               title="Add test event to check write feature"
               onPress={createEvent}
-            />
+            /> */}
             <Text style={styles.subtitle}>Upcoming Events</Text>
           </View>
         }
