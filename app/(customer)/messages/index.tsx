@@ -238,6 +238,12 @@ export default function MessagesScreen() {
           },
         ]}
       >
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Text style={[styles.backText, { color: theme.tint }]}>← Back</Text>
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.text }]}>
           Messages
         </Text>
@@ -331,9 +337,18 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
   },
+  backButton: {
+    paddingRight: 12,
+  },
+  backText: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
+    flex: 1,
+    textAlign: "center",
   },
   headerActions: {
     flexDirection: "row",

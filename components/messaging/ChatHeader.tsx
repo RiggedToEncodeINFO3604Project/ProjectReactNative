@@ -144,12 +144,7 @@ export function ChatHeader({
             style={styles.backButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <IconSymbol
-              name="chevron.left.forwardslash.chevron.right"
-              size={24}
-              color={theme.text}
-              style={{ transform: [{ rotate: "180deg" }] }}
-            />
+            <IconSymbol name="arrow.backward" size={24} color={theme.text} />
           </Pressable>
         )}
 

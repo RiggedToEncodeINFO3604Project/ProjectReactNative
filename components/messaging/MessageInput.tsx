@@ -81,6 +81,21 @@ export function MessageInput({
     setInputHeight(newHeight);
   };
 
+  // Handle Enter key - send on web/desktop, new line on mobile
+  const handleKeyPress = (event: {
+    nativeEvent: { key: string; shiftKey?: boolean };
+  }) => {
+    // Only handle Enter key on web platform
+    if (Platform.OS === "web" && event.nativeEvent.key === "Enter") {
+      // If Shift is pressed, allow new line (default behavior)
+      // If Enter alone is pressed, send the message
+      if (!event.nativeEvent.shiftKey) {
+        event.preventDefault?.();
+        handleSend();
+      }
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -146,6 +161,7 @@ export function MessageInput({
             maxLength={1000}
             editable={!disabled}
             onContentSizeChange={handleContentSizeChange}
+            onKeyPress={handleKeyPress}
             blurOnSubmit={false}
             onSubmitEditing={() => {
               if (canSend) handleSend();

@@ -24,7 +24,11 @@ const MAPPING = {
   "gearshape.fill": "settings",
   magnifyingglass: "search",
   "arrow.left": "arrow-back",
+  "arrow.backward": "arrow-back",
   "message.fill": "message",
+  "xmark.circle.fill": "cancel",
+  "chevron.up": "keyboard-arrow-up",
+  "chevron.down": "keyboard-arrow-down",
 } as IconMapping;
 
 /**
