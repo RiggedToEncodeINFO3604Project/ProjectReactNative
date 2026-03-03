@@ -7,6 +7,7 @@ const { createProxyMiddleware } = require("http-proxy-middleware");
 const app = express();
 const PORT = process.env.PORT || 8081;
 const BACKEND_PORT = 8000;
+const LOCAL_BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 
 // ============================================
 // WEBSOCKET PROXY SETUP
@@ -268,9 +269,33 @@ app.get("/api/messaging/conversations", (req, res) => {
 });
 
 // Start conversation
-app.post("/api/messaging/conversations/start", (req, res) => {
-  proxyToLocalBackend(req, res, "/api/messaging/conversations/start");
-});
+app.post(
+  "/api/messaging/conversations/start",
+  express.json(),
+  async (req, res) => {
+    try {
+      const targetUrl =
+        LOCAL_BACKEND_URL + "/api/messaging/conversations/start";
+      const headers = {
+        ...req.headers,
+        host: new URL(LOCAL_BACKEND_URL).host,
+      };
+      delete headers["content-length"];
+
+      const response = await fetch(targetUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(req.body),
+      });
+
+      const data = await response.text();
+      res.status(response.status).send(data);
+    } catch (error) {
+      console.error("Proxy error:", error);
+      res.status(500).json({ error: "Proxy error" });
+    }
+  },
+);
 
 // Get conversation details
 app.get("/api/messaging/conversations/:conversationId", (req, res) => {
@@ -296,25 +321,64 @@ app.get("/api/messaging/conversations/:conversationId/messages", (req, res) => {
 // Send message
 app.post(
   "/api/messaging/conversations/:conversationId/messages",
-  (req, res) => {
-    const { conversationId } = req.params;
-    proxyToLocalBackend(
-      req,
-      res,
-      `/api/messaging/conversations/${conversationId}/messages`,
-    );
+  express.json(),
+  async (req, res) => {
+    try {
+      const { conversationId } = req.params;
+      const targetUrl =
+        LOCAL_BACKEND_URL +
+        `/api/messaging/conversations/${conversationId}/messages`;
+      const headers = {
+        ...req.headers,
+        host: new URL(LOCAL_BACKEND_URL).host,
+      };
+      delete headers["content-length"];
+
+      const response = await fetch(targetUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(req.body),
+      });
+
+      const data = await response.text();
+      res.status(response.status).send(data);
+    } catch (error) {
+      console.error("Proxy error:", error);
+      res.status(500).json({ error: "Proxy error" });
+    }
   },
 );
 
 // Mark conversation as read
-app.post("/api/messaging/conversations/:conversationId/read", (req, res) => {
-  const { conversationId } = req.params;
-  proxyToLocalBackend(
-    req,
-    res,
-    `/api/messaging/conversations/${conversationId}/read`,
-  );
-});
+app.post(
+  "/api/messaging/conversations/:conversationId/read",
+  express.json(),
+  async (req, res) => {
+    try {
+      const { conversationId } = req.params;
+      const targetUrl =
+        LOCAL_BACKEND_URL +
+        `/api/messaging/conversations/${conversationId}/read`;
+      const headers = {
+        ...req.headers,
+        host: new URL(LOCAL_BACKEND_URL).host,
+      };
+      delete headers["content-length"];
+
+      const response = await fetch(targetUrl, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(req.body),
+      });
+
+      const data = await response.text();
+      res.status(response.status).send(data);
+    } catch (error) {
+      console.error("Proxy error:", error);
+      res.status(500).json({ error: "Proxy error" });
+    }
+  },
+);
 
 // ============================================
 // EXTERNAL RAG SERVER PROXY (Chatbot)
