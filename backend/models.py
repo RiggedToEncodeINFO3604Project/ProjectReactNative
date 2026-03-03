@@ -199,7 +199,7 @@ class ConversationCreate(ConversationBase):
 
 
 class Conversation(ConversationBase):
-    id: str = Field(alias="_id")
+    id: str
     created_at: datetime
     updated_at: datetime
     last_message: Optional[str] = None
@@ -208,13 +208,9 @@ class Conversation(ConversationBase):
     provider_unread_count: int = 0
     customer_name: Optional[str] = None
     provider_name: Optional[str] = None
-    
-    class Config:
-        populate_by_name = True
 
 
 class SendMessageRequest(BaseModel):
-    recipient_id: str  # Provider ID (if customer) or Customer ID (if provider)
     content: str = Field(..., min_length=1, max_length=2000)
     message_type: MessageType = MessageType.TEXT
     image_url: Optional[str] = None

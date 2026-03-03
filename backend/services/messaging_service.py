@@ -91,7 +91,7 @@ def get_user_conversations(user_id: str, role: str) -> List[dict]:
     conversations = []
     for doc in query.stream():
         data = doc.to_dict()
-        data['_id'] = doc.id
+        data['id'] = doc.id
         
         # Enrich with names if missing (for existing conversations)
         if not data.get('customer_name'):
@@ -124,7 +124,7 @@ def get_conversation_by_id(conversation_id: str) -> Optional[dict]:
         return None
     
     data = conv_doc.to_dict()
-    data['_id'] = conv_doc.id
+    data['id'] = conv_doc.id
     
     # Enrich with names if missing (for existing conversations)
     if not data.get('customer_name'):
@@ -227,7 +227,7 @@ def get_conversation_messages(
     messages = []
     for doc in query.stream():
         data = doc.to_dict()
-        data['_id'] = doc.id
+        data['id'] = doc.id
         messages.append(data)
     
     return messages
