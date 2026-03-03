@@ -179,6 +179,9 @@ async def get_provider_availability(
             for doc in bookings_docs:
                 booking_data = doc.to_dict()
                 booking_date = booking_data["date"]
+                # Strip timezone info if present
+                if hasattr(booking_date, 'tzinfo') and booking_date.tzinfo is not None:
+                    booking_date = booking_date.replace(tzinfo=None)
                 # Filter by date range
                 if start_of_day <= booking_date < end_of_day:
                     if booking_data["status"] in ["pending", "confirmed"]:
@@ -250,6 +253,9 @@ async def get_provider_calendar(
             for doc in bookings_docs:
                 booking_data = doc.to_dict()
                 booking_date = booking_data["date"]
+                # Strip timezone info if present
+                if hasattr(booking_date, 'tzinfo') and booking_date.tzinfo is not None:
+                    booking_date = booking_date.replace(tzinfo=None)
                 # Filter by date range
                 if start_of_month <= booking_date < next_month:
                     if booking_data["status"] in ["pending", "confirmed"]:
@@ -400,6 +406,9 @@ async def create_booking(
     for doc in bookings_docs:
         booking_data = doc.to_dict()
         booking_data_date = booking_data["date"]
+        # Strip timezone info if present
+        if hasattr(booking_data_date, 'tzinfo') and booking_data_date.tzinfo is not None:
+            booking_data_date = booking_data_date.replace(tzinfo=None)
         # Filter by date
         if not (start_of_day <= booking_data_date < end_of_day):
             continue
