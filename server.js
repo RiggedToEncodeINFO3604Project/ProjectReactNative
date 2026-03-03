@@ -31,9 +31,6 @@ const wsProxy = createProxyMiddleware({
 // Use WebSocket proxy
 app.use("/ws", wsProxy);
 
-// Middleware - serve static files first
-app.use(express.static(path.join(__dirname, "dist")));
-
 // ============================================
 // PROXY TO LOCAL FASTAPI BACKEND (Port 8000)
 // ============================================
@@ -416,6 +413,12 @@ app.post("/api/chat", express.json(), async (req, res) => {
 app.get("/health", (req, res) => {
   res.json({ status: "healthy", service: "express" });
 });
+
+// ============================================
+// SERVE STATIC FILES (after API routes)
+// ============================================
+
+app.use(express.static(path.join(__dirname, "dist")));
 
 // ============================================
 // SERVE REACT APP FOR ALL OTHER ROUTES
