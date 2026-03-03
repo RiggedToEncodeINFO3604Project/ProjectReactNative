@@ -1,5 +1,4 @@
 import ConfirmModal from "@/components/ConfirmModal";
-import MessageCustomerButton from "@/components/MessageCustomerButton";
 import { useTheme } from "@/context/ThemeContext";
 import {
   acceptBooking,
@@ -75,8 +74,8 @@ export default function PendingBookingsScreen() {
     try {
       const booking = bookings.find((b) => b.booking_id === bookingId);
 
-      await acceptBooking(bookingId);
-      if (booking) await addBookingToCalendar(booking);
+      await acceptBooking(bookingId); // Saves to Firebase
+      if (booking) await addBookingToCalendar(booking); // Adds to device calendar
 
       Alert.alert("Success", "Booking accepted and added to calendar");
       loadBookings();
@@ -232,14 +231,6 @@ export default function PendingBookingsScreen() {
             Reject
           </Text>
         </TouchableOpacity>
-
-        <MessageCustomerButton
-          customerId={item.customer_id}
-          customerName={item.customer_name}
-          size="small"
-          showLabel={false}
-          style={styles.messageButton}
-        />
       </View>
     </View>
   );
@@ -354,9 +345,6 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: "row",
     gap: 10,
-  },
-  messageButton: {
-    minWidth: 44,
   },
   acceptButton: {
     flex: 1,
