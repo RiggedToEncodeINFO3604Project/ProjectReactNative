@@ -1,9 +1,18 @@
 import * as Calendar from "expo-calendar";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { CalendarList } from "react-native-calendars";
 
 export default function CalendarScreen() {
+  const router = useRouter();
   const [events, setEvents] = useState([]);
   const [markedDates, setMarkedDates] = useState({});
   const [permissionGranted, setPermissionGranted] = useState(false);
@@ -118,6 +127,12 @@ export default function CalendarScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={styles.backText}>{"<"} Back</Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         data={events}
         keyExtractor={(item, index) => index.toString()}
@@ -175,4 +190,14 @@ const styles = StyleSheet.create({
   eventDate: { fontSize: 13, color: "#666", marginTop: 4 },
   empty: { textAlign: "center", color: "#999", padding: 20 },
   eventTime: { fontSize: 13, color: "#888", marginTop: 2 },
+  header: {
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#432033",
+  },
+  backText: {
+    fontSize: 16,
+    color: "#f0c85a",
+  },
 });
