@@ -262,6 +262,64 @@ app.get("/provider/bookings/:bookingId/available-slots", (req, res) => {
 });
 
 // ============================================
+// MESSAGING ROUTES PROXY
+// ============================================
+
+// List conversations
+app.get("/api/messaging/conversations", (req, res) => {
+  proxyToLocalBackend(req, res, "/api/messaging/conversations");
+});
+
+// Start conversation
+app.post("/api/messaging/conversations/start", (req, res) => {
+  proxyToLocalBackend(req, res, "/api/messaging/conversations/start");
+});
+
+// Get conversation details
+app.get("/api/messaging/conversations/:conversationId", (req, res) => {
+  const { conversationId } = req.params;
+  proxyToLocalBackend(
+    req,
+    res,
+    `/api/messaging/conversations/${conversationId}`,
+  );
+});
+
+// Get messages (with query params for pagination)
+app.get("/api/messaging/conversations/:conversationId/messages", (req, res) => {
+  const { conversationId } = req.params;
+  const queryString = req.url.split("?")[1] || "";
+  proxyToLocalBackend(
+    req,
+    res,
+    `/api/messaging/conversations/${conversationId}/messages${queryString ? "?" + queryString : ""}`,
+  );
+});
+
+// Send message
+app.post(
+  "/api/messaging/conversations/:conversationId/messages",
+  (req, res) => {
+    const { conversationId } = req.params;
+    proxyToLocalBackend(
+      req,
+      res,
+      `/api/messaging/conversations/${conversationId}/messages`,
+    );
+  },
+);
+
+// Mark conversation as read
+app.post("/api/messaging/conversations/:conversationId/read", (req, res) => {
+  const { conversationId } = req.params;
+  proxyToLocalBackend(
+    req,
+    res,
+    `/api/messaging/conversations/${conversationId}/read`,
+  );
+});
+
+// ============================================
 // EXTERNAL RAG SERVER PROXY (Chatbot)
 // ============================================
 
