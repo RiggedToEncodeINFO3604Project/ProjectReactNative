@@ -178,6 +178,7 @@ def send_message(
         raise ValueError("Conversation not found")
     
     # Create message
+    created_at = datetime.utcnow()
     message_data = {
         'conversation_id': conversation_id,
         'sender_id': sender_id,
@@ -186,18 +187,28 @@ def send_message(
         'message_type': message_type,
         'image_url': image_url,
         'thumbnail_url': None,  # Can be added later for image optimization
-        'created_at': datetime.utcnow(),
+        'created_at': created_at,
     }
     
     messages_ref = db.collection('messages')
     _, doc_ref = messages_ref.add(message_data)
     message_id = doc_ref.id
     
-    # Update conversation metadata
+    # Update conversation metadata with full last_message object
+    last_message_obj = {
+        'id': message_id,
+        'sender_id': sender_id,
+        'sender_role': sender_role,
+        'content': content,
+        'message_type': message_type,
+        'image_url': image_url,
+        'created_at': created_at,
+    }
+    
     update_data = {
-        'updated_at': datetime.utcnow(),
-        'last_message': content[:50],  # Preview (first 50 chars)
-        'last_message_time': datetime.utcnow(),
+        'updated_at': created_at,
+        'last_message': last_message_obj,
+        'last_message_time': created_at,
     }
     
     conv_ref.update(update_data)

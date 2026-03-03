@@ -187,6 +187,17 @@ class Message(MessageBase):
     
     class Config:
         populate_by_name = True
+
+
+# Last message preview stored in conversation (simplified Message object)
+class LastMessage(BaseModel):
+    id: str
+    sender_id: str
+    sender_role: UserRole
+    content: str
+    message_type: MessageType = MessageType.TEXT
+    image_url: Optional[str] = None
+    created_at: datetime
         
         
 class ConversationBase(BaseModel):
@@ -202,7 +213,7 @@ class Conversation(ConversationBase):
     id: str
     created_at: datetime
     updated_at: datetime
-    last_message: Optional[str] = None
+    last_message: Optional[LastMessage] = None
     last_message_time: Optional[datetime] = None
     customer_unread_count: int = 0
     provider_unread_count: int = 0
