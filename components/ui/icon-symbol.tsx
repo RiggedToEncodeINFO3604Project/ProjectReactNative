@@ -29,6 +29,8 @@ const MAPPING = {
   "xmark.circle.fill": "cancel",
   "chevron.up": "keyboard-arrow-up",
   "chevron.down": "keyboard-arrow-down",
+  "cpu.fill": "memory",
+  "robot.fill": "smart-toy",
 } as IconMapping;
 
 /**

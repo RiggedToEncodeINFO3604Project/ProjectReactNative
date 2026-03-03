@@ -289,8 +289,6 @@ export default function MessagesScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.tint} />
         </View>
-      ) : filteredConversations.length === 0 ? (
-        renderEmptyList()
       ) : (
         <FlatList
           data={filteredConversations}
@@ -318,6 +316,58 @@ export default function MessagesScreen() {
                 },
               ]}
             />
+          )}
+          ListEmptyComponent={renderEmptyList}
+          ListFooterComponent={() => (
+            <>
+              {filteredConversations.length > 0 && (
+                <View
+                  style={[
+                    styles.separator,
+                    styles.aiSupportSeparator,
+                    {
+                      backgroundColor:
+                        colorScheme === "dark" ? "#444" : "#e0e0e0",
+                    },
+                  ]}
+                />
+              )}
+              <TouchableOpacity
+                style={[
+                  styles.aiSupportContainer,
+                  { backgroundColor: theme.background },
+                ]}
+                onPress={() => router.push("/support")}
+                activeOpacity={0.7}
+              >
+                <View
+                  style={[
+                    styles.aiSupportIcon,
+                    {
+                      backgroundColor:
+                        colorScheme === "dark" ? "#1a3a4a" : "#e3f2fd",
+                    },
+                  ]}
+                >
+                  <IconSymbol name="robot.fill" size={28} color={theme.tint} />
+                </View>
+                <View style={styles.aiSupportContent}>
+                  <Text
+                    style={[styles.aiSupportName, { color: theme.text }]}
+                    numberOfLines={1}
+                  >
+                    AI Support
+                  </Text>
+                  <Text
+                    style={[styles.aiSupportSubtitle, { color: theme.icon }]}
+                    numberOfLines={1}
+                  >
+                    Get help from our smart assistant
+                  </Text>
+                </View>
+                <IconSymbol name="chevron.right" size={20} color={theme.icon} />
+              </TouchableOpacity>
+            </>
           )}
         />
       )}
@@ -411,5 +461,35 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontWeight: "600",
+  },
+  aiSupportSeparator: {
+    height: 2,
+    marginLeft: 0,
+  },
+  aiSupportContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  aiSupportIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  aiSupportContent: {
+    flex: 1,
+    marginLeft: 12,
+    justifyContent: "center",
+  },
+  aiSupportName: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  aiSupportSubtitle: {
+    fontSize: 13,
+    marginTop: 2,
   },
 });
