@@ -2,10 +2,34 @@ const express = require("express");
 const path = require("path");
 const https = require("https");
 const http = require("http");
+const { createProxyMiddleware } = require("http-proxy-middleware");
 
 const app = express();
 const PORT = process.env.PORT || 8081;
 const BACKEND_PORT = 8000;
+
+// ============================================
+// WEBSOCKET PROXY SETUP
+// ============================================
+
+// Create WebSocket proxy middleware
+const wsProxy = createProxyMiddleware({
+  target: `http://localhost:${BACKEND_PORT}`,
+  changeOrigin: true,
+  ws: true,
+  pathRewrite: {
+    "^/ws": "/ws",
+  },
+  onError: (err, req, res) => {
+    console.error("[WebSocket Proxy Error]:", err.message);
+  },
+  onProxyReqWs: (proxyReq, req, socket) => {
+    console.log(`[WebSocket] Upgrading ${req.url}`);
+  },
+});
+
+// Use WebSocket proxy
+app.use("/ws", wsProxy);
 
 // Middleware - serve static files first
 app.use(express.static(path.join(__dirname, "dist")));
@@ -347,9 +371,13 @@ app.get("*", (req, res) => {
 // START SERVER
 // ============================================
 
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`========================================`);
   console.log(`Express server running on port ${PORT}`);
   console.log(`Proxying API requests to localhost:${BACKEND_PORT}`);
+  console.log(`WebSocket proxy enabled on /ws`);
   console.log(`========================================`);
 });
+
+// Handle WebSocket upgrade events
+server.on("upgrade", wsProxy.upgrade);

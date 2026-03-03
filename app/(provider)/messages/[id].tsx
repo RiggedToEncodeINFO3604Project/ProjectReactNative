@@ -102,9 +102,10 @@ export default function ChatScreen() {
     try {
       const data = await getMessages(conversationId, 50);
       // Reverse to show oldest first
-      setMessages(data.reverse());
+      setMessages(Array.isArray(data) ? data.reverse() : []);
     } catch (error) {
       console.error("Error fetching messages:", error);
+      setMessages([]);
     } finally {
       setIsLoadingMessages(false);
     }
@@ -375,6 +376,7 @@ export default function ChatScreen() {
               </Text>
             </View>
           ) : (
+            Array.isArray(messages) &&
             messages.map((message, index) => (
               <View
                 key={message.id}

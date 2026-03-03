@@ -70,9 +70,10 @@ export default function MessagesScreen() {
     if (showLoading) setIsLoading(true);
     try {
       const data = await getConversations();
-      setConversations(data);
+      setConversations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching conversations:", error);
+      setConversations([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -144,9 +145,9 @@ export default function MessagesScreen() {
 
   // Filter conversations based on search query
   useEffect(() => {
-    const previews = conversations.map((conv) =>
-      toConversationPreview(conv, currentUserId),
-    );
+    const previews = Array.isArray(conversations)
+      ? conversations.map((conv) => toConversationPreview(conv, currentUserId))
+      : [];
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
