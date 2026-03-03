@@ -1,4 +1,5 @@
 import BookingActionModal from "@/components/BookingActionModal";
+import MessageCustomerButton from "@/components/MessageCustomerButton";
 import { useTheme } from "@/context/ThemeContext";
 import { deleteBooking, getConfirmedBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
