@@ -99,14 +99,22 @@ export default function CalendarScreen() {
   //   }
   // };
 
-  const renderEvent = ({ item }) => (
-    <View style={styles.eventItem}>
-      <Text style={styles.eventTitle}>Unavailable</Text>
-      <Text style={styles.eventDate}>
-        {new Date(item.startDate).toLocaleDateString()}
-      </Text>
-    </View>
-  );
+  const renderEvent = ({ item }) => {
+    const start = new Date(item.startDate);
+    const end = new Date(item.endDate);
+    const timeOptions = { hour: "2-digit", minute: "2-digit" } as const;
+
+    return (
+      <View style={styles.eventItem}>
+        <Text style={styles.eventTitle}>Unavailable</Text>
+        <Text style={styles.eventDate}>{start.toLocaleDateString()}</Text>
+        <Text style={styles.eventTime}>
+          {start.toLocaleTimeString([], timeOptions)} –{" "}
+          {end.toLocaleTimeString([], timeOptions)}
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -135,10 +143,6 @@ export default function CalendarScreen() {
               scrollEnabled={false}
               showScrollIndicator={false}
             />
-            {/* <Button
-              title="Add test event to check write feature"
-              onPress={createEvent}
-            /> */}
             <Text style={styles.subtitle}>Upcoming Events</Text>
           </View>
         }
@@ -170,4 +174,5 @@ const styles = StyleSheet.create({
   eventTitle: { fontSize: 16, fontWeight: "500" },
   eventDate: { fontSize: 13, color: "#666", marginTop: 4 },
   empty: { textAlign: "center", color: "#999", padding: 20 },
+  eventTime: { fontSize: 13, color: "#888", marginTop: 2 },
 });
