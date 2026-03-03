@@ -275,6 +275,7 @@ export class MessagingWebSocket {
   /**
    * Get the WebSocket URL from the API URL
    * Converts http:// to ws:// and https:// to wss://
+   * Ensures secure WebSocket (wss://) for HTTPS pages
    */
   private getWebSocketUrl(): string {
     const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
@@ -285,8 +286,15 @@ export class MessagingWebSocket {
       return apiUrl.replace("http://", "ws://") + "/ws";
     }
 
-    // Fallback - assume ws for localhost development
-    return `ws://${apiUrl}/ws`;
+    // Improved fallback - detect current protocol in browser
+    if (typeof window !== "undefined") {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const host = apiUrl || window.location.host;
+      return `${protocol}//${host}/ws`;
+    }
+
+    // Default to secure WebSocket for production safety
+    return `wss://${apiUrl || "localhost"}/ws`;
   }
 
   /**
