@@ -99,6 +99,12 @@ def get_user_conversations(user_id: str, role: str) -> List[dict]:
         if not data.get('provider_name'):
             data['provider_name'] = _get_provider_name(db, data.get('provider_id', ''))
         
+        # Calculate unified unread_count based on user's role
+        if role == "Customer":
+            data['unread_count'] = data.get('customer_unread_count', 0)
+        else:
+            data['unread_count'] = data.get('provider_unread_count', 0)
+        
         conversations.append(data)
     
     # Sort by updated_at in Python (most recent first)
@@ -110,7 +116,7 @@ def get_user_conversations(user_id: str, role: str) -> List[dict]:
     return conversations
 
 
-def get_conversation_by_id(conversation_id: str) -> Optional[dict]: 
+def get_conversation_by_id(conversation_id: str, user_role: str = None) -> Optional[dict]:
     """
     Get a specific conversation by ID.
     Returns conversation data or None if not found
@@ -131,6 +137,13 @@ def get_conversation_by_id(conversation_id: str) -> Optional[dict]:
         data['customer_name'] = _get_customer_name(db, data.get('customer_id', ''))
     if not data.get('provider_name'):
         data['provider_name'] = _get_provider_name(db, data.get('provider_id', ''))
+    
+    # Calculate unified unread_count if role is provided
+    if user_role:
+        if user_role == "Customer":
+            data['unread_count'] = data.get('customer_unread_count', 0)
+        else:
+            data['unread_count'] = data.get('provider_unread_count', 0)
     
     return data
 
@@ -188,6 +201,8 @@ def send_message(
         'image_url': image_url,
         'thumbnail_url': None,  # Can be added later for image optimization
         'created_at': created_at,
+        'read': False,
+        'status': 'sent',
     }
     
     messages_ref = db.collection('messages')
@@ -210,6 +225,12 @@ def send_message(
         'last_message': last_message_obj,
         'last_message_time': created_at,
     }
+    
+    # Increment unread count for the recipient
+    if sender_role == "Customer":
+        update_data['provider_unread_count'] = firestore.Increment(1)
+    else:
+        update_data['customer_unread_count'] = firestore.Increment(1)
     
     conv_ref.update(update_data)
     
@@ -242,3 +263,56 @@ def get_conversation_messages(
         messages.append(data)
     
     return messages
+
+
+def mark_conversation_as_read(conversation_id: str, user_role: str) -> bool:
+    """
+    Mark all messages in a conversation as read for the user
+    and reset their unread counter to 0.
+    
+    Args:
+        conversation_id: ID of the conversation
+        user_role: Role of the user ("Customer" or "Provider")
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    db = get_database()
+    
+    try:
+        conv_ref = db.collection('conversations').document(conversation_id)
+        
+        # Reset the appropriate unread counter based on user role
+        update_data = {}
+        if user_role == "Customer":
+            update_data['customer_unread_count'] = 0
+        else:
+            update_data['provider_unread_count'] = 0
+        
+        conv_ref.update(update_data)
+        
+        # Mark unread messages from the other party as read
+        messages_ref = db.collection('messages')
+        
+        # Determine sender role of messages to mark as read
+        sender_role_to_mark = "Provider" if user_role == "Customer" else "Customer"
+        
+        # Query for unread messages from the other party
+        unread_query = messages_ref.where('conversation_id', '==', conversation_id)\
+                                   .where('sender_role', '==', sender_role_to_mark)\
+                                   .where('read', '==', False)
+        
+        # Batch update to mark messages as read
+        batch = db.batch()
+        unread_docs = unread_query.stream()
+        
+        for doc in unread_docs:
+            doc_ref = messages_ref.document(doc.id)
+            batch.update(doc_ref, {'read': True})
+        
+        batch.commit()
+        
+        return True
+    except Exception as e:
+        print(f"Error marking conversation as read: {e}")
+        return False

@@ -30,7 +30,7 @@ function toConversationPreview(
 ): ConversationPreview {
   const otherUserName = conversation.provider_name || "Provider";
   const otherUserAvatar = conversation.provider_avatar;
-  const unreadCount = conversation.unread_count_customer;
+  const unreadCount = conversation.unread_count;
 
   return {
     id: conversation.id,
@@ -92,10 +92,10 @@ export default function MessagesScreen() {
               updated_at: message.created_at,
               // Increment unread count if not current user
               ...(message.sender_id !== currentUserId && {
-                unread_count_customer:
+                unread_count:
                   message.sender_role === "Provider"
-                    ? (conv.unread_count_customer || 0) + 1
-                    : conv.unread_count_customer,
+                    ? (conv.unread_count || 0) + 1
+                    : conv.unread_count,
               }),
             };
           }

@@ -13,6 +13,7 @@ from services.messaging_service import (
     get_conversation_messages,
     verify_user_in_conversation,
     get_conversation_by_id,
+    mark_conversation_as_read,
 )
 from websocket_manager import websocket_manager
 
@@ -99,7 +100,7 @@ async def get_conversation(conversation_id: str, current_user: User = Depends(ge
                 detail="You are not a participant in this conversation"
             )
         
-        conversation = get_conversation_by_id(conversation_id)
+        conversation = get_conversation_by_id(conversation_id, current_user.role)
         
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
@@ -201,7 +202,8 @@ async def send_message_endpoint(
             "image_url": request.image_url,
             "thumbnail_url": None,
             "created_at": datetime.utcnow().isoformat(),
-            "read": False
+            "read": False,
+            "status": "sent"
         }
         
         # Broadcast to all participants in the conversation via WebSocket
@@ -227,4 +229,48 @@ async def send_message_endpoint(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to send message: {str(e)}"
-        ) 
+        )
+
+
+@router.post("/conversations/{conversation_id}/read", response_model=dict)
+async def mark_conversation_read(
+    conversation_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Mark all messages in a conversation as read for the current user
+    and reset their unread counter to 0.
+    
+    - User must be a participant in the conversation
+    - Should be called when user opens/opens a chat
+    """
+    try:
+        # Verify user is in this conversation
+        if not verify_user_in_conversation(conversation_id, current_user.id, current_user.role):
+            raise HTTPException(
+                status_code=403,
+                detail="You are not a participant in this conversation"
+            )
+        
+        success = mark_conversation_as_read(
+            conversation_id=conversation_id,
+            user_role=current_user.role
+        )
+        
+        if success:
+            log.info(f"User {current_user.id} marked conversation {conversation_id} as read")
+            return {"success": True, "message": "Conversation marked as read"}
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to mark conversation as read"
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Error marking conversation as read: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to mark conversation as read: {str(e)}"
+        )

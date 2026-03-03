@@ -325,8 +325,9 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
   last_message?: Message;
-  unread_count_customer: number;
-  unread_count_provider: number;
+  unread_count: number;
+  unread_count_customer: number; // Deprecated: use unread_count
+  unread_count_provider: number; // Deprecated: use unread_count
   customer_name?: string; // For display
   provider_name?: string; // For display
   customer_avatar?: string;

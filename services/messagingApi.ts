@@ -173,8 +173,17 @@ export const sendMessage = async (
   return response.data;
 };
 
-// ======================================================================
-// = WebSocket Manager Class                                            =
+/**
+ * Mark a conversation as read
+ * @param conversationId - The ID of the conversation to mark as read
+ */
+export const markConversationAsRead = async (
+  conversationId: string,
+): Promise<void> => {
+  await api.post(`/api/messaging/conversations/${conversationId}/read`);
+};
+
+// ====================================================================== // = WebSocket Manager Class                                            =
 // ======================================================================
 
 // Connection state type

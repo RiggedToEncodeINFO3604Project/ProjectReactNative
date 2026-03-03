@@ -13,6 +13,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   getConversation,
   getMessages,
+  markConversationAsRead,
   messagingSocket,
   sendMessage,
 } from "@/services/messagingApi";
@@ -176,6 +177,13 @@ export default function ChatScreen() {
       return () => {
         messagingSocket.unsubscribeFromConversation(conversationId);
       };
+    }
+  }, [conversationId]);
+
+  // Mark conversation as read when opened
+  useEffect(() => {
+    if (conversationId) {
+      markConversationAsRead(conversationId).catch(console.error);
     }
   }, [conversationId]);
 

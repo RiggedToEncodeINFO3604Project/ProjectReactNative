@@ -184,6 +184,7 @@ class Message(MessageBase):
     conversation_id: str
     created_at: datetime
     read: bool = False
+    status: str = "sent"  # "sent", "delivered", "read"
     
     class Config:
         populate_by_name = True
@@ -217,6 +218,7 @@ class Conversation(ConversationBase):
     last_message_time: Optional[datetime] = None
     customer_unread_count: int = 0
     provider_unread_count: int = 0
+    unread_count: int = 0  # Unified unread count for current user
     customer_name: Optional[str] = None
     provider_name: Optional[str] = None
 
