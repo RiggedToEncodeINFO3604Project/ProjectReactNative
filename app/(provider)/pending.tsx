@@ -74,8 +74,8 @@ export default function PendingBookingsScreen() {
     try {
       const booking = bookings.find((b) => b.booking_id === bookingId);
 
-      await acceptBooking(bookingId); // Saves to Firebase
-      if (booking) await addBookingToCalendar(booking); // Adds to device calendar
+      await acceptBooking(bookingId);
+      if (booking) await addBookingToCalendar(booking);
 
       Alert.alert("Success", "Booking accepted and added to calendar");
       loadBookings();
@@ -92,6 +92,13 @@ export default function PendingBookingsScreen() {
   // Function to add booking to calendar
   const addBookingToCalendar = async (booking: BookingWithDetails) => {
     try {
+      // Check/request permission first before trying anything
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status !== "granted") {
+        console.log("Calendar permission not granted, skipping calendar write");
+        return;
+      }
+
       const calendars = await Calendar.getCalendarsAsync(
         Calendar.EntityTypes.EVENT,
       );
