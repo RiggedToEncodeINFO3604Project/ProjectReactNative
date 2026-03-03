@@ -4,18 +4,18 @@
 // =====================================================
 
 import { Colors } from "@/constants/theme";
-import { useTheme } from "@/context/ThemeContext";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useCallback, useMemo, useState } from "react";
 import {
-    Dimensions,
-    FlatList,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -445,12 +445,9 @@ export function EmojiPicker({
   onEmojiSelect,
   recentEmojis = [],
 }: EmojiPickerProps) {
-  const { isDarkMode } = useTheme();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
   const [activeCategory, setActiveCategory] = useState("smileys");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Get current theme colors
-  const themeColors = isDarkMode ? Colors.dark : Colors.light;
 
   // Get emojis for the current category (including recent)
   const currentEmojis = useMemo(() => {
@@ -495,7 +492,7 @@ export function EmojiPicker({
           styles.categoryTab,
           activeCategory === category.id && [
             styles.categoryTabActive,
-            { backgroundColor: isDarkMode ? "#333" : "#e9ecef" },
+            { backgroundColor: colorScheme === "dark" ? "#333" : "#e9ecef" },
           ],
         ]}
         onPress={() => setActiveCategory(category.id)}
@@ -504,7 +501,7 @@ export function EmojiPicker({
         <Text style={styles.categoryIcon}>{category.icon}</Text>
       </TouchableOpacity>
     ),
-    [activeCategory, isDarkMode],
+    [activeCategory, colorScheme],
   );
 
   if (!visible) return null;
@@ -517,29 +514,21 @@ export function EmojiPicker({
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View
-          style={[
-            styles.container,
-            { backgroundColor: isDarkMode ? "#1a1a1a" : "#fff" },
-          ]}
-        >
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
           {/* Header */}
           <View
             style={[
               styles.header,
-              { borderBottomColor: isDarkMode ? "#333" : "#e9ecef" },
+              {
+                borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+              },
             ]}
           >
-            <Text
-              style={[
-                styles.title,
-                { color: isDarkMode ? "#fff" : Colors.light.text },
-              ]}
-            >
-              Emoji
-            </Text>
+            <Text style={[styles.title, { color: theme.text }]}>Emoji</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Text style={[styles.closeButtonText, { color: theme.icon }]}>
+                ✕
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -547,7 +536,12 @@ export function EmojiPicker({
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.categoryContainer}
+            style={[
+              styles.categoryContainer,
+              {
+                borderBottomColor: colorScheme === "dark" ? "#333" : "#f0f0f0",
+              },
+            ]}
             contentContainerStyle={styles.categoryContent}
           >
             {EMOJI_CATEGORIES.map(renderCategoryTab)}
@@ -556,12 +550,7 @@ export function EmojiPicker({
           {/* Emoji Grid */}
           {activeCategory === "recent" && recentEmojis.length === 0 ? (
             <View style={styles.emptyRecent}>
-              <Text
-                style={[
-                  styles.emptyRecentText,
-                  { color: isDarkMode ? "#888" : Colors.light.icon },
-                ]}
-              >
+              <Text style={[styles.emptyRecentText, { color: theme.icon }]}>
                 No recent emojis
               </Text>
             </View>
@@ -584,7 +573,7 @@ export function EmojiPicker({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
   container: {
@@ -614,12 +603,10 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     fontSize: 18,
-    color: "#687076",
   },
   categoryContainer: {
     maxHeight: 50,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
   },
   categoryContent: {
     paddingHorizontal: 8,

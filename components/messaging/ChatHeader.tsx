@@ -5,6 +5,7 @@
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Avatar } from "./Avatar";
 
@@ -23,8 +24,6 @@ interface ChatHeaderProps {
   onNavigateNext?: () => void;
 }
 
-const PRIMARY_COLOR = "#0a7ea4";
-
 export function ChatHeader({
   name,
   avatar,
@@ -39,23 +38,38 @@ export function ChatHeader({
   onNavigatePrevious,
   onNavigateNext,
 }: ChatHeaderProps) {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
   const isOnline = status?.toLowerCase() === "online";
 
   if (isSearching) {
     return (
-      <View style={styles.container}>
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.background,
+            borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+          },
+        ]}
+      >
         {/* Search Input */}
-        <View style={styles.searchContainer}>
+        <View
+          style={[
+            styles.searchContainer,
+            { backgroundColor: colorScheme === "dark" ? "#2a2a2a" : "#f5f5f5" },
+          ]}
+        >
           <IconSymbol
             name="magnifyingglass"
             size={20}
-            color={Colors.light.icon}
+            color={theme.icon}
             style={styles.searchIcon}
           />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: theme.text }]}
             placeholder="Search messages..."
-            placeholderTextColor={Colors.light.icon}
+            placeholderTextColor={theme.icon}
             value={searchQuery}
             onChangeText={onSearch}
             autoFocus
@@ -69,7 +83,7 @@ export function ChatHeader({
               <IconSymbol
                 name="xmark.circle.fill"
                 size={20}
-                color={Colors.light.icon}
+                color={theme.icon}
               />
             </Pressable>
           )}
@@ -83,13 +97,9 @@ export function ChatHeader({
               style={styles.navButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <IconSymbol
-                name="chevron.up"
-                size={20}
-                color={Colors.light.text}
-              />
+              <IconSymbol name="chevron.up" size={20} color={theme.text} />
             </Pressable>
-            <Text style={styles.resultCounter}>
+            <Text style={[styles.resultCounter, { color: theme.text }]}>
               {currentResultIndex + 1} of {searchResultCount}
             </Text>
             <Pressable
@@ -97,11 +107,7 @@ export function ChatHeader({
               style={styles.navButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <IconSymbol
-                name="chevron.down"
-                size={20}
-                color={Colors.light.text}
-              />
+              <IconSymbol name="chevron.down" size={20} color={theme.text} />
             </Pressable>
           </View>
         )}
@@ -112,14 +118,24 @@ export function ChatHeader({
           style={styles.closeButton}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={styles.closeButtonText}>Cancel</Text>
+          <Text style={[styles.closeButtonText, { color: theme.tint }]}>
+            Cancel
+          </Text>
         </Pressable>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.background,
+          borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+        },
+      ]}
+    >
       {/* Left section - Back button & Avatar */}
       <View style={styles.leftSection}>
         {onBack && (
@@ -131,7 +147,7 @@ export function ChatHeader({
             <IconSymbol
               name="chevron.left.forwardslash.chevron.right"
               size={24}
-              color={Colors.light.text}
+              color={theme.text}
               style={{ transform: [{ rotate: "180deg" }] }}
             />
           </Pressable>
@@ -142,11 +158,17 @@ export function ChatHeader({
 
       {/* Center section - Name & Status */}
       <View style={styles.centerSection}>
-        <Text style={styles.name} numberOfLines={1}>
+        <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
           {name}
         </Text>
         {status && (
-          <Text style={[styles.status, isOnline && styles.onlineStatus]}>
+          <Text
+            style={[
+              styles.status,
+              { color: theme.icon },
+              isOnline && styles.onlineStatus,
+            ]}
+          >
             {status}
           </Text>
         )}
@@ -160,11 +182,7 @@ export function ChatHeader({
             style={styles.iconButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <IconSymbol
-              name="magnifyingglass"
-              size={22}
-              color={Colors.light.icon}
-            />
+            <IconSymbol name="magnifyingglass" size={22} color={theme.icon} />
           </Pressable>
         )}
 
@@ -174,9 +192,9 @@ export function ChatHeader({
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <View style={styles.threeDots}>
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
+            <View style={[styles.dot, { backgroundColor: theme.icon }]} />
+            <View style={[styles.dot, { backgroundColor: theme.icon }]} />
+            <View style={[styles.dot, { backgroundColor: theme.icon }]} />
           </View>
         </Pressable>
       </View>
@@ -190,9 +208,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: Colors.light.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#e9ecef",
     minHeight: 60,
   },
   leftSection: {
@@ -211,11 +227,9 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 17,
     fontWeight: "600",
-    color: Colors.light.text,
   },
   status: {
     fontSize: 13,
-    color: Colors.light.icon,
     marginTop: 2,
   },
   onlineStatus: {
@@ -238,14 +252,12 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.light.icon,
   },
   // Search styles
   searchContainer: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -257,7 +269,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: Colors.light.text,
     paddingVertical: 4,
   },
   clearButton: {
@@ -273,7 +284,6 @@ const styles = StyleSheet.create({
   },
   resultCounter: {
     fontSize: 13,
-    color: Colors.light.text,
     fontWeight: "500",
     minWidth: 50,
     textAlign: "center",
@@ -284,7 +294,6 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     fontSize: 15,
-    color: PRIMARY_COLOR,
     fontWeight: "500",
   },
 });

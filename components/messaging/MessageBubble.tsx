@@ -4,6 +4,7 @@
 // =====================================================
 
 import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Message, MessageStatus } from "@/types/scheduling";
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
@@ -16,8 +17,6 @@ interface MessageBubbleProps {
   isHighlighted?: boolean;
 }
 
-const PRIMARY_COLOR = "#0a7ea4";
-const RECEIVED_BG = "#e9ecef";
 const CHECK_ICON = "✓";
 const DOUBLE_CHECK_ICON = "✓✓";
 const HIGHLIGHT_COLOR = "#ffeb3b"; // Yellow highlight
@@ -40,10 +39,13 @@ function getStatusIcon(status?: MessageStatus): string {
   }
 }
 
-function getStatusColor(status?: MessageStatus): string {
+function getStatusColor(
+  status?: MessageStatus,
+  tintColor: string = "#0a7ea4",
+): string {
   switch (status) {
     case "read":
-      return "#0a7ea4"; // Blue for read
+      return tintColor; // Use theme tint for read
     default:
       return "rgba(255,255,255,0.7)"; // White/gray for others
   }
@@ -92,9 +94,11 @@ export function MessageBubble({
   highlightQuery = "",
   isHighlighted = false,
 }: MessageBubbleProps) {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
   const isImage = message.message_type === "image";
   const statusIcon = getStatusIcon(message.status);
-  const statusColor = getStatusColor(message.status);
+  const statusColor = getStatusColor(message.status, theme.tint);
 
   return (
     <View
@@ -107,7 +111,21 @@ export function MessageBubble({
       <View
         style={[
           styles.bubble,
-          isCurrentUser ? styles.sentBubble : styles.receivedBubble,
+          isCurrentUser
+            ? [
+                styles.sentBubble,
+                {
+                  backgroundColor:
+                    colorScheme === "dark" ? "#0a7ea4" : theme.tint,
+                },
+              ]
+            : [
+                styles.receivedBubble,
+                {
+                  backgroundColor:
+                    colorScheme === "dark" ? "#2a2a2a" : "#e9ecef",
+                },
+              ],
           isImage && styles.imageBubble,
           isHighlighted && styles.highlightedBubble,
         ]}
@@ -116,7 +134,25 @@ export function MessageBubble({
         <View
           style={[
             styles.tail,
-            isCurrentUser ? styles.sentTail : styles.receivedTail,
+            isCurrentUser
+              ? [
+                  styles.sentTail,
+                  {
+                    borderLeftColor:
+                      colorScheme === "dark" ? "#0a7ea4" : theme.tint,
+                    borderBottomColor:
+                      colorScheme === "dark" ? "#0a7ea4" : theme.tint,
+                  },
+                ]
+              : [
+                  styles.receivedTail,
+                  {
+                    borderRightColor:
+                      colorScheme === "dark" ? "#2a2a2a" : "#e9ecef",
+                    borderBottomColor:
+                      colorScheme === "dark" ? "#2a2a2a" : "#e9ecef",
+                  },
+                ],
             isHighlighted &&
               (isCurrentUser
                 ? styles.highlightedSentTail
@@ -132,7 +168,7 @@ export function MessageBubble({
             highlight={highlightQuery}
             style={[
               styles.content,
-              isCurrentUser ? styles.sentContent : styles.receivedContent,
+              isCurrentUser ? { color: "#fff" } : { color: theme.text },
             ]}
             highlightStyle={styles.highlightText}
           />
@@ -143,7 +179,7 @@ export function MessageBubble({
           <Text
             style={[
               styles.timestamp,
-              isCurrentUser ? styles.sentTimestamp : styles.receivedTimestamp,
+              isCurrentUser ? styles.sentTimestamp : { color: theme.icon },
             ]}
           >
             {formatTime(message.created_at)}
@@ -183,11 +219,9 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   sentBubble: {
-    backgroundColor: PRIMARY_COLOR,
     borderBottomRightRadius: 4,
   },
   receivedBubble: {
-    backgroundColor: RECEIVED_BG,
     borderBottomLeftRadius: 4,
   },
   highlightedBubble: {
@@ -209,9 +243,7 @@ const styles = StyleSheet.create({
     right: -8,
     borderBottomLeftRadius: 16,
     borderLeftWidth: 8,
-    borderLeftColor: PRIMARY_COLOR,
     borderBottomWidth: 8,
-    borderBottomColor: PRIMARY_COLOR,
     borderRightWidth: 8,
     borderRightColor: "transparent",
     borderTopWidth: 8,
@@ -221,9 +253,7 @@ const styles = StyleSheet.create({
     left: -8,
     borderBottomRightRadius: 16,
     borderRightWidth: 8,
-    borderRightColor: RECEIVED_BG,
     borderBottomWidth: 8,
-    borderBottomColor: RECEIVED_BG,
     borderLeftWidth: 8,
     borderLeftColor: "transparent",
     borderTopWidth: 8,
@@ -240,12 +270,6 @@ const styles = StyleSheet.create({
   content: {
     fontSize: 16,
     lineHeight: 22,
-  },
-  sentContent: {
-    color: "#fff",
-  },
-  receivedContent: {
-    color: Colors.light.text,
   },
   highlightText: {
     backgroundColor: HIGHLIGHT_COLOR,
@@ -270,9 +294,6 @@ const styles = StyleSheet.create({
   },
   sentTimestamp: {
     color: "rgba(255,255,255,0.7)",
-  },
-  receivedTimestamp: {
-    color: Colors.light.icon,
   },
   statusIcon: {
     fontSize: 12,

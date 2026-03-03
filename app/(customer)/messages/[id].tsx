@@ -9,33 +9,34 @@ import { MessageInput } from "@/components/messaging/MessageInput";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
-    getConversation,
-    getMessages,
-    messagingSocket,
-    sendMessage,
+  getConversation,
+  getMessages,
+  messagingSocket,
+  sendMessage,
 } from "@/services/messagingApi";
 import { Conversation, Message } from "@/types/scheduling";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-
-const PRIMARY_COLOR = "#0a7ea4";
 
 export default function ChatScreen() {
   const { token, user } = useAuth();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
   const currentUserId = user?.id || "";
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -294,9 +295,9 @@ export default function ChatScreen() {
   // Render loading state
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+          <ActivityIndicator size="large" color={theme.tint} />
         </View>
       </View>
     );
@@ -305,16 +306,18 @@ export default function ChatScreen() {
   // Render error state if conversation not found
   if (!conversation) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.errorContainer}>
           <IconSymbol
             name="exclamationmark.triangle"
             size={48}
-            color={Colors.light.icon}
+            color={theme.icon}
             style={{ opacity: 0.5 }}
           />
-          <Text style={styles.errorText}>Conversation not found</Text>
-          <Text style={styles.errorSubtext}>
+          <Text style={[styles.errorText, { color: theme.text }]}>
+            Conversation not found
+          </Text>
+          <Text style={[styles.errorSubtext, { color: theme.icon }]}>
             The conversation may have been deleted or you don't have access
           </Text>
         </View>
@@ -323,7 +326,7 @@ export default function ChatScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Chat Header */}
       <ChatHeader
         name={otherUserName}
@@ -343,7 +346,7 @@ export default function ChatScreen() {
       {/* Messages */}
       {isLoadingMessages ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+          <ActivityIndicator size="large" color={theme.tint} />
         </View>
       ) : (
         <ScrollView
@@ -356,10 +359,10 @@ export default function ChatScreen() {
               <IconSymbol
                 name="paperplane.fill"
                 size={48}
-                color={Colors.light.icon}
+                color={theme.icon}
                 style={{ opacity: 0.3 }}
               />
-              <Text style={styles.noMessagesText}>
+              <Text style={[styles.noMessagesText, { color: theme.icon }]}>
                 No messages yet. Start the conversation!
               </Text>
             </View>
@@ -399,7 +402,6 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
   },
   messagesContainer: {
     flex: 1,
@@ -421,12 +423,10 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 18,
     fontWeight: "600",
-    color: Colors.light.text,
     marginTop: 16,
   },
   errorSubtext: {
     fontSize: 14,
-    color: Colors.light.icon,
     marginTop: 8,
     textAlign: "center",
   },
@@ -438,7 +438,6 @@ const styles = StyleSheet.create({
   },
   noMessagesText: {
     fontSize: 14,
-    color: Colors.light.icon,
     marginTop: 16,
   },
 });

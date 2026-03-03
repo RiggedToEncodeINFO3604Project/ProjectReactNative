@@ -6,6 +6,7 @@
 import { EmojiPicker } from "@/components/messaging/EmojiPicker";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useCallback, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -24,14 +25,14 @@ interface MessageInputProps {
   disabled?: boolean;
 }
 
-const PRIMARY_COLOR = "#0a7ea4";
-const DISABLED_COLOR = "#c4c4c4";
-
 export function MessageInput({
   onSend,
   onAttachment,
   disabled = false,
 }: MessageInputProps) {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
+
   const [text, setText] = useState("");
   const [inputHeight, setInputHeight] = useState(44);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -85,7 +86,15 @@ export function MessageInput({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-      <View style={styles.container}>
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.background,
+            borderTopColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+          },
+        ]}
+      >
         {/* Emoji button */}
         <Pressable
           onPress={toggleEmojiPicker}
@@ -107,21 +116,32 @@ export function MessageInput({
             <IconSymbol
               name="paperplane.fill"
               size={24}
-              color={disabled ? DISABLED_COLOR : Colors.light.icon}
+              color={disabled ? theme.icon : theme.icon}
               style={{ transform: [{ rotate: "-45deg" }] }}
             />
           </Pressable>
         )}
 
         {/* Text input */}
-        <View style={[styles.inputContainer, { minHeight: inputHeight }]}>
+        <View
+          style={[
+            styles.inputContainer,
+            {
+              minHeight: inputHeight,
+              backgroundColor: colorScheme === "dark" ? "#2a2a2a" : "#f5f5f5",
+            },
+          ]}
+        >
           <TextInput
             ref={inputRef}
-            style={[styles.input, { height: Math.max(44, inputHeight) }]}
+            style={[
+              styles.input,
+              { height: Math.max(44, inputHeight), color: theme.text },
+            ]}
             value={text}
             onChangeText={setText}
             placeholder="Type a message..."
-            placeholderTextColor={Colors.light.icon}
+            placeholderTextColor={theme.icon}
             multiline
             maxLength={1000}
             editable={!disabled}
@@ -137,10 +157,21 @@ export function MessageInput({
         <Pressable
           onPress={handleSend}
           disabled={!canSend}
-          style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+          style={[
+            styles.sendButton,
+            { backgroundColor: theme.tint },
+            !canSend && [
+              styles.sendButtonDisabled,
+              { backgroundColor: colorScheme === "dark" ? "#444" : "#c4c4c4" },
+            ],
+          ]}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <IconSymbol name="paperplane.fill" size={20} color="#fff" />
+          <IconSymbol
+            name="paperplane.fill"
+            size={20}
+            color={theme.background}
+          />
         </Pressable>
       </View>
 
@@ -161,9 +192,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: Colors.light.background,
     borderTopWidth: 1,
-    borderTopColor: "#e9ecef",
   },
   iconButton: {
     padding: 8,
@@ -180,7 +209,6 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
     borderRadius: 22,
     paddingHorizontal: 16,
     justifyContent: "center",
@@ -188,7 +216,6 @@ const styles = StyleSheet.create({
   },
   input: {
     fontSize: 16,
-    color: Colors.light.text,
     paddingTop: 10,
     paddingBottom: 10,
     lineHeight: 22,
@@ -197,18 +224,16 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: PRIMARY_COLOR,
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 8,
-    shadowColor: PRIMARY_COLOR,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
     shadowOpacity: 0.3,
     elevation: 4,
   },
   sendButtonDisabled: {
-    backgroundColor: DISABLED_COLOR,
     shadowOpacity: 0,
     elevation: 0,
   },

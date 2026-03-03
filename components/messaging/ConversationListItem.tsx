@@ -4,11 +4,10 @@
 // =====================================================
 
 import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { ConversationPreview } from "@/types/scheduling";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "./Avatar";
-
-const PRIMARY_COLOR = "#0a7ea4";
 
 interface ConversationListItemProps {
   conversation: ConversationPreview;
@@ -44,6 +43,8 @@ export function ConversationListItem({
   isSelected = false,
   onPress,
 }: ConversationListItemProps) {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
   const hasUnread = conversation.unread_count > 0;
 
   // Format preview text
@@ -58,8 +59,17 @@ export function ConversationListItem({
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.container, isSelected && styles.selectedContainer]}
-      android_ripple={{ color: "rgba(0,0,0,0.1)" }}
+      style={[
+        styles.container,
+        { backgroundColor: theme.background },
+        isSelected && {
+          backgroundColor: colorScheme === "dark" ? "#1a3a4a" : "#e3f2fd",
+        },
+      ]}
+      android_ripple={{
+        color:
+          colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+      }}
     >
       <Avatar
         uri={conversation.other_user_avatar}
@@ -70,14 +80,22 @@ export function ConversationListItem({
       <View style={styles.content}>
         <View style={styles.header}>
           <Text
-            style={[styles.name, hasUnread && styles.unreadName]}
+            style={[
+              styles.name,
+              { color: theme.text },
+              hasUnread && styles.unreadName,
+            ]}
             numberOfLines={1}
           >
             {conversation.other_user_name}
           </Text>
           {conversation.last_message_time && (
             <Text
-              style={[styles.timestamp, hasUnread && styles.unreadTimestamp]}
+              style={[
+                styles.timestamp,
+                { color: theme.icon },
+                hasUnread && { color: theme.tint, fontWeight: "600" },
+              ]}
             >
               {formatTimestamp(conversation.last_message_time)}
             </Text>
@@ -86,15 +104,19 @@ export function ConversationListItem({
 
         <View style={styles.footer}>
           <Text
-            style={[styles.preview, hasUnread && styles.unreadPreview]}
+            style={[
+              styles.preview,
+              { color: theme.icon },
+              hasUnread && { color: theme.text, fontWeight: "500" },
+            ]}
             numberOfLines={1}
           >
             {previewText}
           </Text>
 
           {hasUnread && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
+            <View style={[styles.badge, { backgroundColor: theme.tint }]}>
+              <Text style={[styles.badgeText, { color: theme.background }]}>
                 {conversation.unread_count > 99
                   ? "99+"
                   : conversation.unread_count}
@@ -113,10 +135,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: Colors.light.background,
-  },
-  selectedContainer: {
-    backgroundColor: "#e3f2fd", // Light blue highlight
   },
   content: {
     flex: 1,
@@ -131,7 +149,6 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    color: Colors.light.text,
     flex: 1,
     marginRight: 8,
   },
@@ -140,11 +157,6 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 12,
-    color: Colors.light.icon,
-  },
-  unreadTimestamp: {
-    color: PRIMARY_COLOR,
-    fontWeight: "600",
   },
   footer: {
     flexDirection: "row",
@@ -153,16 +165,10 @@ const styles = StyleSheet.create({
   },
   preview: {
     fontSize: 14,
-    color: Colors.light.icon,
     flex: 1,
     marginRight: 8,
   },
-  unreadPreview: {
-    color: Colors.light.text,
-    fontWeight: "500",
-  },
   badge: {
-    backgroundColor: PRIMARY_COLOR,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -171,7 +177,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   badgeText: {
-    color: "#fff",
     fontSize: 11,
     fontWeight: "700",
   },

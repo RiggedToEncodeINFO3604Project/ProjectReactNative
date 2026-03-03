@@ -7,6 +7,7 @@ import { ConversationListItem } from "@/components/messaging/ConversationListIte
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { getConversations, messagingSocket } from "@/services/messagingApi";
 import { Conversation, ConversationPreview, Message } from "@/types/scheduling";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -21,8 +22,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const PRIMARY_COLOR = "#0a7ea4";
 
 // Convert Conversation to ConversationPreview format
 function toConversationPreview(
@@ -49,6 +48,8 @@ function toConversationPreview(
 
 export default function MessagesScreen() {
   const { token, user } = useAuth();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
   const currentUserId = user?.id || "";
   const router = useRouter();
 
@@ -195,11 +196,13 @@ export default function MessagesScreen() {
       <IconSymbol
         name="paperplane.fill"
         size={48}
-        color={Colors.light.icon}
+        color={theme.icon}
         style={{ opacity: 0.5 }}
       />
-      <Text style={styles.emptyStateTitle}>No conversations yet</Text>
-      <Text style={styles.emptyStateSubtitle}>
+      <Text style={[styles.emptyStateTitle, { color: theme.text }]}>
+        No conversations yet
+      </Text>
+      <Text style={[styles.emptyStateSubtitle, { color: theme.icon }]}>
         Start chatting with your customers
       </Text>
     </View>
@@ -224,27 +227,42 @@ export default function MessagesScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: theme.background,
+            borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+          },
+        ]}
+      >
+        <Text style={[styles.headerTitle, { color: theme.text }]}>
+          Messages
+        </Text>
         <View style={styles.headerActions}>
           {connectionState !== "connected" && renderConnectionStatus()}
         </View>
       </View>
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
+      <View
+        style={[
+          styles.searchContainer,
+          { backgroundColor: colorScheme === "dark" ? "#2a2a2a" : "#f5f5f5" },
+        ]}
+      >
         <IconSymbol
           name="magnifyingglass"
           size={20}
-          color={Colors.light.icon}
+          color={theme.icon}
           style={styles.searchIcon}
         />
         <TextInput
-          style={styles.searchInput}
+          style={[styles.searchInput, { color: theme.text }]}
           placeholder="Search conversations..."
-          placeholderTextColor={Colors.light.icon}
+          placeholderTextColor={theme.icon}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -253,7 +271,7 @@ export default function MessagesScreen() {
             <IconSymbol
               name="xmark.circle.fill"
               size={20}
-              color={Colors.light.icon}
+              color={theme.icon}
               style={styles.clearIcon}
             />
           </TouchableOpacity>
@@ -263,7 +281,7 @@ export default function MessagesScreen() {
       {/* Conversation List */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={PRIMARY_COLOR} />
+          <ActivityIndicator size="large" color={theme.tint} />
         </View>
       ) : filteredConversations.length === 0 ? (
         renderEmptyList()
@@ -282,10 +300,19 @@ export default function MessagesScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              tintColor={PRIMARY_COLOR}
+              tintColor={theme.tint}
             />
           }
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={() => (
+            <View
+              style={[
+                styles.separator,
+                {
+                  backgroundColor: colorScheme === "dark" ? "#333" : "#f0f0f0",
+                },
+              ]}
+            />
+          )}
         />
       )}
     </View>
@@ -295,7 +322,6 @@ export default function MessagesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.light.background,
   },
   header: {
     flexDirection: "row",
@@ -304,13 +330,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e9ecef",
-    backgroundColor: Colors.light.background,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: Colors.light.text,
   },
   headerActions: {
     flexDirection: "row",
@@ -321,7 +344,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#f5f5f5",
     margin: 12,
     borderRadius: 10,
   },
@@ -331,7 +353,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: Colors.light.text,
     paddingVertical: 4,
   },
   clearIcon: {
@@ -339,7 +360,6 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: "#f0f0f0",
     marginLeft: 78,
   },
   loadingContainer: {
@@ -356,12 +376,10 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: Colors.light.text,
     marginTop: 16,
   },
   emptyStateSubtitle: {
     fontSize: 14,
-    color: Colors.light.icon,
     marginTop: 8,
     textAlign: "center",
   },

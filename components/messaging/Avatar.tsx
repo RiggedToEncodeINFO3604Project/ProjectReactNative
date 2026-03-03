@@ -4,6 +4,7 @@
 // =====================================================
 
 import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 interface AvatarProps {
@@ -37,6 +38,9 @@ export function Avatar({
   size = "medium",
   online = false,
 }: AvatarProps) {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
+
   const dimension = SIZE_MAP[size];
   const fontSize = FONT_SIZE_MAP[size];
   const onlineSize = ONLINE_INDICATOR_SIZE[size];
@@ -80,6 +84,7 @@ export function Avatar({
               width: dimension,
               height: dimension,
               borderRadius: dimension / 2,
+              backgroundColor: theme.icon,
             },
           ]}
         />
@@ -95,7 +100,7 @@ export function Avatar({
             },
           ]}
         >
-          <Text style={[styles.initials, { fontSize }]}>
+          <Text style={[styles.initials, { fontSize, color: "#fff" }]}>
             {getInitials(name)}
           </Text>
         </View>
@@ -110,6 +115,8 @@ export function Avatar({
               borderRadius: onlineSize / 2,
               bottom: size === "small" ? 1 : 2,
               right: size === "small" ? 1 : 2,
+              backgroundColor: "#28a745",
+              borderColor: theme.background,
             },
           ]}
         />
@@ -123,21 +130,18 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   image: {
-    backgroundColor: Colors.light.icon,
+    // backgroundColor set dynamically
   },
   initialsContainer: {
     justifyContent: "center",
     alignItems: "center",
   },
   initials: {
-    color: "#fff",
     fontWeight: "600",
   },
   onlineIndicator: {
     position: "absolute",
-    backgroundColor: "#28a745",
     borderWidth: 2,
-    borderColor: "#fff",
   },
 });
 
