@@ -1,11 +1,13 @@
 import { useTheme } from "@/context/ThemeContext";
 import { getConfirmedBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
-import { useFocusEffect } from "expo-router";
+import * as Calendar from "expo-calendar";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   Modal,
   ScrollView,
@@ -16,7 +18,11 @@ import {
 } from "react-native";
 import { CalendarList } from "react-native-calendars";
 
+const { width } = Dimensions.get("window");
+const CALENDAR_HEIGHT = width * 0.95;
+
 export default function CalendarScreen() {
+  const router = useRouter();
   const { isDarkMode } = useTheme();
   const colors = {
     background: isDarkMode ? "#151718" : "#f5f5f5",
@@ -28,6 +34,7 @@ export default function CalendarScreen() {
   };
 
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
+  const [deviceEvents, setDeviceEvents] = useState<any[]>([]);
   const [markedDates, setMarkedDates] = useState<
     Record<string, { marked: boolean; dotColor: string }>
   >({});
@@ -36,6 +43,9 @@ export default function CalendarScreen() {
   const [selectedDayBookings, setSelectedDayBookings] = useState<
     BookingWithDetails[]
   >([]);
+  const [selectedDayDeviceEvents, setSelectedDayDeviceEvents] = useState<any[]>(
+    [],
+  );
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
 
   const calendarTheme = {
@@ -54,34 +64,85 @@ export default function CalendarScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadBookings();
+      loadAll();
     }, []),
   );
 
-  const loadBookings = async () => {
+  const loadAll = async () => {
     setLoading(true);
     try {
-      const results = await getConfirmedBookings();
-      setBookings(results);
-
-      const marks: Record<string, { marked: boolean; dotColor: string }> = {};
-      results.forEach((booking) => {
-        const dateKey = booking.date.split("T")[0];
-        marks[dateKey] = { marked: true, dotColor: "#8B0000" };
-      });
-      setMarkedDates(marks);
-    } catch (error: any) {
-      Alert.alert(
-        "Error",
-        error.response?.data?.detail || "Failed to load calendar",
-      );
+      await Promise.all([loadBookings(), loadDeviceEvents()]);
     } finally {
       setLoading(false);
     }
   };
 
+  const loadBookings = async () => {
+    try {
+      const results = await getConfirmedBookings();
+      setBookings(results);
+      return results;
+    } catch (error: any) {
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || "Failed to load bookings",
+      );
+      return [];
+    }
+  };
+
+  const loadDeviceEvents = async () => {
+    try {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status !== "granted") return [];
+
+      const calendars = await Calendar.getCalendarsAsync(
+        Calendar.EntityTypes.EVENT,
+      );
+      const calendarIds = calendars.map((cal) => cal.id);
+
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 3);
+
+      const fetched = await Calendar.getEventsAsync(
+        calendarIds,
+        startDate,
+        endDate,
+      );
+      setDeviceEvents(fetched);
+      return fetched;
+    } catch (error) {
+      console.log("Device calendar error:", error);
+      return [];
+    }
+  };
+
+  const buildMarkedDates = useCallback(() => {
+    const marks: Record<string, { marked: boolean; dotColor: string }> = {};
+    bookings.forEach((booking) => {
+      const dateKey = booking.date.split("T")[0];
+      marks[dateKey] = { marked: true, dotColor: "#8B0000" };
+    });
+    deviceEvents.forEach((event) => {
+      const dateKey = event.startDate.split("T")[0];
+      if (!marks[dateKey]) {
+        marks[dateKey] = { marked: true, dotColor: "#8B0000" };
+      }
+    });
+    setMarkedDates(marks);
+  }, [bookings, deviceEvents]);
+
+  useFocusEffect(
+    useCallback(() => {
+      buildMarkedDates();
+    }, [buildMarkedDates]),
+  );
+
   const renderBooking = ({ item }: { item: BookingWithDetails }) => {
-    const dateDisplay = new Date(item.date).toLocaleDateString();
+    const dateDisplay = new Date(
+      item.date.split("T")[0] + "T12:00:00",
+    ).toLocaleDateString();
     return (
       <View
         style={[
@@ -125,7 +186,24 @@ export default function CalendarScreen() {
         { backgroundColor: isDarkMode ? "#151718" : "#f5f5f5" },
       ]}
     >
-      {/* Modal for day details */}
+      {/* Header with back button */}
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: isDarkMode ? "#1e2333" : "#fff",
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={[styles.backText, { color: colors.accent }]}>
+            {"<"} Back
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Modal for day's event details */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View
           style={[
@@ -149,36 +227,103 @@ export default function CalendarScreen() {
                 { color: isDarkMode ? "#fff" : "#000" },
               ]}
             >
-              Bookings on {selectedDateStr}
+              {selectedDateStr}
             </Text>
-            {selectedDayBookings.length === 0 ? (
-              <Text
-                style={[
-                  styles.modalEmpty,
-                  { color: isDarkMode ? "#9BA1A6" : "#6b7280" },
-                ]}
-              >
-                No bookings
-              </Text>
-            ) : (
-              <ScrollView style={{ maxHeight: 200 }}>
-                {selectedDayBookings.map((b) => (
-                  <View key={b.booking_id} style={styles.eventItem}>
-                    <Text
+
+            {/* Events read from provider's calendar rendered as "Unavailable" */}
+            {selectedDayDeviceEvents.length > 0 && (
+              <>
+                <Text
+                  style={[styles.modalSectionLabel, { color: colors.accent }]}
+                >
+                  Unavailable
+                </Text>
+                <ScrollView style={{ maxHeight: 150 }}>
+                  {selectedDayDeviceEvents.map((e, i) => {
+                    const timeOptions = {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    } as const;
+                    const start = new Date(e.startDate).toLocaleTimeString(
+                      [],
+                      timeOptions,
+                    );
+                    const end = new Date(e.endDate).toLocaleTimeString(
+                      [],
+                      timeOptions,
+                    );
+                    return (
+                      <View
+                        key={i}
+                        style={[
+                          styles.eventItem,
+                          { backgroundColor: isDarkMode ? "#444" : "#f0f0f0" },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.eventTitle,
+                            { color: isDarkMode ? "#fff" : "#000" },
+                          ]}
+                        >
+                          Unavailable
+                        </Text>
+                        <Text style={[styles.eventTime, { color: "#fff" }]}>
+                          {start} – {end}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+
+            {/* Bookings */}
+            {selectedDayBookings.length > 0 && (
+              <>
+                <Text
+                  style={[styles.modalSectionLabel, { color: colors.accent }]}
+                >
+                  Bookings
+                </Text>
+                <ScrollView style={{ maxHeight: 150 }}>
+                  {selectedDayBookings.map((b) => (
+                    <View
+                      key={b.booking_id}
                       style={[
-                        styles.eventTitle,
-                        { color: isDarkMode ? "#fff" : "#000" },
+                        styles.eventItem,
+                        { backgroundColor: isDarkMode ? "#444" : "#f0f0f0" },
                       ]}
                     >
-                      {b.service_name}
-                    </Text>
-                    <Text style={[styles.eventTime, { color: "#fff" }]}>
-                      {b.start_time} – {b.end_time}
-                    </Text>
-                  </View>
-                ))}
-              </ScrollView>
+                      <Text
+                        style={[
+                          styles.eventTitle,
+                          { color: isDarkMode ? "#fff" : "#000" },
+                        ]}
+                      >
+                        {b.service_name}
+                      </Text>
+                      <Text style={[styles.eventTime, { color: "#fff" }]}>
+                        {b.start_time} – {b.end_time}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
             )}
+
+            {selectedDayBookings.length === 0 &&
+              selectedDayDeviceEvents.length === 0 && (
+                <Text
+                  style={[
+                    styles.modalEmpty,
+                    { color: isDarkMode ? "#9BA1A6" : "#6b7280" },
+                  ]}
+                >
+                  No events or bookings
+                </Text>
+              )}
+
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Text style={[styles.closeText, { color: colors.accent }]}>
                 Close
@@ -202,21 +347,41 @@ export default function CalendarScreen() {
           ListHeaderComponent={
             <View>
               <Text
-                style={[styles.title, { color: isDarkMode ? "#fff" : "#000" }]}
+                style={[
+                  styles.title,
+                  { color: isDarkMode ? "#fff" : "#000" },
+                  { alignContent: "center", textAlign: "center" },
+                ]}
               >
                 My Calendar
               </Text>
               <CalendarList
                 theme={calendarTheme as any}
                 style={styles.calendar}
+                calendarStyle={{ paddingHorizontal: 8 }}
                 markingType={"dot"}
                 markedDates={markedDates}
+                calendarHeight={CALENDAR_HEIGHT}
                 onDayPress={(day) => {
                   const dayBookings = bookings.filter((b) =>
                     b.date.startsWith(day.dateString),
                   );
+                  const dayDeviceEvents = deviceEvents.filter((e) =>
+                    e.startDate.startsWith(day.dateString),
+                  );
                   setSelectedDayBookings(dayBookings);
-                  setSelectedDateStr(day.dateString);
+                  setSelectedDayDeviceEvents(dayDeviceEvents);
+                  setSelectedDateStr(
+                    new Date(day.dateString + "T12:00:00").toLocaleDateString(
+                      [],
+                      {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      },
+                    ),
+                  );
                   setModalVisible(true);
                 }}
                 pastScrollRange={1}
@@ -241,11 +406,22 @@ export default function CalendarScreen() {
 
 const styles = StyleSheet.create({
   calendar: {
-    margin: 16,
     borderRadius: 16,
     overflow: "hidden",
+    marginBottom: 16,
   },
   container: { flex: 1 },
+  header: {
+    paddingTop: 28,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+  },
+  backText: {
+    fontSize: 16,
+  },
   title: {
     fontSize: 24,
     fontWeight: "bold",
@@ -281,6 +457,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 12,
+  },
+  modalSectionLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 6,
+    marginTop: 8,
   },
   modalEmpty: {
     textAlign: "center",
