@@ -646,3 +646,143 @@ async def get_available_slots(
         "available_slots": available_slots,
         "booked_slots": booked_slots
     }
+
+
+# customer snapshot
+@router.get("/customer/{customer_id}/snapshot", response_model=dict)
+# snapshot view, will provide a quick list of information on a specific customer given that they have booked with you previously
+async def get_customer_snapshot(
+    customer_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+
+    # make sure provider exists
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    provider_doc = provider_docs[0]
+    provider = provider_doc.to_dict()
+    provider["_id"] = provider_doc.id
+
+    # get customer using their id
+    customer_doc = db.collection("customers").document(customer_id).get()
+    if not customer_doc.exists:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = customer_doc.to_dict()
+    customer["_id"] = customer_doc.id
+
+    # get email from customer/user table
+    user_id = customer.get("user_id")
+    customer_email = "Not available"
+    if user_id:
+        user_doc = db.collection("users").document(user_id).get()
+        if user_doc.exists:
+            user = user_doc.to_dict()
+            customer_email = user.get("email", "Not available")
+
+    # get the services that the provider offers
+    services_docs = db.collection("services").where("provider_id", "==", provider["_id"]).get()
+    services = [s.to_dict() for s in services_docs]
+    service_ids = [doc.id for doc in services_docs]
+
+    # get all prev bookings for this one customer
+    # Firestore 'in' only supports like 10 items so empty service_ids have to be handled defensively
+    bookings = []
+    if service_ids:
+        bookings_query = db.collection("client_records") # consider renaming to snapshot if we need to add more indexes to db
+        bookings_query = bookings_query.where("customer_id", "==", customer_id)
+        bookings_query = bookings_query.where("service_id", "in", service_ids)
+        bookings_query = bookings_query.where("status", "in", ["confirmed", "completed"]).order_by("date", direction=firestore.Query.DESCENDING)
+        bookings_docs = bookings_query.get()
+        # convert to dicts and include id
+        bookings = [b.to_dict() for b in bookings_docs]
+    
+    # calculate relevant snapshot data
+    total_visits = len(bookings)
+    total_spent = sum(booking.get("cost", 0) for booking in bookings) # might need to adjust - either test data is messed up or my brain doesn't work
+    
+    print(f"\n SNAPSHOT: {customer.get('name')} | Visits: {total_visits} | Spent: ${total_spent}") 
+    
+    last_service_date = None
+    last_service_name = None
+    if bookings:
+        latest_booking = bookings[0]
+        last_service_date = latest_booking.get("date").isoformat() if latest_booking.get("date") else None
+        # get service by document id
+        svc_id = latest_booking.get("service_id")
+        last_service_name = "Unknown Service"
+        if svc_id:
+            svc_doc = db.collection("services").document(svc_id).get()
+            if svc_doc.exists:
+                svc = svc_doc.to_dict()
+                last_service_name = svc.get("name", "Unknown Service")
+        print(f"   Last Service: {last_service_name} on {last_service_date}")
+    
+    # grab tags
+    tags_docs = db.collection("customer_tags").where("customer_id", "==", customer_id).where("provider_id", "==", provider["_id"]).get()
+    tags = [
+        {
+            "id": t.id,
+            "tag": t.to_dict().get("tag"),
+            "color": t.to_dict().get("color", "#f0c85a")
+        }
+        for t in tags_docs
+    ]
+    print(f"   Tags: {len(tags)}")
+    
+    # grab notes - this and the tags should be specific to provider, should test later
+    notes_query = db.collection("customer_notes").where("customer_id", "==", customer_id).where("provider_id", "==", provider["_id"]).order_by("created_at", direction=firestore.Query.DESCENDING)
+    notes = []
+    try:
+        notes_docs = notes_query.get()
+        for n in notes_docs:
+            nd = n.to_dict()
+            notes.append({
+                "id": n.id,
+                "note": nd.get("note"),
+                "created_at": nd.get("created_at").isoformat() if nd.get("created_at") else None,
+                "updated_at": nd.get("updated_at").isoformat() if nd.get("updated_at") else None,
+            })
+    except Exception as e:
+        # I actually am not sure of this one, I asked AI if i did it correctly and it said that i might need a fallback incase firestore requires composite indexes but it was indexed anyways
+        from google.api_core.exceptions import FailedPrecondition
+        if isinstance(e, FailedPrecondition):
+            # Fallback: query only by customer_id then filter provider_id in Python <-- This part was AI'd
+            fallback_docs = db.collection("customer_notes").where("customer_id", "==", customer_id).get()
+            for n in fallback_docs:
+                nd = n.to_dict()
+                    
+                if nd.get("provider_id") != provider["_id"]:
+                    continue
+
+                notes.append({
+                    "id": n.id,
+                    "note": nd.get("note"),
+                    "created_at": nd.get("created_at").isoformat() if nd.get("created_at") else None,
+                    "updated_at": nd.get("updated_at").isoformat() if nd.get("updated_at") else None,
+                })
+
+            # sorts notes descending
+            notes.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+        else:
+            raise
+    print(f"   Total Notes: {len(notes)}\n")
+    
+    #  using placeholder for test purposes - revisit later
+    payment_preference = "Not specified"
+    
+    return {
+        "customer_id": customer_id,
+        "customer_name": customer.get("name"),
+        "customer_email": customer_email,
+        "customer_phone": customer.get("phone"),
+        "total_visits": total_visits,
+        "last_service_date": last_service_date,
+        "last_service_name": last_service_name,
+        "payment_preference": payment_preference,
+        "total_spent": total_spent,
+        "tags": tags,
+        "notes": notes
+    }
