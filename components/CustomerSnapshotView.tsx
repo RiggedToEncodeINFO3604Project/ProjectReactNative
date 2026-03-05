@@ -42,8 +42,8 @@ export default function CustomerSnapshotView({
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number | undefined | null) => {
+    return `$${(amount ?? 0).toFixed(2)}`;
   };
 
   return (
@@ -92,7 +92,7 @@ export default function CustomerSnapshotView({
       <View style={[styles.statsContainer, { backgroundColor: colors.card }]}>
         <View style={styles.statCard}>
           <Text style={[styles.statValue, { color: colors.accent }]}>
-            {snapshot.total_visits}
+            {snapshot.total_visits ?? 0}
           </Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>
             Total Visits
@@ -159,17 +159,17 @@ export default function CustomerSnapshotView({
           <View style={styles.tagsContainer}>
             {(snapshot.tags ?? []).map((tag) => (
               <View
-                key={tag.id}
+                key={tag.id ?? Math.random().toString()}
                 style={[
                   styles.tag,
                   {
-                    backgroundColor: tag.color + "33",
-                    borderColor: tag.color,
+                    backgroundColor: (tag.color ?? "#999") + "33",
+                    borderColor: tag.color ?? "#999",
                   },
                 ]}
               >
-                <Text style={[styles.tagText, { color: tag.color }]}>
-                  {tag.tag}
+                <Text style={[styles.tagText, { color: tag.color ?? "#999" }]}>
+                  {tag.tag ?? "Untitled"}
                 </Text>
               </View>
             ))}
@@ -198,7 +198,7 @@ export default function CustomerSnapshotView({
                 ]}
               >
                 <Text style={[styles.noteText, { color: colors.text }]}>
-                  {item.note}
+                  {item.note ?? "No note content"}
                 </Text>
                 <Text
                   style={[styles.noteDate, { color: colors.textMuted }]}
