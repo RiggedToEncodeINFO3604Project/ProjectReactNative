@@ -227,6 +227,10 @@ class SendMessageRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=2000)
     message_type: MessageType = MessageType.TEXT
     image_url: Optional[str] = None
+
+
+class StartConversationRequest(BaseModel):
+    recipient_id: str
     
     
 # customer snapshot related models:

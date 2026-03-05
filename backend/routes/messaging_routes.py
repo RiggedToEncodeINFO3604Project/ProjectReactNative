@@ -4,7 +4,7 @@ from typing import List
 import logging
 
 from models import (
-    User, UserRole, Conversation, Message, SendMessageRequest
+    User, UserRole, Conversation, Message, SendMessageRequest, StartConversationRequest
 )
 from services.messaging_service import (
     get_or_create_conversation,
@@ -52,7 +52,7 @@ async def list_conversations(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/conversations/start", response_model=dict)
-async def start_conversation(recipient_id: str, current_user: User = Depends(get_current_user)):
+async def start_conversation(request: StartConversationRequest, current_user: User = Depends(get_current_user)):
     """
     Start a conversation with another user.
     
@@ -64,9 +64,9 @@ async def start_conversation(recipient_id: str, current_user: User = Depends(get
     try:
         if current_user.role == UserRole.CUSTOMER:
             customer_id = current_user.id
-            provider_id = recipient_id
+            provider_id = request.recipient_id
         else:  # Provider
-            customer_id = recipient_id
+            customer_id = request.recipient_id
             provider_id = current_user.id
         
         conversation_id = get_or_create_conversation(
