@@ -287,6 +287,12 @@ app.get("/provider/bookings/:bookingId/available-slots", (req, res) => {
   );
 });
 
+// Get customer snapshot
+app.get("/provider/customer/:customerId/snapshot", (req, res) => {
+  const { customerId } = req.params;
+  proxyToLocalBackend(req, res, `/provider/customer/${customerId}/snapshot`);
+});
+
 // ============================================
 // MESSAGING ROUTES PROXY
 // ============================================
