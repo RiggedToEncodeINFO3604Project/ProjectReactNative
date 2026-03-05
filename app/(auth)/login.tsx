@@ -50,7 +50,7 @@ export default function LoginScreen() {
   };
 
   const handleOpenVideo = async () => {
-    const url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+    const url = "https://www.youtube.com/watch?v=V_wdiGSfABs";
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
