@@ -17,6 +17,25 @@ export default function CustomerSnapshotView({
 
   // Log when snapshot data is received
   console.log("[CustomerSnapshotView] Received snapshot:", snapshot);
+  console.log("[DEBUG] snapshot type:", typeof snapshot);
+  console.log(
+    "[DEBUG] snapshot keys:",
+    snapshot ? Object.keys(snapshot) : "null",
+  );
+  console.log("[DEBUG] customer_name value:", snapshot?.customer_name);
+  console.log("[DEBUG] customer_name type:", typeof snapshot?.customer_name);
+  console.log(
+    "[DEBUG] is customer_name null?:",
+    snapshot?.customer_name === null,
+  );
+  console.log(
+    "[DEBUG] is customer_name empty string?:",
+    snapshot?.customer_name === "",
+  );
+  console.log(
+    "[DEBUG] customer_name trimmed:",
+    snapshot?.customer_name?.trim(),
+  );
 
   // Check if snapshot is null/undefined
   if (!snapshot) {

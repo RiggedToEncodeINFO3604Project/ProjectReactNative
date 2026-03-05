@@ -59,8 +59,22 @@ export default function CustomerSnapshotScreen() {
 
   useEffect(() => {
     mountedRef.current = true;
-    if (customerId) {
-      loadSnapshot();
+    // DEBUG: Log the exact customerId value and type
+    console.log("[DEBUG Snapshot Page] customerId value:", customerId);
+    console.log("[DEBUG Snapshot Page] customerId type:", typeof customerId);
+    console.log(
+      "[DEBUG Snapshot Page] customerId is array:",
+      Array.isArray(customerId),
+    );
+
+    // Handle case where customerId might be an array (Expo Router quirk)
+    const actualCustomerId = Array.isArray(customerId)
+      ? customerId[0]
+      : customerId;
+    console.log("[DEBUG Snapshot Page] actualCustomerId:", actualCustomerId);
+
+    if (actualCustomerId) {
+      loadSnapshot(actualCustomerId);
     } else {
       console.error(
         "[Snapshot Page] Error: customerId is missing from URL params",
@@ -73,15 +87,21 @@ export default function CustomerSnapshotScreen() {
     };
   }, [customerId]);
 
-  const loadSnapshot = async () => {
-    console.log("📡 loadSnapshot called, customerId:", customerId); // add this
+  const loadSnapshot = async (idToLoad?: string) => {
+    const targetId =
+      idToLoad || (Array.isArray(customerId) ? customerId[0] : customerId);
+    console.log("📡 loadSnapshot called, customerId:", targetId);
+    console.log("[DEBUG] targetId type:", typeof targetId);
     try {
       setLoading(true);
       setError(null);
-      const response = await getCustomerSnapshot(customerId);
+      const response = await getCustomerSnapshot(targetId);
       console.log("[Snapshot Page] API Response:", response);
+      console.log("[DEBUG] Response customer_name:", response?.customer_name);
+      console.log("[DEBUG] Response customer_id:", response?.customer_id);
       if (mountedRef.current) setSnapshot(response);
     } catch (err: any) {
+      console.error("[DEBUG] loadSnapshot error:", err);
       if (mountedRef.current)
         setError(
           err.response?.data?.detail ||
@@ -128,7 +148,7 @@ export default function CustomerSnapshotScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: colors.accent }]}
-            onPress={loadSnapshot}
+            onPress={() => loadSnapshot()}
           >
             <Text
               style={[styles.retryButtonText, { color: colors.background }]}

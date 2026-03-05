@@ -477,10 +477,30 @@ export const getCustomerSnapshot = async (
 ): Promise<CustomerSnapshot> => {
   // adding console log to confirm request being made, page still unmounting early
   const url = `/provider/customer/${customerId}/snapshot`;
-  console.log("schedulingApi.getCustomerSnapshot ->", API_URL + url);
+  console.log(
+    "[DEBUG schedulingApi] getCustomerSnapshot called with customerId:",
+    customerId,
+  );
+  console.log("[DEBUG schedulingApi] customerId type:", typeof customerId);
+  console.log("[DEBUG schedulingApi] Full URL:", API_URL + url);
 
-  const response = await api.get<CustomerSnapshot>(url);
-  return response.data;
+  try {
+    const response = await api.get<CustomerSnapshot>(url);
+    console.log("[DEBUG schedulingApi] Raw response:", response);
+    console.log("[DEBUG schedulingApi] Response data:", response.data);
+    console.log(
+      "[DEBUG schedulingApi] Response data keys:",
+      Object.keys(response.data),
+    );
+    console.log(
+      "[DEBUG schedulingApi] customer_name in response:",
+      response.data.customer_name,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("[DEBUG schedulingApi] Error fetching snapshot:", error);
+    throw error;
+  }
 };
 
 // Export the axios instance for custom requests

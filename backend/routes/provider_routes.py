@@ -680,7 +680,13 @@ async def get_customer_snapshot(
         raise HTTPException(status_code=404, detail="Customer not found")
     customer = customer_doc.to_dict()
     customer["_id"] = customer_doc.id
-    logger.info(f"Customer found: {customer_id}, data keys: {list(customer.keys())}")
+    
+    # DEBUG: Log all customer data fields
+    logger.info(f"[DEBUG] Customer found: {customer_id}")
+    logger.info(f"[DEBUG] Customer data keys: {list(customer.keys())}")
+    logger.info(f"[DEBUG] Customer name field: {customer.get('name')}")
+    logger.info(f"[DEBUG] Customer customer_name field: {customer.get('customer_name')}")
+    logger.info(f"[DEBUG] Full customer data: {customer}")
 
     # get email from customer/user table
     user_id = customer.get("user_id")
