@@ -61,15 +61,15 @@ export default function CustomerSnapshotView({
             ]}
           >
             <Text style={[styles.avatarText, { color: colors.background }]}>
-              {snapshot.customer_name.charAt(0).toUpperCase()}
+              {(snapshot.customer_name?.charAt(0) ?? "?").toUpperCase()}
             </Text>
           </View>
           <View style={styles.headerInfo}>
             <Text style={[styles.name, { color: colors.text }]}>
-              {snapshot.customer_name}
+              {snapshot.customer_name ?? "Unknown Customer"}
             </Text>
             <Text style={[styles.email, { color: colors.textMuted }]}>
-              {snapshot.customer_email}
+              {snapshot.customer_email ?? "No email available"}
             </Text>
           </View>
         </View>
@@ -83,7 +83,7 @@ export default function CustomerSnapshotView({
         <View style={styles.infoRow}>
           <Ionicons name="call" size={18} color={colors.textMuted} />
           <Text style={[styles.infoText, { color: colors.text }]}>
-            {snapshot.customer_phone}
+            {snapshot.customer_phone ?? "No phone available"}
           </Text>
         </View>
       </View>
@@ -145,19 +145,19 @@ export default function CustomerSnapshotView({
           ]}
         >
           <Text style={[styles.paymentText, { color: colors.text }]}>
-            {snapshot.payment_preference}
+            {snapshot.payment_preference ?? "Not specified"}
           </Text>
         </View>
       </View>
 
       {/* Tags */}
-      {snapshot.tags.length > 0 && (
+      {snapshot.tags?.length > 0 && (
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.accent }]}>
             Tags
           </Text>
           <View style={styles.tagsContainer}>
-            {snapshot.tags.map((tag) => (
+            {(snapshot.tags ?? []).map((tag) => (
               <View
                 key={tag.id}
                 style={[
@@ -178,14 +178,14 @@ export default function CustomerSnapshotView({
       )}
 
       {/* Notes */}
-      {snapshot.notes.length > 0 && (
+      {snapshot.notes?.length > 0 && (
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.accent }]}>
             Notes
           </Text>
           <FlatList
             scrollEnabled={false}
-            data={snapshot.notes}
+            data={snapshot.notes ?? []}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View
@@ -212,7 +212,7 @@ export default function CustomerSnapshotView({
         </View>
       )}
 
-      {snapshot.notes.length === 0 && snapshot.tags.length === 0 && (
+      {!snapshot.notes?.length && !snapshot.tags?.length && (
         <View
           style={[
             styles.emptyState,
