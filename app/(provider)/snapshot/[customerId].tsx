@@ -78,8 +78,9 @@ export default function CustomerSnapshotScreen() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getCustomerSnapshot(customerId);
-      if (mountedRef.current) setSnapshot(data);
+      const response = await getCustomerSnapshot(customerId);
+      console.log("[Snapshot Page] API Response:", response);
+      if (mountedRef.current) setSnapshot(response);
     } catch (err: any) {
       if (mountedRef.current)
         setError(
@@ -140,10 +141,13 @@ export default function CustomerSnapshotScreen() {
 
       {/* only renders when the data is ready - premature render may unmount? */}
       {!loading && !error && snapshot && (
-        <CustomerSnapshotView
-          snapshot={snapshot}
-          onClose={() => router.back()}
-        />
+        <>
+          {console.log("[Snapshot Page] Snapshot data:", snapshot)}
+          <CustomerSnapshotView
+            snapshot={snapshot}
+            onClose={() => router.back()}
+          />
+        </>
       )}
     </SafeAreaView>
   );

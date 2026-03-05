@@ -16,12 +16,36 @@ export default function CustomerSnapshotView({
   const { isDarkMode } = useTheme();
 
   // Log when snapshot data is received
-  console.log(
-    "[CustomerSnapshotView] Rendering with customer:",
-    snapshot?.customer_name,
-    "ID:",
-    snapshot?.customer_id,
-  );
+  console.log("[CustomerSnapshotView] Received snapshot:", snapshot);
+
+  // Check if snapshot is null/undefined
+  if (!snapshot) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { backgroundColor: isDarkMode ? "#151718" : "#f5f5f5" },
+        ]}
+      >
+        <View
+          style={[
+            styles.noDataContainer,
+            { backgroundColor: isDarkMode ? "#1e2333" : "#ffffff" },
+          ]}
+        >
+          <Ionicons name="alert-circle-outline" size={48} color="#9BA1A6" />
+          <Text
+            style={[
+              styles.noDataText,
+              { color: isDarkMode ? "#ECEDEE" : "#11181C" },
+            ]}
+          >
+            No data available
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   // tried memo here as well for color reloading - wasn't the problem but i'll keep it for now
   const colors = useMemo(
@@ -129,7 +153,7 @@ export default function CustomerSnapshotView({
                 {formatDate(snapshot.last_service_date)}
               </Text>
               <Text style={[styles.serviceName, { color: colors.textMuted }]}>
-                {snapshot.last_service_name}
+                {snapshot.last_service_name ?? "Unknown service"}
               </Text>
             </View>
             <Ionicons
@@ -398,6 +422,20 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 14,
+    marginTop: 12,
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 16,
+    marginVertical: 24,
+    padding: 24,
+    borderRadius: 12,
+  },
+  noDataText: {
+    fontSize: 16,
+    fontWeight: "500",
     marginTop: 12,
   },
 });
