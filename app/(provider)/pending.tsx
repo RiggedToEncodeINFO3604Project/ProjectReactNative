@@ -268,7 +268,13 @@ export default function PendingBookingsScreen() {
         />
         <TouchableOpacity
           style={[styles.snapshotButton, { backgroundColor: colors.accent }]}
-          onPress={() => router.push(`/snapshot/${item.customer_id}`)}
+          onPress={() => {
+            console.log(
+              "[Navigation] Navigating to snapshot for customer:",
+              item.customer_id,
+            );
+            router.push(`/snapshot/${item.customer_id}`);
+          }}
         >
           <Text
             style={[styles.snapshotButtonText, { color: colors.background }]}

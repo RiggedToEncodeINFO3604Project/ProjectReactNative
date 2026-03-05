@@ -28,7 +28,7 @@ export default function CustomerSnapshotScreen() {
   // tracks actual mount/unmount
   useEffect(() => {
     console.log("📱 [customerId] screen mounted");
-    console.log("   customerId from params:", customerId);
+    console.log("[Snapshot Page] Received customerId from URL:", customerId);
     return () => {
       console.log("📱 [customerId] screen UNMOUNTED");
     };
@@ -59,7 +59,15 @@ export default function CustomerSnapshotScreen() {
 
   useEffect(() => {
     mountedRef.current = true;
-    if (customerId) loadSnapshot();
+    if (customerId) {
+      loadSnapshot();
+    } else {
+      console.error(
+        "[Snapshot Page] Error: customerId is missing from URL params",
+      );
+      setError("Customer ID is missing. Please go back and try again.");
+      setLoading(false);
+    }
     return () => {
       mountedRef.current = false;
     };

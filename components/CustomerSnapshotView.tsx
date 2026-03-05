@@ -15,6 +15,14 @@ export default function CustomerSnapshotView({
 }: CustomerSnapshotViewProps) {
   const { isDarkMode } = useTheme();
 
+  // Log when snapshot data is received
+  console.log(
+    "[CustomerSnapshotView] Rendering with customer:",
+    snapshot?.customer_name,
+    "ID:",
+    snapshot?.customer_id,
+  );
+
   // tried memo here as well for color reloading - wasn't the problem but i'll keep it for now
   const colors = useMemo(
     () => ({
