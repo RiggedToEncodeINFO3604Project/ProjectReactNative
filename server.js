@@ -23,10 +23,18 @@ const wsProxy = createProxyMiddleware({
   },
   onError: (err, req, res) => {
     console.error("[WebSocket Proxy Error]:", err.message);
+    console.error("[WebSocket Proxy Error] Request URL:", req?.url);
+    console.error("[WebSocket Proxy Error] Headers:", req?.headers);
   },
   onProxyReqWs: (proxyReq, req, socket) => {
     console.log(`[WebSocket] Upgrading ${req.url}`);
+    console.log(`[WebSocket] Headers:`, req.headers);
+    console.log(`[WebSocket] Target: localhost:${BACKEND_PORT}/ws`);
   },
+  onProxyResWs: (proxyRes, req, socket) => {
+    console.log(`[WebSocket] Proxy response status:`, proxyRes.statusCode);
+  },
+  logLevel: "debug",
 });
 
 // Use WebSocket proxy
@@ -501,8 +509,30 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Express server running on port ${PORT}`);
   console.log(`Proxying API requests to localhost:${BACKEND_PORT}`);
   console.log(`WebSocket proxy enabled on /ws`);
+  console.log(`WebSocket target: ws://localhost:${BACKEND_PORT}/ws`);
   console.log(`========================================`);
 });
 
 // Handle WebSocket upgrade events
-server.on("upgrade", wsProxy.upgrade);
+server.on("upgrade", (request, socket, head) => {
+  console.log(`[WebSocket Upgrade] Request received for ${request.url}`);
+  console.log(
+    `[WebSocket Upgrade] Headers:`,
+    JSON.stringify(request.headers, null, 2),
+  );
+
+  if (request.url.startsWith("/ws")) {
+    console.log(`[WebSocket Upgrade] Routing to backend proxy`);
+    wsProxy.upgrade(request, socket, head, (err) => {
+      if (err) {
+        console.error(`[WebSocket Upgrade] Error:`, err.message);
+        socket.destroy();
+      } else {
+        console.log(`[WebSocket Upgrade] Successfully upgraded`);
+      }
+    });
+  } else {
+    console.log(`[WebSocket Upgrade] No route for ${request.url}`);
+    socket.destroy();
+  }
+});

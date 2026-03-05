@@ -279,22 +279,34 @@ export class MessagingWebSocket {
    */
   private getWebSocketUrl(): string {
     const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
+    console.log("[MessagingWebSocket] EXPO_PUBLIC_API_URL:", apiUrl);
 
-    if (apiUrl.startsWith("https://")) {
-      return apiUrl.replace("https://", "wss://") + "/ws";
-    } else if (apiUrl.startsWith("http://")) {
-      return apiUrl.replace("http://", "ws://") + "/ws";
+    // Remove trailing slash if present to avoid double slashes
+    const normalizedUrl = apiUrl.replace(/\/$/, "");
+
+    if (normalizedUrl.startsWith("https://")) {
+      const wsUrl = normalizedUrl.replace("https://", "wss://") + "/ws";
+      console.log("[MessagingWebSocket] Using WSS (HTTPS detected):", wsUrl);
+      return wsUrl;
+    } else if (normalizedUrl.startsWith("http://")) {
+      const wsUrl = normalizedUrl.replace("http://", "ws://") + "/ws";
+      console.log("[MessagingWebSocket] Using WS (HTTP detected):", wsUrl);
+      return wsUrl;
     }
 
     // Improved fallback - detect current protocol in browser
     if (typeof window !== "undefined") {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const host = apiUrl || window.location.host;
-      return `${protocol}//${host}/ws`;
+      const host = normalizedUrl || window.location.host;
+      const wsUrl = `${protocol}//${host}/ws`;
+      console.log("[MessagingWebSocket] Using fallback (browser):", wsUrl);
+      return wsUrl;
     }
 
     // Default to secure WebSocket for production safety
-    return `wss://${apiUrl || "localhost"}/ws`;
+    const defaultUrl = `wss://${normalizedUrl || "localhost"}/ws`;
+    console.log("[MessagingWebSocket] Using default WSS:", defaultUrl);
+    return defaultUrl;
   }
 
   /**
@@ -316,7 +328,12 @@ export class MessagingWebSocket {
     this.setConnectionState("connecting");
 
     try {
-      const wsUrl = `${this.getWebSocketUrl()}?token=${encodeURIComponent(token)}`;
+      const baseWsUrl = this.getWebSocketUrl();
+      const wsUrl = `${baseWsUrl}?token=${encodeURIComponent(token)}`;
+      console.log(
+        `[MessagingWebSocket] Connecting to: ${baseWsUrl}/ws?token=***`,
+      );
+
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = this.handleOpen.bind(this);
@@ -324,6 +341,7 @@ export class MessagingWebSocket {
       this.ws.onclose = this.handleClose.bind(this);
       this.ws.onerror = this.handleError.bind(this);
     } catch (error) {
+      console.error("[MessagingWebSocket] Connection error:", error);
       this.setConnectionState("disconnected");
       this.options.onError(
         error instanceof Error ? error : new Error(String(error)),

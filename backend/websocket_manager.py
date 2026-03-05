@@ -70,13 +70,18 @@ class WebSocketManager:
     
     # Accept a WebSocket connection after authentication
     async def connect(self, websocket: WebSocket, token: str) -> Optional[Connection]:
+        log.info(f"WebSocket connection attempt - Client: {websocket.client}")
+        
         # Authenticate first
         auth_data = await self.authenticate(token)
         if not auth_data:
+            log.warning(f"WebSocket authentication failed - Client: {websocket.client}")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return None
         
+        log.info(f"WebSocket authentication successful for user: {auth_data['user_id']}")
         await websocket.accept()
+        log.info(f"WebSocket accepted for user: {auth_data['user_id']}")
         
         user_id = auth_data["user_id"]
         role = auth_data["role"]
