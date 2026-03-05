@@ -115,7 +115,10 @@ export const startConversation = async (
 ): Promise<{ conversation_id: string }> => {
   const response = await api.post<{ conversation_id: string }>(
     "/api/messaging/conversations/start",
-    { recipient_id: recipientId },
+    null,
+    {
+      params: { recipient_id: recipientId },
+    },
   );
   return response.data;
 };
