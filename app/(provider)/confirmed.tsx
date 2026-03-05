@@ -3,6 +3,7 @@ import MessageCustomerButton from "@/components/MessageCustomerButton";
 import { useTheme } from "@/context/ThemeContext";
 import { deleteBooking, getConfirmedBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -130,6 +131,18 @@ export default function ConfirmedBookingsScreen() {
             size="small"
             showLabel={false}
           />
+          <TouchableOpacity
+            style={[
+              styles.snapshotButton,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+            onPress={() =>
+              router.push(`/provider/snapshot/${item.customer_id}`)
+            }
+            activeOpacity={0.7}
+          >
+            <Ionicons name="person-circle" size={18} color={colors.accent} />
+          </TouchableOpacity>
           {processing === item.booking_id && (
             <ActivityIndicator size="small" color={colors.accent} />
           )}
@@ -253,6 +266,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+  },
+  snapshotButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 36,
+    minWidth: 36,
   },
   statusBadge: {
     paddingHorizontal: 10,

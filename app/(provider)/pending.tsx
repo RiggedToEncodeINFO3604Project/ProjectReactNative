@@ -1,4 +1,5 @@
 import ConfirmModal from "@/components/ConfirmModal";
+import MessageCustomerButton from "@/components/MessageCustomerButton";
 import { useTheme } from "@/context/ThemeContext";
 import {
   acceptBooking,
@@ -257,6 +258,27 @@ export default function PendingBookingsScreen() {
         </Text>
       </View>
 
+      {/* Row 1: Communication tools - Message and Snapshot buttons */}
+      <View style={styles.communicationButtons}>
+        <MessageCustomerButton
+          customerId={item.customer_id}
+          customerName={item.customer_name}
+          size="medium"
+          style={{ flex: 1 }}
+        />
+        <TouchableOpacity
+          style={[styles.snapshotButton, { backgroundColor: colors.accent }]}
+          onPress={() => router.push(`/snapshot/${item.customer_id}`)}
+        >
+          <Text
+            style={[styles.snapshotButtonText, { color: colors.background }]}
+          >
+            📊 Snapshot
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Row 2: Decision controls - Accept and Reject buttons (separate!) */}
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={[styles.acceptButton, { backgroundColor: colors.success }]}
@@ -376,6 +398,23 @@ const styles = StyleSheet.create({
   cost: { fontSize: 18, fontWeight: "bold" },
   bookingDetails: { marginBottom: 15 },
   detailText: { fontSize: 14, marginBottom: 4 },
+  communicationButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 12,
+  },
+  snapshotButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  snapshotButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
   actionButtons: { flexDirection: "row", gap: 10 },
   acceptButton: {
     flex: 1,
