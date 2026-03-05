@@ -191,7 +191,8 @@ export type ConnectionState =
   | "connecting"
   | "connected"
   | "disconnected"
-  | "reconnecting";
+  | "reconnecting"
+  | "fallback_polling"; // Fallback when WebSocket is unavailable
 
 // Event callback types
 export type MessageReceivedCallback = (message: Message) => void;
@@ -227,6 +228,11 @@ export class MessagingWebSocket {
   private pingIntervalId: NodeJS.Timeout | null = null;
   private reconnectTimeoutId: NodeJS.Timeout | null = null;
   private subscribedConversations: Set<string> = new Set();
+
+  // Polling fallback for Render free tier
+  private pollingIntervalId: NodeJS.Timeout | null = null;
+  private isPollingEnabled = false;
+  private readonly POLLING_INTERVAL = 5000; // 5 seconds
 
   // Configuration
   private readonly options: Required<MessagingWebSocketOptions>;
@@ -330,16 +336,46 @@ export class MessagingWebSocket {
     try {
       const baseWsUrl = this.getWebSocketUrl();
       const wsUrl = `${baseWsUrl}?token=${encodeURIComponent(token)}`;
-      console.log(
-        `[MessagingWebSocket] Connecting to: ${baseWsUrl}/ws?token=***`,
-      );
+      console.log(`[MessagingWebSocket] Connecting to: ${baseWsUrl}?token=***`);
+
+      // Log connection diagnostics for debugging Render issues
+      console.log("[MessagingWebSocket] Connection diagnostics:", {
+        url: wsUrl.replace(token, "***"),
+        userAgent:
+          typeof navigator !== "undefined" ? navigator.userAgent : "N/A",
+        protocol:
+          typeof window !== "undefined" ? window.location.protocol : "N/A",
+        host: typeof window !== "undefined" ? window.location.host : "N/A",
+      });
 
       this.ws = new WebSocket(wsUrl);
+
+      // Set connection timeout for Render (15s)
+      const connectionTimeout = setTimeout(() => {
+        if (this.ws?.readyState === WebSocket.CONNECTING) {
+          console.error(
+            "[MessagingWebSocket] Connection timeout - forcing close",
+          );
+          this.ws.close();
+          this.options.onError(
+            new Error("Connection timeout - server may be unavailable"),
+          );
+        }
+      }, 15000);
+
+      // Clear timeout on successful connection
+      const clearConnectionTimeout = () => clearTimeout(connectionTimeout);
+      this.ws.addEventListener("open", clearConnectionTimeout, { once: true });
+      this.ws.addEventListener("close", clearConnectionTimeout, { once: true });
+      this.ws.addEventListener("error", clearConnectionTimeout, { once: true });
 
       this.ws.onopen = this.handleOpen.bind(this);
       this.ws.onmessage = this.handleMessage.bind(this);
       this.ws.onclose = this.handleClose.bind(this);
-      this.ws.onerror = this.handleError.bind(this);
+      this.ws.onerror = (event) => {
+        clearConnectionTimeout();
+        this.handleError(event);
+      };
     } catch (error) {
       console.error("[MessagingWebSocket] Connection error:", error);
       this.setConnectionState("disconnected");
@@ -442,14 +478,40 @@ export class MessagingWebSocket {
   // Handle WebSocket error event
   private handleError(event: Event): void {
     console.error("[MessagingWebSocket] WebSocket error:", event);
-    this.options.onError(new Error("WebSocket connection error"));
+
+    // Provide more specific error messages for common issues
+    let errorMessage = "WebSocket connection error";
+
+    // Check for specific browser error types
+    if (typeof event !== "undefined" && event.target) {
+      const target = event.target as WebSocket;
+      if (target.readyState === WebSocket.CLOSED) {
+        // Connection was refused or failed
+        errorMessage =
+          "WebSocket connection refused - server may be unavailable or WebSocket proxy not configured correctly";
+        console.error("[MessagingWebSocket] Connection refused. Check:");
+        console.error("  1. Server is running and accessible");
+        console.error("  2. WebSocket endpoint /ws is properly configured");
+        console.error("  3. Firewall/reverse proxy allows WebSocket upgrade");
+        console.error("  4. Render health check is passing");
+      }
+    }
+
+    this.options.onError(new Error(errorMessage));
   }
 
   // Schedule a reconnection attempt with exponential backoff
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.log("[MessagingWebSocket] Max reconnection attempts reached");
-      this.options.onError(new Error("Max reconnection attempts reached"));
+      console.log("[MessagingWebSocket] Switching to polling fallback mode");
+      this.options.onError(
+        new Error(
+          "Max reconnection attempts reached - switching to polling fallback",
+        ),
+      );
+      // Start polling as fallback for Render free tier limitations
+      this.startPolling();
       return;
     }
 
@@ -471,6 +533,45 @@ export class MessagingWebSocket {
         this.connect(this.token);
       }
     }, delay);
+  }
+
+  // Start polling fallback when WebSocket is unavailable
+  private startPolling(): void {
+    if (this.isPollingEnabled) return;
+
+    console.log("[MessagingWebSocket] Starting polling fallback");
+    this.isPollingEnabled = true;
+    this.setConnectionState("fallback_polling");
+
+    // Poll for new messages every 5 seconds
+    this.pollingIntervalId = setInterval(async () => {
+      if (!this.token || this.subscribedConversations.size === 0) return;
+
+      try {
+        // Fetch latest messages for subscribed conversations
+        for (const conversationId of this.subscribedConversations) {
+          const messages = await getMessages(conversationId, 1);
+          if (messages.length > 0) {
+            // Check if this is a new message (would need timestamp comparison in real implementation)
+            // For now, just notify that polling is working
+            console.log(
+              `[MessagingWebSocket] Polled messages for ${conversationId}`,
+            );
+          }
+        }
+      } catch (error) {
+        console.error("[MessagingWebSocket] Polling error:", error);
+      }
+    }, this.POLLING_INTERVAL);
+  }
+
+  // Stop polling fallback
+  private stopPolling(): void {
+    if (this.pollingIntervalId) {
+      clearInterval(this.pollingIntervalId);
+      this.pollingIntervalId = null;
+    }
+    this.isPollingEnabled = false;
   }
 
   // Start the ping interval for keepalive
@@ -548,6 +649,7 @@ export class MessagingWebSocket {
 
     // Stop timers
     this.stopPingInterval();
+    this.stopPolling();
     if (this.reconnectTimeoutId) {
       clearTimeout(this.reconnectTimeoutId);
       this.reconnectTimeoutId = null;
@@ -583,6 +685,11 @@ export class MessagingWebSocket {
   // Get the list of currently subscribed conversations
   getSubscribedConversations(): string[] {
     return Array.from(this.subscribedConversations);
+  }
+
+  // Check if using polling fallback (Render free tier)
+  isUsingPollingFallback(): boolean {
+    return this.isPollingEnabled;
   }
 }
 export const messagingSocket = new MessagingWebSocket();

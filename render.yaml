@@ -5,6 +5,9 @@ services:
     name: expo-scheduling
     runtime: docker
     dockerfilePath: ./Dockerfile
+    # Health check for Render to verify service is ready
+    # Required for proper WebSocket upgrade handling
+    healthCheckPath: /health
     # Combined service needs all environment variables
     envVars:
       # Frontend API URL (must be HTTPS for production)

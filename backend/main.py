@@ -62,19 +62,29 @@ async def websocket_endpoint(
     websocket: WebSocket,
     token: str = Query(..., description="JWT access token for authentication")
 ):
-    client_info = f"{websocket.client}"
-    log.info(f"WebSocket endpoint accessed - Client: {client_info}, Path: {websocket.url.path}")
+    client_host = websocket.client.host if websocket.client else "unknown"
+    client_port = websocket.client.port if websocket.client else "unknown"
+    client_info = f"{client_host}:{client_port}"
+    
+    # Enhanced logging for Render debugging
+    log.info(f"WebSocket connection attempt from {client_info}")
+    log.info(f"  Path: {websocket.url.path}")
+    log.info(f"  Query params: {dict(websocket.query_params)}")
+    log.info(f"  Headers: {dict(websocket.headers)}")
     
     if not token:
         log.warning(f"WebSocket connection rejected - no token provided by {client_info}")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
     
+    log.info(f"WebSocket attempting connection with token for {client_info}")
     connection = await websocket_manager.connect(websocket, token)
     
     if not connection:
         log.warning(f"WebSocket connection failed - invalid token from {client_info}")
         return
+    
+    log.info(f"WebSocket connection established for user {connection.user_id} from {client_info}")
     
     try:
         while True:

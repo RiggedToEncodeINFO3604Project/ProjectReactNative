@@ -10,34 +10,54 @@ const BACKEND_PORT = 8000;
 const LOCAL_BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 
 // ============================================
-// WEBSOCKET PROXY SETUP
+// WEBSOCKET PROXY SETUP (Render-Compatible)
 // ============================================
 
-// Create WebSocket proxy middleware
+// Create WebSocket proxy middleware with Render-specific configuration
 const wsProxy = createProxyMiddleware({
   target: `http://localhost:${BACKEND_PORT}`,
   changeOrigin: true,
   ws: true,
-  pathRewrite: {
-    "^/ws": "/ws",
-  },
+  // Preserve WebSocket headers for Render compatibility
+  preserveHeaderKeyCase: true,
+  // Follow redirects
+  followRedirects: true,
+  // Path rewrite not needed for /ws
+  pathRewrite: null,
+  // Connection timeout for Render free tier (90s to avoid 100s limit)
+  proxyTimeout: 90000,
+  timeout: 90000,
   onError: (err, req, res) => {
     console.error("[WebSocket Proxy Error]:", err.message);
     console.error("[WebSocket Proxy Error] Request URL:", req?.url);
     console.error("[WebSocket Proxy Error] Headers:", req?.headers);
+    // Send error response if res is available (not a WebSocket upgrade)
+    if (res && res.writeHead) {
+      res.writeHead(502, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error: "WebSocket proxy error",
+          message: err.message,
+        }),
+      );
+    }
   },
-  onProxyReqWs: (proxyReq, req, socket) => {
+  onProxyReqWs: (proxyReq, req, socket, options, head) => {
     console.log(`[WebSocket] Upgrading ${req.url}`);
-    console.log(`[WebSocket] Headers:`, req.headers);
     console.log(`[WebSocket] Target: localhost:${BACKEND_PORT}/ws`);
+
+    // Ensure proper headers for WebSocket upgrade
+    proxyReq.setHeader("Host", `localhost:${BACKEND_PORT}`);
+    proxyReq.setHeader("Connection", "Upgrade");
+    proxyReq.setHeader("Upgrade", "websocket");
   },
   onProxyResWs: (proxyRes, req, socket) => {
     console.log(`[WebSocket] Proxy response status:`, proxyRes.statusCode);
   },
-  logLevel: "debug",
+  logLevel: process.env.NODE_ENV === "production" ? "info" : "debug",
 });
 
-// Use WebSocket proxy
+// Use WebSocket proxy - must be registered before other routes
 app.use("/ws", wsProxy);
 
 // ============================================
@@ -479,11 +499,33 @@ app.post("/api/chat", express.json(), async (req, res) => {
 });
 
 // ============================================
-// HEALTH CHECK
+// HEALTH CHECK (Required for Render)
 // ============================================
 
 app.get("/health", (req, res) => {
-  res.json({ status: "healthy", service: "express" });
+  res.json({
+    status: "healthy",
+    service: "express",
+    timestamp: new Date().toISOString(),
+    websocket: {
+      proxyEnabled: true,
+      backendPort: BACKEND_PORT,
+    },
+  });
+});
+
+// ============================================
+// WEBSOCKET TEST ENDPOINT
+// ============================================
+
+// Test endpoint to verify WebSocket proxy is accessible
+app.get("/ws-test", (req, res) => {
+  res.json({
+    status: "WebSocket endpoint available",
+    websocketUrl: `/ws`,
+    instructions: "Connect to wss://<host>/ws?token=<jwt>",
+    backendTarget: `ws://localhost:${BACKEND_PORT}/ws`,
+  });
 });
 
 // ============================================
@@ -513,19 +555,40 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`========================================`);
 });
 
-// Handle WebSocket upgrade events
+// Handle WebSocket upgrade events (Render-compatible)
 server.on("upgrade", (request, socket, head) => {
   console.log(`[WebSocket Upgrade] Request received for ${request.url}`);
-  console.log(
-    `[WebSocket Upgrade] Headers:`,
-    JSON.stringify(request.headers, null, 2),
-  );
+
+  // Log essential headers for debugging
+  const essentialHeaders = {
+    upgrade: request.headers.upgrade,
+    connection: request.headers.connection,
+    origin: request.headers.origin,
+    host: request.headers.host,
+  };
+  console.log(`[WebSocket Upgrade] Essential headers:`, essentialHeaders);
 
   if (request.url.startsWith("/ws")) {
     console.log(`[WebSocket Upgrade] Routing to backend proxy`);
+
+    // Set a timeout for the upgrade to prevent hanging
+    const upgradeTimeout = setTimeout(() => {
+      console.error(`[WebSocket Upgrade] Timeout after 10s`);
+      socket.write("HTTP/1.1 504 Gateway Timeout\r\n\r\n");
+      socket.destroy();
+    }, 10000);
+
     wsProxy.upgrade(request, socket, head, (err) => {
+      clearTimeout(upgradeTimeout);
+
       if (err) {
         console.error(`[WebSocket Upgrade] Error:`, err.message);
+        // Send proper HTTP error response before destroying
+        try {
+          socket.write("HTTP/1.1 502 Bad Gateway\r\n\r\n");
+        } catch (e) {
+          // Socket may already be closed
+        }
         socket.destroy();
       } else {
         console.log(`[WebSocket Upgrade] Successfully upgraded`);
@@ -533,6 +596,7 @@ server.on("upgrade", (request, socket, head) => {
     });
   } else {
     console.log(`[WebSocket Upgrade] No route for ${request.url}`);
+    socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
     socket.destroy();
   }
 });
