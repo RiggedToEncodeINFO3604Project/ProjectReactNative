@@ -59,6 +59,16 @@ export default function LoginScreen() {
     }
   };
 
+  const handleOpenRagServer = async () => {
+    const url = "https://rag-server-bf1a.onrender.com/";
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("Error", "Cannot open this URL");
+    }
+  };
+
   const colors = {
     background: isDarkMode ? "#151718" : "#ffffff",
     card: isDarkMode ? "#1e2333" : "#f8f9fa",
@@ -161,6 +171,20 @@ export default function LoginScreen() {
                 style={[styles.videoButtonText, { color: colors.textMuted }]}
               >
                 Video
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.videoButton,
+                { backgroundColor: colors.inputBg, borderColor: colors.border },
+              ]}
+              onPress={handleOpenRagServer}
+            >
+              <Text
+                style={[styles.videoButtonText, { color: colors.textMuted }]}
+              >
+                RAG Server
               </Text>
             </TouchableOpacity>
           </View>
