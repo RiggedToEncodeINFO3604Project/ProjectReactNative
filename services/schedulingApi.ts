@@ -11,6 +11,7 @@ import {
   BookingWithDetails,
   ConfirmedBooking,
   CustomerCreate,
+  CustomerSnapshot,
   DateScheduleData,
   DayBookingStatus,
   MessageResponse,
@@ -468,6 +469,18 @@ export const getAvailableSlotsForDateRange = async (
   );
 
   return responses.map((response) => transformToScheduleData(response, today));
+};
+
+// Get customer snapshot for a specific customer
+export const getCustomerSnapshot = async (
+  customerId: string,
+): Promise<CustomerSnapshot> => {
+  // adding console log to confirm request being made, page still unmounting early
+  const url = `/provider/customer/${customerId}/snapshot`;
+  console.log("schedulingApi.getCustomerSnapshot ->", API_URL + url);
+
+  const response = await api.get<CustomerSnapshot>(url);
+  return response.data;
 };
 
 // Export the axios instance for custom requests

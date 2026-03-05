@@ -353,3 +353,31 @@ export interface ConversationPreview {
   unread_count: number;
   is_last_message_from_me: boolean;
 }
+
+// Customer Snapshot types
+export interface CustomerTag {
+  id: string;
+  tag: string;
+  color: string;
+}
+
+export interface CustomerNote {
+  id: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerSnapshot {
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  total_visits: number;
+  last_service_date: string | null;
+  last_service_name: string | null;
+  payment_preference: string;
+  total_spent: number;
+  tags: CustomerTag[];
+  notes: CustomerNote[];
+}
