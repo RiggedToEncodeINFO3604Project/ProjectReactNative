@@ -3,44 +3,94 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack } from "expo-router";
+import { Redirect, Stack, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
 
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import {
   ThemeProvider as CustomThemeProvider,
   useTheme,
 } from "@/context/ThemeContext";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
-
-function RootLayoutContent() {
+// Component to handle auth-based routing
+function AuthNavigator() {
+  const { isAuthenticated, role, isLoading } = useAuth();
   const { isDarkMode } = useTheme();
-  const systemColorScheme = useColorScheme();
+  const segments = useSegments();
+
+  console.log(
+    "AuthNavigator - isAuthenticated:",
+    isAuthenticated,
+    "role:",
+    role,
+    "isLoading:",
+    isLoading,
+  );
+
+  if (isLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: isDarkMode ? "#151718" : "#ffffff",
+        }}
+      >
+        <ActivityIndicator size="large" color="#f0c85a" />
+      </View>
+    );
+  }
+
+  // Determine top level group currently in - seems to have fixed the unmounting before loading
+  const inAuthGroup = segments[0] === "(auth)";
+  const inCustomerGroup = segments[0] === "(customer)";
+  const inProviderGroup = segments[0] === "(provider)";
 
   return (
     <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
       <Stack>
+        {/* Auth screens */}
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+
+        {/* Customer screens */}
+        <Stack.Screen name="(customer)" options={{ headerShown: false }} />
+
+        {/* Provider screens */}
+        <Stack.Screen name="(provider)" options={{ headerShown: false }} />
+
+        {/* Shared screens — available to all roles */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="support"
           options={{ presentation: "modal", title: "Home" }}
         />
       </Stack>
+
+      {/* Redirect unauthenticated users to login if they aren't in an auth group */}
+      {!isAuthenticated && !inAuthGroup && <Redirect href="/login" />}
+
+      {/* Redirect authenticated users to their home screen if they're still in the auth group */}
+      {isAuthenticated && inAuthGroup && role === "Customer" && (
+        <Redirect href="/(customer)" />
+      )}
+      {isAuthenticated && inAuthGroup && role === "Provider" && (
+        <Redirect href="/(provider)" />
+      )}
+
       <StatusBar style={isDarkMode ? "light" : "dark"} />
     </ThemeProvider>
   );
 }
 
 export default function RootLayout() {
-  const systemColorScheme = useColorScheme();
-
   return (
     <CustomThemeProvider>
-      <RootLayoutContent />
+      <AuthProvider>
+        <AuthNavigator />
+      </AuthProvider>
     </CustomThemeProvider>
   );
 }

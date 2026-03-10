@@ -1,0 +1,814 @@
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List, Dict, Any
+from models import (
+    Service, ServiceCreate, AvailabilitySchedule, ClientRecord,
+    UserInDB, DayAvailability, RescheduleRequest
+)
+from auth import get_current_provider
+from firebase_db import get_database
+from firebase_admin import firestore
+import uuid
+from datetime import datetime, date as date_type
+import logging
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/provider", tags=["provider"])
+
+DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+
+def generate_sessions(start_time: str, end_time: str, session_duration: int) -> Dict[str, Any]:
+    # Parse times
+    start_parts = start_time.split(':')
+    end_parts = end_time.split(':')
+    
+    start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
+    end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])
+    
+    total_minutes = end_minutes - start_minutes
+    
+    # Calculate number of COMPLETE sessions that fit within the window
+    # A session at 9:30-10:15 would extend past 10:00, so we DON'T create it
+    num_sessions = total_minutes // session_duration
+    remainder_minutes = total_minutes % session_duration
+    
+    sessions = []
+    current_time = start_minutes
+    
+    for i in range(num_sessions):
+        session_start = current_time
+        session_end = current_time + session_duration
+        
+        # Verify session fits entirely within the window
+        if session_end <= end_minutes:
+            sessions.append({
+                'start_time': f'{session_start // 60:02d}:{session_start % 60:02d}',
+                'end_time': f'{session_end // 60:02d}:{session_end % 60:02d}'
+            })
+        
+        current_time = session_end
+    
+    return {
+        'sessions': sessions,
+        'remainder_minutes': remainder_minutes,
+        'sessions_created': len(sessions)
+    }
+
+
+@router.post("/services")
+# Add a new service for the provider
+async def add_service(
+    service: ServiceCreate,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    # Get provider profile
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    service_id = str(uuid.uuid4())
+    service_dict = {
+        "provider_id": provider_id,
+        "name": service.name,
+        "description": service.description,
+        "price": service.price
+    }
+    
+    db.collection("services").document(service_id).set(service_dict)
+    # Return service with id field
+    return {
+        "id": service_id,
+        "provider_id": service_dict["provider_id"],
+        "name": service_dict["name"],
+        "description": service_dict["description"],
+        "price": service_dict["price"]
+    }
+
+
+@router.get("/services")
+# Get all services for the current provider
+async def get_my_services(current_user: UserInDB = Depends(get_current_provider)):
+    db = get_database()
+    
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    # Return services with id field
+    return [
+        {
+            "id": doc.id,
+            "provider_id": doc.to_dict()["provider_id"],
+            "name": doc.to_dict()["name"],
+            "description": doc.to_dict()["description"],
+            "price": doc.to_dict()["price"]
+        }
+        for doc in services_docs
+    ]
+
+
+@router.post("/availability", response_model=dict)
+# Set availability schedule for the provider
+async def set_availability(
+    availability: AvailabilitySchedule,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    # Validate time slots and generate warnings for overflow
+    warnings = []
+    summary = {'total_slots_created': 0, 'total_remainder_minutes': 0}
+    
+    for day in availability.schedule:
+        for slot in day.time_slots:
+            # Get session duration (default to 30 if not provided)
+            session_duration = getattr(slot, 'session_duration', None) or 30
+            
+            # Generate sessions to check for overflow
+            result = generate_sessions(
+                slot.start_time,
+                slot.end_time,
+                session_duration
+            )
+            
+            summary['total_slots_created'] += result['sessions_created']
+            
+            # Check for remainder (overflow time that couldn't fit a full session)
+            if result['remainder_minutes'] > 0:
+                summary['total_remainder_minutes'] += result['remainder_minutes']
+                
+                # Calculate the unused time range
+                start_parts = slot.start_time.split(':')
+                start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
+                unused_start = start_minutes + (result['sessions_created'] * session_duration)
+                unused_end = unused_start + result['remainder_minutes']
+                
+                unused_start_time = f'{unused_start // 60:02d}:{unused_start % 60:02d}'
+                unused_end_time = f'{unused_end // 60:02d}:{unused_end % 60:02d}'
+                
+                warnings.append({
+                    'day': DAYS[day.day_of_week],
+                    'slot': f'{slot.start_time}-{slot.end_time}',
+                    'session_duration': session_duration,
+                    'remainder_minutes': result['remainder_minutes'],
+                    'unused_time_range': f'{unused_start_time}-{unused_end_time}',
+                    'sessions_created': result['sessions_created'],
+                    'message': f'{result["remainder_minutes"]} minutes of remaining time ({unused_start_time}-{unused_end_time}) were insufficient for a full {session_duration}-minute session. Consider extending availability to {unused_end_time} or reducing session duration.',
+                    'suggestions': [
+                        f'Extend availability end time to {unused_end_time} to accommodate one more session',
+                        f'Reduce session duration to fit more sessions in the available window'
+                    ]
+                })
+    
+    # Delete existing availability
+    existing_availability = db.collection("availability").where("provider_id", "==", provider_id).get()
+    batch = db.batch()
+    for doc in existing_availability:
+        batch.delete(doc.reference)
+    batch.commit()
+    
+    # Insert new availability
+    availability_id = str(uuid.uuid4())
+    availability_dict = {
+        "provider_id": provider_id,
+        "schedule": [day.dict() for day in availability.schedule]
+    }
+    
+    db.collection("availability").document(availability_id).set(availability_dict)
+    
+    response = {
+        "message": "Availability updated successfully",
+        "summary": summary
+    }
+    
+    if warnings:
+        response["warnings"] = warnings
+    
+    return response
+
+
+@router.get("/availability", response_model=dict)
+# Get availability schedule for the current provider
+async def get_availability(current_user: UserInDB = Depends(get_current_provider)):
+    db = get_database()
+    
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    availability_docs = db.collection("availability").where("provider_id", "==", provider_id).limit(1).get()
+    if len(availability_docs) == 0:
+        return {"provider_id": provider_id, "schedule": []}
+    
+    availability_doc = availability_docs[0]
+    availability_data = availability_doc.to_dict()
+    
+    return {
+        "provider_id": availability_data["provider_id"],
+        "schedule": availability_data["schedule"]
+    }
+
+
+@router.get("/bookings/pending", response_model=List[dict])
+# Get all pending bookings for the current provider
+async def get_pending_bookings(current_user: UserInDB = Depends(get_current_provider)):
+    db = get_database()
+    
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
+    
+    # Get pending bookings
+    bookings = []
+    if service_ids:
+        # Firestore "in" query supports max 10 values
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).where("status", "==", "pending").get()
+            for doc in bookings_docs:
+                bookings.append({"id": doc.id, "data": doc.to_dict()})
+    
+    result = []
+    for booking in bookings:
+        booking_id = booking["id"]
+        booking_data = booking["data"]
+        
+        customer_doc = db.collection("customers").document(booking_data["customer_id"]).get()
+        customer_data = customer_doc.to_dict() if customer_doc.exists else None
+        
+        service_doc = db.collection("services").document(booking_data["service_id"]).get()
+        service_data = service_doc.to_dict() if service_doc.exists else None
+        
+        result.append({
+            "booking_id": booking_id,
+            "date": booking_data["date"].isoformat(),
+            "start_time": booking_data["start_time"],
+            "end_time": booking_data["end_time"],
+            "cost": booking_data["cost"],
+            "customer_id": booking_data["customer_id"],
+            "customer_name": customer_data["name"] if customer_data else "Unknown",
+            "customer_phone": customer_data["phone"] if customer_data else "Unknown",
+            "service_name": service_data["name"] if service_data else "Unknown",
+            "status": booking_data["status"]
+        })
+    
+    return result
+
+
+@router.post("/bookings/{booking_id}/accept", response_model=dict)
+# Accept a booking request
+async def accept_booking(
+    booking_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    booking_doc = db.collection("client_records").document(booking_id).get()
+    
+    if not booking_doc.exists:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    booking_data = booking_doc.to_dict()
+    
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_doc.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    db.collection("client_records").document(booking_id).update({"status": "confirmed"})
+    
+    return {"message": "Booking accepted"}
+
+
+@router.post("/bookings/{booking_id}/reject", response_model=dict)
+# Reject a booking request
+async def reject_booking(
+    booking_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    booking_doc = db.collection("client_records").document(booking_id).get()
+    
+    if not booking_doc.exists:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    booking_data = booking_doc.to_dict()
+    
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_doc.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    db.collection("client_records").document(booking_id).update({"status": "cancelled"})
+    
+    return {"message": "Booking rejected"}
+
+
+@router.get("/bookings/confirmed", response_model=List[dict])
+# Get all confirmed bookings for the current provider
+async def get_confirmed_bookings(current_user: UserInDB = Depends(get_current_provider)):
+    db = get_database()
+    
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
+    
+    # Get confirmed bookings
+    bookings = []
+    if service_ids:
+        # Firestore "in" query supports max 10 values
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).where("status", "==", "confirmed").get()
+            for doc in bookings_docs:
+                bookings.append({"id": doc.id, "data": doc.to_dict()})
+    
+    result = []
+    for booking in bookings:
+        booking_id = booking["id"]
+        booking_data = booking["data"]
+        
+        customer_doc = db.collection("customers").document(booking_data["customer_id"]).get()
+        customer_data = customer_doc.to_dict() if customer_doc.exists else None
+        
+        service_doc = db.collection("services").document(booking_data["service_id"]).get()
+        service_data = service_doc.to_dict() if service_doc.exists else None
+        
+        result.append({
+            "booking_id": booking_id,
+            "date": booking_data["date"].isoformat(),
+            "start_time": booking_data["start_time"],
+            "end_time": booking_data["end_time"],
+            "cost": booking_data["cost"],
+            "customer_id": booking_data["customer_id"],
+            "customer_name": customer_data["name"] if customer_data else "Unknown",
+            "customer_phone": customer_data["phone"] if customer_data else "Unknown",
+            "service_name": service_data["name"] if service_data else "Unknown",
+            "status": booking_data["status"]
+        })
+    
+    return result
+
+
+@router.delete("/bookings/{booking_id}", response_model=dict)
+# Delete a booking
+async def delete_booking(
+    booking_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    booking_doc = db.collection("client_records").document(booking_id).get()
+    
+    if not booking_doc.exists:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    booking_data = booking_doc.to_dict()
+    
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_doc.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this booking")
+    
+    db.collection("client_records").document(booking_id).update({"status": "cancelled"})
+    
+    return {"message": "Booking cancelled successfully"}
+
+
+@router.put("/bookings/{booking_id}/reschedule", response_model=dict)
+# Reschedule a booking
+async def reschedule_booking(
+    booking_id: str,
+    reschedule_data: RescheduleRequest,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    booking_doc = db.collection("client_records").document(booking_id).get()
+    if not booking_doc.exists:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    booking_data = booking_doc.to_dict()
+    
+    # Verify this booking belongs to this provider
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_id:
+        raise HTTPException(status_code=403, detail="Not authorized to reschedule this booking")
+    
+    # Parse the new date
+    try:
+        new_date = datetime.strptime(reschedule_data.date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    # Get the day of week for the new date (0=Monday, 6=Sunday)
+    day_of_week = new_date.weekday()
+    
+    # Get provider's availability for this day
+    availability_docs = db.collection("availability").where("provider_id", "==", provider_id).limit(1).get()
+    if len(availability_docs) == 0:
+        raise HTTPException(status_code=400, detail="No availability schedule found")
+    
+    availability = availability_docs[0].to_dict()
+    
+    # Find the schedule for the requested day
+    day_schedule = None
+    for day in availability.get("schedule", []):
+        if day.get("day_of_week") == day_of_week:
+            day_schedule = day
+            break
+    
+    if not day_schedule or not day_schedule.get("time_slots"):
+        raise HTTPException(status_code=400, detail="No availability for the requested day")
+    
+    # Check if the requested time slot is within availability
+    slot_available = False
+    for slot in day_schedule.get("time_slots", []):
+        if (slot.get("start_time") <= reschedule_data.start_time and 
+            slot.get("end_time") >= reschedule_data.end_time):
+            slot_available = True
+            break
+    
+    if not slot_available:
+        raise HTTPException(status_code=400, detail="Requested time slot is outside availability window")
+    
+    # Get all provider's service IDs
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
+    
+    # Check if the slot is already booked by another booking
+    existing_booking = None
+    if service_ids:
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).where("date", "==", new_date).where("start_time", "==", reschedule_data.start_time).where("end_time", "==", reschedule_data.end_time).get()
+            for doc in bookings_docs:
+                if doc.id != booking_id:
+                    booking_status = doc.to_dict().get("status")
+                    if booking_status in ["pending", "confirmed"]:
+                        existing_booking = doc
+                        break
+            if existing_booking:
+                break
+    
+    if existing_booking:
+        raise HTTPException(status_code=400, detail="This time slot is already booked")
+    
+    # Store old values for response
+    old_date = booking_data["date"].isoformat()
+    old_time = f"{booking_data['start_time']}-{booking_data['end_time']}"
+    
+    # Update the booking
+    db.collection("client_records").document(booking_id).update({
+        "date": new_date,
+        "start_time": reschedule_data.start_time,
+        "end_time": reschedule_data.end_time
+    })
+    
+    return {
+        "message": "Booking rescheduled successfully",
+        "booking_id": booking_id,
+        "old_date": old_date,
+        "new_date": reschedule_data.date,
+        "old_time": old_time,
+        "new_time": f"{reschedule_data.start_time}-{reschedule_data.end_time}"
+    }
+
+
+@router.get("/bookings/{booking_id}/available-slots", response_model=dict)
+# Get available time slots for rescheduling a booking
+async def get_available_slots(
+    booking_id: str,
+    date: str = Query(..., description="Date in YYYY-MM-DD format"),
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    booking_doc = db.collection("client_records").document(booking_id).get()
+    if not booking_doc.exists:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    booking_data = booking_doc.to_dict()
+    
+    # Verify this booking belongs to this provider
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Parse the date
+    try:
+        target_date = datetime.strptime(date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+    
+    # Get the day of week (0=Monday, 6=Sunday)
+    day_of_week = target_date.weekday()
+    
+    # Get provider's availability for this day
+    availability_docs = db.collection("availability").where("provider_id", "==", provider_id).limit(1).get()
+    if len(availability_docs) == 0:
+        return {"date": date, "day_of_week": DAYS[day_of_week], "available_slots": [], "booked_slots": [], "message": "No availability schedule found"}
+    
+    availability = availability_docs[0].to_dict()
+    
+    # Find the schedule for the requested day
+    day_schedule = None
+    for day in availability.get("schedule", []):
+        if day.get("day_of_week") == day_of_week:
+            day_schedule = day
+            break
+    
+    if not day_schedule or not day_schedule.get("time_slots"):
+        return {"date": date, "day_of_week": DAYS[day_of_week], "available_slots": [], "booked_slots": [], "message": "No availability for this day"}
+    
+    # Get all provider's service IDs
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
+    
+    # Get all bookings for this date (pending or confirmed)
+    existing_bookings = []
+    if service_ids:
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).where("date", "==", target_date).get()
+            for doc in bookings_docs:
+                booking_status = doc.to_dict().get("status")
+                if booking_status in ["pending", "confirmed"]:
+                    existing_bookings.append({"id": doc.id, "data": doc.to_dict()})
+    
+    # Extract booked slots
+    booked_slots = [
+        {"start_time": b["data"]["start_time"], "end_time": b["data"]["end_time"], "booking_id": b["id"]}
+        for b in existing_bookings
+    ]
+    
+    # Generate available slots from availability schedule
+    available_slots = []
+    for slot in day_schedule.get("time_slots", []):
+        session_duration = slot.get("session_duration", 30)
+        start_time = slot.get("start_time")
+        end_time = slot.get("end_time")
+        
+        # Generate sessions for this time slot
+        sessions = generate_sessions(start_time, end_time, session_duration)
+        
+        for session in sessions.get("sessions", []):
+            # Check if this session is already booked
+            is_booked = False
+            for booked in booked_slots:
+                if (booked["start_time"] == session["start_time"] and 
+                    booked["end_time"] == session["end_time"] and
+                    booked["booking_id"] != booking_id):  # Exclude current booking
+                    is_booked = True
+                    break
+            
+            if not is_booked:
+                available_slots.append({
+                    "start_time": session["start_time"],
+                    "end_time": session["end_time"],
+                    "session_duration": session_duration
+                })
+    
+    return {
+        "date": date,
+        "day_of_week": DAYS[day_of_week],
+        "available_slots": available_slots,
+        "booked_slots": booked_slots
+    }
+
+
+# customer snapshot
+@router.get("/customer/{customer_id}/snapshot", response_model=dict)
+# snapshot view, will provide a quick list of information on a specific customer given that they have booked with you previously
+async def get_customer_snapshot(
+    customer_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    logger.info(f"Fetching snapshot for customer: {customer_id}")
+
+    # make sure provider exists
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        logger.error(f"Provider profile not found for user: {current_user.id}")
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    provider_doc = provider_docs[0]
+    provider = provider_doc.to_dict()
+    provider["_id"] = provider_doc.id
+    logger.info(f"Provider found: {provider['_id']}")
+
+    # get customer using their id
+    customer_doc = db.collection("customers").document(customer_id).get()
+    if not customer_doc.exists:
+        logger.error(f"Customer not found: {customer_id}")
+        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = customer_doc.to_dict()
+    customer["_id"] = customer_doc.id
+    
+    # DEBUG: Log all customer data fields
+    logger.info(f"[DEBUG] Customer found: {customer_id}")
+    logger.info(f"[DEBUG] Customer data keys: {list(customer.keys())}")
+    logger.info(f"[DEBUG] Customer name field: {customer.get('name')}")
+    logger.info(f"[DEBUG] Customer customer_name field: {customer.get('customer_name')}")
+    logger.info(f"[DEBUG] Full customer data: {customer}")
+
+    # get email from customer/user table
+    user_id = customer.get("user_id")
+    customer_email = "Not available"
+    if user_id:
+        user_doc = db.collection("users").document(user_id).get()
+        if user_doc.exists:
+            user = user_doc.to_dict()
+            customer_email = user.get("email", "Not available")
+            logger.info(f"User email found for customer {customer_id}: {customer_email}")
+        else:
+            logger.warning(f"User document not found for user_id: {user_id}")
+    else:
+        logger.warning(f"No user_id found for customer: {customer_id}")
+
+    # get the services that the provider offers
+    services_docs = db.collection("services").where("provider_id", "==", provider["_id"]).get()
+    services = [s.to_dict() for s in services_docs]
+    service_ids = [doc.id for doc in services_docs]
+
+    # get all prev bookings for this one customer
+    # Firestore 'in' only supports like 10 items so empty service_ids have to be handled defensively
+    bookings = []
+    if service_ids:
+        bookings_query = db.collection("client_records") # consider renaming to snapshot if we need to add more indexes to db
+        bookings_query = bookings_query.where("customer_id", "==", customer_id)
+        bookings_query = bookings_query.where("service_id", "in", service_ids)
+        bookings_query = bookings_query.where("status", "in", ["confirmed", "completed"]).order_by("date", direction=firestore.Query.DESCENDING)
+        bookings_docs = bookings_query.get()
+        # convert to dicts and include id
+        bookings = [b.to_dict() for b in bookings_docs]
+    
+    # calculate relevant snapshot data
+    total_visits = len(bookings)
+    total_spent = sum(booking.get("cost", 0) for booking in bookings) # might need to adjust - either test data is messed up or my brain doesn't work
+    
+    print(f"\n SNAPSHOT: {customer.get('name')} | Visits: {total_visits} | Spent: ${total_spent}") 
+    
+    last_service_date = None
+    last_service_name = None
+    if bookings:
+        latest_booking = bookings[0]
+        last_service_date = latest_booking.get("date").isoformat() if latest_booking.get("date") else None
+        # get service by document id
+        svc_id = latest_booking.get("service_id")
+        last_service_name = "Unknown Service"
+        if svc_id:
+            svc_doc = db.collection("services").document(svc_id).get()
+            if svc_doc.exists:
+                svc = svc_doc.to_dict()
+                last_service_name = svc.get("name", "Unknown Service")
+        print(f"   Last Service: {last_service_name} on {last_service_date}")
+    
+    # grab tags
+    tags_docs = db.collection("customer_tags").where("customer_id", "==", customer_id).where("provider_id", "==", provider["_id"]).get()
+    tags = [
+        {
+            "id": t.id,
+            "tag": t.to_dict().get("tag"),
+            "color": t.to_dict().get("color", "#f0c85a")
+        }
+        for t in tags_docs
+    ]
+    print(f"   Tags: {len(tags)}")
+    
+    # grab notes - this and the tags should be specific to provider, should test later
+    notes_query = db.collection("customer_notes").where("customer_id", "==", customer_id).where("provider_id", "==", provider["_id"]).order_by("created_at", direction=firestore.Query.DESCENDING)
+    notes = []
+    try:
+        notes_docs = notes_query.get()
+        for n in notes_docs:
+            nd = n.to_dict()
+            notes.append({
+                "id": n.id,
+                "note": nd.get("note"),
+                "created_at": nd.get("created_at").isoformat() if nd.get("created_at") else None,
+                "updated_at": nd.get("updated_at").isoformat() if nd.get("updated_at") else None,
+            })
+    except Exception as e:
+        # I actually am not sure of this one, I asked AI if i did it correctly and it said that i might need a fallback incase firestore requires composite indexes but it was indexed anyways
+        from google.api_core.exceptions import FailedPrecondition
+        if isinstance(e, FailedPrecondition):
+            # Fallback: query only by customer_id then filter provider_id in Python <-- This part was AI'd
+            fallback_docs = db.collection("customer_notes").where("customer_id", "==", customer_id).get()
+            for n in fallback_docs:
+                nd = n.to_dict()
+                    
+                if nd.get("provider_id") != provider["_id"]:
+                    continue
+
+                notes.append({
+                    "id": n.id,
+                    "note": nd.get("note"),
+                    "created_at": nd.get("created_at").isoformat() if nd.get("created_at") else None,
+                    "updated_at": nd.get("updated_at").isoformat() if nd.get("updated_at") else None,
+                })
+
+            # sorts notes descending
+            notes.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+        else:
+            raise
+    print(f"   Total Notes: {len(notes)}\n")
+    
+    #  using placeholder for test purposes - revisit later
+    payment_preference = "Not specified"
+    
+    # Ensure customer name has a fallback
+    customer_name = customer.get("name") or customer.get("customer_name") or "Unknown Customer"
+    customer_phone = customer.get("phone") or customer.get("customer_phone") or "Not available"
+    
+    logger.info(f"Returning snapshot for customer {customer_id}: name={customer_name}, visits={total_visits}, spent={total_spent}")
+    
+    return {
+        "customer_id": customer_id,
+        "customer_name": customer_name,
+        "customer_email": customer_email or "Not available",
+        "customer_phone": customer_phone,
+        "total_visits": total_visits,
+        "last_service_date": last_service_date,
+        "last_service_name": last_service_name,
+        "payment_preference": payment_preference,
+        "total_spent": total_spent,
+        "tags": tags,
+        "notes": notes
+    }
