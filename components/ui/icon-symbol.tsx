@@ -22,6 +22,15 @@ const MAPPING = {
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
   "gearshape.fill": "settings",
+  magnifyingglass: "search",
+  "arrow.left": "arrow-back",
+  "arrow.backward": "arrow-back",
+  "message.fill": "message",
+  "xmark.circle.fill": "cancel",
+  "chevron.up": "keyboard-arrow-up",
+  "chevron.down": "keyboard-arrow-down",
+  "cpu.fill": "memory",
+  "robot.fill": "smart-toy",
 } as IconMapping;
 
 /**

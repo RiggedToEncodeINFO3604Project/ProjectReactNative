@@ -1,0 +1,37 @@
+services:
+  # Combined Frontend + Backend Service
+  # Runs both Express (frontend) and FastAPI (backend) in a single container
+  - type: web
+    name: expo-scheduling
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # Health check for Render to verify service is ready
+    # Required for proper WebSocket upgrade handling
+    healthCheckPath: /health
+    # Combined service needs all environment variables
+    envVars:
+      # Frontend API URL (must be HTTPS for production)
+      - key: EXPO_PUBLIC_API_URL
+        value: https://expo-schedulit.onrender.com
+
+      # MongoDB Configuration (for FastAPI backend)
+      - key: MONGODB_URL
+        sync: false
+      - key: DATABASE_NAME
+        value: scheduling_db
+      - key: SECRET_KEY
+        generateValue: true
+
+      # Gemini API (for chatbot)
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: EXPO_PUBLIC_GEMINI_API_KEY
+        sync: false
+
+      # External RAG server for chatbot
+      - key: FASTAPI_HOST
+        value: rag-server-bf1a.onrender.com
+
+      # Node environment
+      - key: NODE_ENV
+        value: production

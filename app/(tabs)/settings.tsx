@@ -1,12 +1,6 @@
 import { useTheme } from "@/context/ThemeContext";
-import {
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from "react-native";
+import { StatusBar, StyleSheet, Switch, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SettingsScreen() {
   const { isDarkMode, toggleDarkMode } = useTheme();
