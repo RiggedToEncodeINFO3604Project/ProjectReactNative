@@ -1,11 +1,14 @@
 import ConfirmModal from "@/components/ConfirmModal";
+import MessageCustomerButton from "@/components/MessageCustomerButton";
 import { useTheme } from "@/context/ThemeContext";
 import {
   acceptBooking,
+  getConfirmedBookings,
   getPendingBookings,
   rejectBooking,
 } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
+import * as Calendar from "expo-calendar";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -27,8 +30,8 @@ export default function PendingBookingsScreen() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [bookingToReject, setBookingToReject] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
-  // Refresh bookings when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadBookings();
@@ -50,11 +53,127 @@ export default function PendingBookingsScreen() {
     }
   };
 
+  // ─── Calendar helpers ──────────────────────────────────────────────────────
+
+  const getWritableCalendar = async () => {
+    const { status } = await Calendar.requestCalendarPermissionsAsync();
+    if (status !== "granted") return null;
+
+    const calendars = await Calendar.getCalendarsAsync(
+      Calendar.EntityTypes.EVENT,
+    );
+    return (
+      calendars.find(
+        (cal) => cal.allowsModifications && cal.source?.isLocalAccount,
+      ) ||
+      calendars.find((cal) => cal.allowsModifications) ||
+      null
+    );
+  };
+
+  // Safely parse a booking date + time into a JS Date
+  const parseBookingDateTime = (date: string, time: string): Date => {
+    // date may be "2025-03-10" or "2025-03-10T00:00:00" — normalise to date-only
+    const dateOnly = date.split("T")[0];
+    const [hour, minute] = time.split(":").map(Number);
+    const d = new Date(`${dateOnly}T00:00:00`);
+    d.setHours(hour, minute, 0, 0);
+    return d;
+  };
+
+  const addBookingToCalendar = async (
+    booking: BookingWithDetails,
+    calendarId: string,
+  ) => {
+    const startDate = parseBookingDateTime(booking.date, booking.start_time);
+    const endDate = parseBookingDateTime(booking.date, booking.end_time);
+
+    await Calendar.createEventAsync(calendarId, {
+      title: `Booking: ${booking.service_name}`,
+      startDate,
+      endDate,
+      notes: `Customer: ${booking.customer_name}\nPhone: ${booking.customer_phone}`,
+      timeZone: "UTC",
+    });
+  };
+
+  // ─── Sync ALL confirmed bookings from Firebase → device calendar ───────────
+
+  const syncAllConfirmedToCalendar = async () => {
+    setSyncing(true);
+    try {
+      const writableCalendar = await getWritableCalendar();
+      if (!writableCalendar) {
+        Alert.alert(
+          "Permission Denied",
+          "Calendar access is needed to sync bookings.",
+        );
+        return;
+      }
+
+      const confirmed = await getConfirmedBookings();
+      if (confirmed.length === 0) {
+        Alert.alert("Sync Complete", "No confirmed bookings to sync.");
+        return;
+      }
+
+      // Get existing device calendar events so we don't create duplicates
+      const startDate = new Date();
+      startDate.setFullYear(startDate.getFullYear() - 1); // look back 1 year
+      const endDate = new Date();
+      endDate.setFullYear(endDate.getFullYear() + 1);
+
+      const existingEvents = await Calendar.getEventsAsync(
+        [writableCalendar.id],
+        startDate,
+        endDate,
+      );
+      const existingTitles = new Set(existingEvents.map((e) => e.title));
+
+      let added = 0;
+      let skipped = 0;
+
+      for (const booking of confirmed) {
+        const title = `Booking: ${booking.service_name}`;
+        if (existingTitles.has(title)) {
+          skipped++;
+          continue;
+        }
+        try {
+          await addBookingToCalendar(booking, writableCalendar.id);
+          added++;
+        } catch (err) {
+          console.log(`Failed to add booking ${booking.booking_id}:`, err);
+        }
+      }
+
+      Alert.alert(
+        "Sync Complete",
+        `Added ${added} booking(s) to your calendar.${skipped > 0 ? ` Skipped ${skipped} already existing.` : ""}`,
+      );
+    } catch (error: any) {
+      Alert.alert("Sync Error", error.message || "Failed to sync bookings");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  // ─── Accept handler ────────────────────────────────────────────────────────
+
   const handleAccept = async (bookingId: string) => {
     setProcessing(bookingId);
     try {
+      const booking = bookings.find((b) => b.booking_id === bookingId);
       await acceptBooking(bookingId);
-      Alert.alert("Success", "Booking accepted");
+
+      if (booking) {
+        const writableCalendar = await getWritableCalendar();
+        if (writableCalendar) {
+          await addBookingToCalendar(booking, writableCalendar.id);
+        }
+      }
+
+      Alert.alert("Success", "Booking accepted and added to calendar");
       loadBookings();
     } catch (error: any) {
       Alert.alert(
@@ -66,18 +185,17 @@ export default function PendingBookingsScreen() {
     }
   };
 
-  const handleReject = async (bookingId: string) => {
-    // Show the confirmation modal
+  // ─── Reject handler ────────────────────────────────────────────────────────
+
+  const handleReject = (bookingId: string) => {
     setBookingToReject(bookingId);
     setRejectModalVisible(true);
   };
 
   const confirmReject = async () => {
     if (!bookingToReject) return;
-
     setProcessing(bookingToReject);
     setRejectModalVisible(false);
-
     try {
       await rejectBooking(bookingToReject);
       Alert.alert("Success", "Booking rejected");
@@ -93,6 +211,8 @@ export default function PendingBookingsScreen() {
     }
   };
 
+  // ─── Theme ─────────────────────────────────────────────────────────────────
+
   const colors = {
     background: isDarkMode ? "#151718" : "#f5f5f5",
     card: isDarkMode ? "#1e2333" : "#ffffff",
@@ -103,6 +223,8 @@ export default function PendingBookingsScreen() {
     success: "#34C759",
     error: "#FF3B30",
   };
+
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   const renderBooking = ({ item }: { item: BookingWithDetails }) => (
     <View
@@ -128,13 +250,41 @@ export default function PendingBookingsScreen() {
           📞 {item.customer_phone}
         </Text>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
-          📅 {new Date(item.date).toLocaleDateString()}
+          📅{" "}
+          {new Date(item.date.split("T")[0] + "T12:00:00").toLocaleDateString()}
         </Text>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
           🕐 {item.start_time} - {item.end_time}
         </Text>
       </View>
 
+      {/* Row 1: Communication tools - Message and Snapshot buttons */}
+      <View style={styles.communicationButtons}>
+        <MessageCustomerButton
+          customerId={item.customer_id}
+          customerName={item.customer_name}
+          size="medium"
+          style={{ flex: 1 }}
+        />
+        <TouchableOpacity
+          style={[styles.snapshotButton, { backgroundColor: colors.accent }]}
+          onPress={() => {
+            console.log(
+              "[Navigation] Navigating to snapshot for customer:",
+              item.customer_id,
+            );
+            router.push(`/snapshot/${item.customer_id}`);
+          }}
+        >
+          <Text
+            style={[styles.snapshotButtonText, { color: colors.background }]}
+          >
+            📊 Snapshot
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Row 2: Decision controls - Accept and Reject buttons (separate!) */}
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={[styles.acceptButton, { backgroundColor: colors.success }]}
@@ -177,7 +327,14 @@ export default function PendingBookingsScreen() {
         <Text style={[styles.title, { color: colors.text }]}>
           Pending Bookings
         </Text>
-        <View style={{ width: 50 }} />
+        <TouchableOpacity
+          onPress={syncAllConfirmedToCalendar}
+          disabled={syncing}
+        >
+          <Text style={[styles.syncText, { color: colors.accent }]}>
+            {syncing ? "Syncing..." : "Sync Cal"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -200,7 +357,6 @@ export default function PendingBookingsScreen() {
         />
       )}
 
-      {/* Reject Confirmation Modal */}
       <ConfirmModal
         visible={rejectModalVisible}
         title="Reject Booking"
@@ -220,9 +376,7 @@ export default function PendingBookingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -230,16 +384,10 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
   },
-  backText: {
-    fontSize: 16,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  listContainer: {
-    padding: 15,
-  },
+  backText: { fontSize: 16 },
+  syncText: { fontSize: 14, fontWeight: "600" },
+  title: { fontSize: 20, fontWeight: "bold" },
+  listContainer: { padding: 15 },
   bookingCard: {
     padding: 15,
     borderRadius: 10,
@@ -252,37 +400,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  serviceName: {
-    fontSize: 18,
-    fontWeight: "600",
-    flex: 1,
-  },
-  cost: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  bookingDetails: {
-    marginBottom: 15,
-  },
-  detailText: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  actionButtons: {
+  serviceName: { fontSize: 18, fontWeight: "600", flex: 1 },
+  cost: { fontSize: 18, fontWeight: "bold" },
+  bookingDetails: { marginBottom: 15 },
+  detailText: { fontSize: 14, marginBottom: 4 },
+  communicationButtons: {
     flexDirection: "row",
     gap: 10,
+    marginBottom: 12,
   },
+  snapshotButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  snapshotButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  actionButtons: { flexDirection: "row", gap: 10 },
   acceptButton: {
     flex: 1,
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
   },
-  acceptButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  acceptButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   rejectButton: {
     flex: 1,
     padding: 12,
@@ -290,16 +436,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
   },
-  rejectButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  loader: {
-    marginTop: 50,
-  },
-  emptyText: {
-    textAlign: "center",
-    fontSize: 16,
-    marginTop: 50,
-  },
+  rejectButtonText: { fontSize: 16, fontWeight: "600" },
+  loader: { marginTop: 50 },
+  emptyText: { textAlign: "center", fontSize: 16, marginTop: 50 },
 });

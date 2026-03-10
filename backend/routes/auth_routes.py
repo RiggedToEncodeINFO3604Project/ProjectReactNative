@@ -6,7 +6,7 @@ from typing import Optional
 from models import UserCreate, User, Token, UserRole, CustomerCreate, Customer, ProviderCreate, Provider
 from auth import get_password_hash, verify_password, create_access_token
 from config import settings
-from database import get_database
+from firebase_db import get_database
 import uuid
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -40,30 +40,29 @@ async def register_customer(request: CustomerRegisterRequest):
     db = get_database()
     
     # Check if user exists
-    existing_user = await db.users.find_one({"email": request.email})
-    if existing_user:
+    existing_users = db.collection("users").where("email", "==", request.email).limit(1).get()
+    if len(existing_users) > 0:
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Create user
     user_id = str(uuid.uuid4())
     user_dict = {
-        "_id": user_id,
         "email": request.email,
         "password": get_password_hash(request.password),
         "role": "Customer",
         "created_at": datetime.utcnow(),
         "last_login": None
     }
-    await db.users.insert_one(user_dict)
+    db.collection("users").document(user_id).set(user_dict)
     
     # Create customer profile
+    customer_id = str(uuid.uuid4())
     customer_dict = {
-        "_id": str(uuid.uuid4()),
         "user_id": user_id,
         "name": request.name,
         "phone": request.phone
     }
-    await db.customers.insert_one(customer_dict)
+    db.collection("customers").document(customer_id).set(customer_dict)
     
     return {"message": "Customer registered successfully", "user_id": user_id}
 
@@ -73,25 +72,24 @@ async def register_provider(request: ProviderRegisterRequest):
     db = get_database()
     
     # Check if user exists
-    existing_user = await db.users.find_one({"email": request.email})
-    if existing_user:
+    existing_users = db.collection("users").where("email", "==", request.email).limit(1).get()
+    if len(existing_users) > 0:
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Create user
     user_id = str(uuid.uuid4())
     user_dict = {
-        "_id": user_id,
         "email": request.email,
         "password": get_password_hash(request.password),
         "role": "Provider",
         "created_at": datetime.utcnow(),
         "last_login": None
     }
-    await db.users.insert_one(user_dict)
+    db.collection("users").document(user_id).set(user_dict)
     
     # Create provider profile
+    provider_id = str(uuid.uuid4())
     provider_dict = {
-        "_id": str(uuid.uuid4()),
         "user_id": user_id,
         "provider_name": request.provider_name,
         "business_name": request.business_name,
@@ -99,7 +97,7 @@ async def register_provider(request: ProviderRegisterRequest):
         "provider_address": request.provider_address,
         "is_active": request.is_active
     }
-    await db.providers.insert_one(provider_dict)
+    db.collection("providers").document(provider_id).set(provider_dict)
     
     return {"message": "Provider registered successfully", "user_id": user_id}
 
@@ -108,33 +106,40 @@ async def register_provider(request: ProviderRegisterRequest):
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
     db = get_database()
-    user = await db.users.find_one({"email": form_data.username})
+    users = db.collection("users").where("email", "==", form_data.username).limit(1).get()
     
-    if not user or not verify_password(form_data.password, user["password"]):
+    if len(users) == 0:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Convert ObjectId to string for JWT
-    user_id = str(user["_id"])
+    user_doc = users[0]
+    user_data = user_doc.to_dict()
+    
+    if not verify_password(form_data.password, user_data["password"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Get user ID from document ID
+    user_id = user_doc.id
     
     # Update last login
-    await db.users.update_one(
-        {"_id": user["_id"]},
-        {"$set": {"last_login": datetime.utcnow()}}
-    )
+    db.collection("users").document(user_id).update({"last_login": datetime.utcnow()})
     
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
-        data={"sub": user_id, "role": user["role"]}, 
+        data={"sub": user_id, "role": user_data["role"]}, 
         expires_delta=access_token_expires
     )
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "role": user["role"],
+        "role": user_data["role"],
         "user_id": user_id
     }

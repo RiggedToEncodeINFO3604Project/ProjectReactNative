@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -45,6 +46,26 @@ export default function LoginScreen() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenVideo = async () => {
+    const url = "https://www.youtube.com/watch?v=V_wdiGSfABs";
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("Error", "Cannot open this URL");
+    }
+  };
+
+  const handleOpenRagServer = async () => {
+    const url = "https://rag-server-bf1a.onrender.com/";
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert("Error", "Cannot open this URL");
     }
   };
 
@@ -138,6 +159,34 @@ export default function LoginScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            <TouchableOpacity
+              style={[
+                styles.videoButton,
+                { backgroundColor: colors.inputBg, borderColor: colors.border },
+              ]}
+              onPress={handleOpenVideo}
+            >
+              <Text
+                style={[styles.videoButtonText, { color: colors.textMuted }]}
+              >
+                Video
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.videoButton,
+                { backgroundColor: colors.inputBg, borderColor: colors.border },
+              ]}
+              onPress={handleOpenRagServer}
+            >
+              <Text
+                style={[styles.videoButtonText, { color: colors.textMuted }]}
+              >
+                RAG Server
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -207,5 +256,17 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  videoButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  videoButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

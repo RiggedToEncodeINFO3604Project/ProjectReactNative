@@ -5,9 +5,13 @@ from models import (
     UserInDB, DayAvailability, RescheduleRequest
 )
 from auth import get_current_provider
-from database import get_database
+from firebase_db import get_database
+from firebase_admin import firestore
 import uuid
 from datetime import datetime, date as date_type
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/provider", tags=["provider"])
 
@@ -61,22 +65,25 @@ async def add_service(
     db = get_database()
     
     # Get provider profile
-    provider = await db.providers.find_one({"user_id": current_user.id})
-    if not provider:
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(provider_docs) == 0:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    service_id = str(uuid.uuid4())
     service_dict = {
-        "_id": str(uuid.uuid4()),
-        "provider_id": provider["_id"],
+        "provider_id": provider_id,
         "name": service.name,
         "description": service.description,
         "price": service.price
     }
     
-    await db.services.insert_one(service_dict)
-    # Return service with id field (not _id)
+    db.collection("services").document(service_id).set(service_dict)
+    # Return service with id field
     return {
-        "id": service_dict["_id"],
+        "id": service_id,
         "provider_id": service_dict["provider_id"],
         "name": service_dict["name"],
         "description": service_dict["description"],
@@ -89,21 +96,24 @@ async def add_service(
 async def get_my_services(current_user: UserInDB = Depends(get_current_provider)):
     db = get_database()
     
-    provider = await db.providers.find_one({"user_id": current_user.id})
-    if not provider:
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(provider_docs) == 0:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     
-    services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
-    # Return services with id field (not _id)
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    # Return services with id field
     return [
         {
-            "id": service["_id"],
-            "provider_id": service["provider_id"],
-            "name": service["name"],
-            "description": service["description"],
-            "price": service["price"]
+            "id": doc.id,
+            "provider_id": doc.to_dict()["provider_id"],
+            "name": doc.to_dict()["name"],
+            "description": doc.to_dict()["description"],
+            "price": doc.to_dict()["price"]
         }
-        for service in services
+        for doc in services_docs
     ]
 
 
@@ -115,9 +125,12 @@ async def set_availability(
 ):
     db = get_database()
     
-    provider = await db.providers.find_one({"user_id": current_user.id})
-    if not provider:
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(provider_docs) == 0:
         raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
     
     # Validate time slots and generate warnings for overflow
     warnings = []
@@ -165,16 +178,20 @@ async def set_availability(
                 })
     
     # Delete existing availability
-    await db.availability.delete_many({"provider_id": provider["_id"]})
+    existing_availability = db.collection("availability").where("provider_id", "==", provider_id).get()
+    batch = db.batch()
+    for doc in existing_availability:
+        batch.delete(doc.reference)
+    batch.commit()
     
     # Insert new availability
+    availability_id = str(uuid.uuid4())
     availability_dict = {
-        "_id": str(uuid.uuid4()),
-        "provider_id": provider["_id"],
+        "provider_id": provider_id,
         "schedule": [day.dict() for day in availability.schedule]
     }
     
-    await db.availability.insert_one(availability_dict)
+    db.collection("availability").document(availability_id).set(availability_dict)
     
     response = {
         "message": "Availability updated successfully",
@@ -192,17 +209,23 @@ async def set_availability(
 async def get_availability(current_user: UserInDB = Depends(get_current_provider)):
     db = get_database()
     
-    provider = await db.providers.find_one({"user_id": current_user.id})
-    if not provider:
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(provider_docs) == 0:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     
-    availability = await db.availability.find_one({"provider_id": provider["_id"]})
-    if not availability:
-        return {"provider_id": provider["_id"], "schedule": []}
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    availability_docs = db.collection("availability").where("provider_id", "==", provider_id).limit(1).get()
+    if len(availability_docs) == 0:
+        return {"provider_id": provider_id, "schedule": []}
+    
+    availability_doc = availability_docs[0]
+    availability_data = availability_doc.to_dict()
     
     return {
-        "provider_id": availability["provider_id"],
-        "schedule": availability["schedule"]
+        "provider_id": availability_data["provider_id"],
+        "schedule": availability_data["schedule"]
     }
 
 
@@ -211,34 +234,49 @@ async def get_availability(current_user: UserInDB = Depends(get_current_provider
 async def get_pending_bookings(current_user: UserInDB = Depends(get_current_provider)):
     db = get_database()
     
-    provider = await db.providers.find_one({"user_id": current_user.id})
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
     
-    if not provider:
+    if len(provider_docs) == 0:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     
-    services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
-    service_ids = [service["_id"] for service in services]
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
     
-    bookings = await db.client_records.find({
-        "service_id": {"$in": service_ids},
-        "status": "pending"
-    }).to_list(100)
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
+    
+    # Get pending bookings
+    bookings = []
+    if service_ids:
+        # Firestore "in" query supports max 10 values
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).where("status", "==", "pending").get()
+            for doc in bookings_docs:
+                bookings.append({"id": doc.id, "data": doc.to_dict()})
     
     result = []
     for booking in bookings:
-        customer = await db.customers.find_one({"_id": booking["customer_id"]})
-        service = await db.services.find_one({"_id": booking["service_id"]})
+        booking_id = booking["id"]
+        booking_data = booking["data"]
+        
+        customer_doc = db.collection("customers").document(booking_data["customer_id"]).get()
+        customer_data = customer_doc.to_dict() if customer_doc.exists else None
+        
+        service_doc = db.collection("services").document(booking_data["service_id"]).get()
+        service_data = service_doc.to_dict() if service_doc.exists else None
         
         result.append({
-            "booking_id": booking["_id"],
-            "date": booking["date"].isoformat(),
-            "start_time": booking["start_time"],
-            "end_time": booking["end_time"],
-            "cost": booking["cost"],
-            "customer_name": customer["name"] if customer else "Unknown",
-            "customer_phone": customer["phone"] if customer else "Unknown",
-            "service_name": service["name"] if service else "Unknown",
-            "status": booking["status"]
+            "booking_id": booking_id,
+            "date": booking_data["date"].isoformat(),
+            "start_time": booking_data["start_time"],
+            "end_time": booking_data["end_time"],
+            "cost": booking_data["cost"],
+            "customer_id": booking_data["customer_id"],
+            "customer_name": customer_data["name"] if customer_data else "Unknown",
+            "customer_phone": customer_data["phone"] if customer_data else "Unknown",
+            "service_name": service_data["name"] if service_data else "Unknown",
+            "status": booking_data["status"]
         })
     
     return result
@@ -252,21 +290,26 @@ async def accept_booking(
 ):
     db = get_database()
     
-    booking = await db.client_records.find_one({"_id": booking_id})
+    booking_doc = db.collection("client_records").document(booking_id).get()
     
-    if not booking:
+    if not booking_doc.exists:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    service = await db.services.find_one({"_id": booking["service_id"]})
-    provider = await db.providers.find_one({"user_id": current_user.id})
+    booking_data = booking_doc.to_dict()
     
-    if not service or service["provider_id"] != provider["_id"]:
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_doc.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    await db.client_records.update_one(
-        {"_id": booking_id},
-        {"$set": {"status": "confirmed"}}
-    )
+    db.collection("client_records").document(booking_id).update({"status": "confirmed"})
     
     return {"message": "Booking accepted"}
 
@@ -279,21 +322,26 @@ async def reject_booking(
 ):
     db = get_database()
     
-    booking = await db.client_records.find_one({"_id": booking_id})
+    booking_doc = db.collection("client_records").document(booking_id).get()
     
-    if not booking:
+    if not booking_doc.exists:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    service = await db.services.find_one({"_id": booking["service_id"]})
-    provider = await db.providers.find_one({"user_id": current_user.id})
+    booking_data = booking_doc.to_dict()
     
-    if not service or service["provider_id"] != provider["_id"]:
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_doc.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    await db.client_records.update_one(
-        {"_id": booking_id},
-        {"$set": {"status": "cancelled"}}
-    )
+    db.collection("client_records").document(booking_id).update({"status": "cancelled"})
     
     return {"message": "Booking rejected"}
 
@@ -303,34 +351,49 @@ async def reject_booking(
 async def get_confirmed_bookings(current_user: UserInDB = Depends(get_current_provider)):
     db = get_database()
     
-    provider = await db.providers.find_one({"user_id": current_user.id})
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
     
-    if not provider:
+    if len(provider_docs) == 0:
         raise HTTPException(status_code=404, detail="Provider profile not found")
     
-    services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
-    service_ids = [service["_id"] for service in services]
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
     
-    bookings = await db.client_records.find({
-        "service_id": {"$in": service_ids},
-        "status": "confirmed"
-    }).to_list(100)
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
+    
+    # Get confirmed bookings
+    bookings = []
+    if service_ids:
+        # Firestore "in" query supports max 10 values
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).where("status", "==", "confirmed").get()
+            for doc in bookings_docs:
+                bookings.append({"id": doc.id, "data": doc.to_dict()})
     
     result = []
     for booking in bookings:
-        customer = await db.customers.find_one({"_id": booking["customer_id"]})
-        service = await db.services.find_one({"_id": booking["service_id"]})
+        booking_id = booking["id"]
+        booking_data = booking["data"]
+        
+        customer_doc = db.collection("customers").document(booking_data["customer_id"]).get()
+        customer_data = customer_doc.to_dict() if customer_doc.exists else None
+        
+        service_doc = db.collection("services").document(booking_data["service_id"]).get()
+        service_data = service_doc.to_dict() if service_doc.exists else None
         
         result.append({
-            "booking_id": booking["_id"],
-            "date": booking["date"].isoformat(),
-            "start_time": booking["start_time"],
-            "end_time": booking["end_time"],
-            "cost": booking["cost"],
-            "customer_name": customer["name"] if customer else "Unknown",
-            "customer_phone": customer["phone"] if customer else "Unknown",
-            "service_name": service["name"] if service else "Unknown",
-            "status": booking["status"]
+            "booking_id": booking_id,
+            "date": booking_data["date"].isoformat(),
+            "start_time": booking_data["start_time"],
+            "end_time": booking_data["end_time"],
+            "cost": booking_data["cost"],
+            "customer_id": booking_data["customer_id"],
+            "customer_name": customer_data["name"] if customer_data else "Unknown",
+            "customer_phone": customer_data["phone"] if customer_data else "Unknown",
+            "service_name": service_data["name"] if service_data else "Unknown",
+            "status": booking_data["status"]
         })
     
     return result
@@ -344,21 +407,26 @@ async def delete_booking(
 ):
     db = get_database()
     
-    booking = await db.client_records.find_one({"_id": booking_id})
+    booking_doc = db.collection("client_records").document(booking_id).get()
     
-    if not booking:
+    if not booking_doc.exists:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    service = await db.services.find_one({"_id": booking["service_id"]})
-    provider = await db.providers.find_one({"user_id": current_user.id})
+    booking_data = booking_doc.to_dict()
     
-    if not service or service["provider_id"] != provider["_id"]:
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_doc.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this booking")
     
-    await db.client_records.update_one(
-        {"_id": booking_id},
-        {"$set": {"status": "cancelled"}}
-    )
+    db.collection("client_records").document(booking_id).update({"status": "cancelled"})
     
     return {"message": "Booking cancelled successfully"}
 
@@ -372,15 +440,24 @@ async def reschedule_booking(
 ):
     db = get_database()
     
-    booking = await db.client_records.find_one({"_id": booking_id})
-    if not booking:
+    booking_doc = db.collection("client_records").document(booking_id).get()
+    if not booking_doc.exists:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    # Verify this booking belongs to this provider
-    service = await db.services.find_one({"_id": booking["service_id"]})
-    provider = await db.providers.find_one({"user_id": current_user.id})
+    booking_data = booking_doc.to_dict()
     
-    if not service or service["provider_id"] != provider["_id"]:
+    # Verify this booking belongs to this provider
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_id:
         raise HTTPException(status_code=403, detail="Not authorized to reschedule this booking")
     
     # Parse the new date
@@ -393,9 +470,11 @@ async def reschedule_booking(
     day_of_week = new_date.weekday()
     
     # Get provider's availability for this day
-    availability = await db.availability.find_one({"provider_id": provider["_id"]})
-    if not availability:
+    availability_docs = db.collection("availability").where("provider_id", "==", provider_id).limit(1).get()
+    if len(availability_docs) == 0:
         raise HTTPException(status_code=400, detail="No availability schedule found")
+    
+    availability = availability_docs[0].to_dict()
     
     # Find the schedule for the requested day
     day_schedule = None
@@ -418,32 +497,38 @@ async def reschedule_booking(
     if not slot_available:
         raise HTTPException(status_code=400, detail="Requested time slot is outside availability window")
     
+    # Get all provider's service IDs
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
+    
     # Check if the slot is already booked by another booking
-    existing_booking = await db.client_records.find_one({
-        "service_id": {"$in": [s["_id"] for s in await db.services.find({"provider_id": provider["_id"]}).to_list(100)]},
-        "date": new_date,
-        "start_time": reschedule_data.start_time,
-        "end_time": reschedule_data.end_time,
-        "status": {"$in": ["pending", "confirmed"]},
-        "_id": {"$ne": booking_id}  # Exclude current booking
-    })
+    existing_booking = None
+    if service_ids:
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).where("date", "==", new_date).where("start_time", "==", reschedule_data.start_time).where("end_time", "==", reschedule_data.end_time).get()
+            for doc in bookings_docs:
+                if doc.id != booking_id:
+                    booking_status = doc.to_dict().get("status")
+                    if booking_status in ["pending", "confirmed"]:
+                        existing_booking = doc
+                        break
+            if existing_booking:
+                break
     
     if existing_booking:
         raise HTTPException(status_code=400, detail="This time slot is already booked")
     
     # Store old values for response
-    old_date = booking["date"].isoformat()
-    old_time = f"{booking['start_time']}-{booking['end_time']}"
+    old_date = booking_data["date"].isoformat()
+    old_time = f"{booking_data['start_time']}-{booking_data['end_time']}"
     
     # Update the booking
-    await db.client_records.update_one(
-        {"_id": booking_id},
-        {"$set": {
-            "date": new_date,
-            "start_time": reschedule_data.start_time,
-            "end_time": reschedule_data.end_time
-        }}
-    )
+    db.collection("client_records").document(booking_id).update({
+        "date": new_date,
+        "start_time": reschedule_data.start_time,
+        "end_time": reschedule_data.end_time
+    })
     
     return {
         "message": "Booking rescheduled successfully",
@@ -464,15 +549,24 @@ async def get_available_slots(
 ):
     db = get_database()
     
-    booking = await db.client_records.find_one({"_id": booking_id})
-    if not booking:
+    booking_doc = db.collection("client_records").document(booking_id).get()
+    if not booking_doc.exists:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    # Verify this booking belongs to this provider
-    service = await db.services.find_one({"_id": booking["service_id"]})
-    provider = await db.providers.find_one({"user_id": current_user.id})
+    booking_data = booking_doc.to_dict()
     
-    if not service or service["provider_id"] != provider["_id"]:
+    # Verify this booking belongs to this provider
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    service_data = service_doc.to_dict() if service_doc.exists else None
+    
+    if not service_data or service_data["provider_id"] != provider_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     # Parse the date
@@ -485,9 +579,11 @@ async def get_available_slots(
     day_of_week = target_date.weekday()
     
     # Get provider's availability for this day
-    availability = await db.availability.find_one({"provider_id": provider["_id"]})
-    if not availability:
+    availability_docs = db.collection("availability").where("provider_id", "==", provider_id).limit(1).get()
+    if len(availability_docs) == 0:
         return {"date": date, "day_of_week": DAYS[day_of_week], "available_slots": [], "booked_slots": [], "message": "No availability schedule found"}
+    
+    availability = availability_docs[0].to_dict()
     
     # Find the schedule for the requested day
     day_schedule = None
@@ -500,19 +596,23 @@ async def get_available_slots(
         return {"date": date, "day_of_week": DAYS[day_of_week], "available_slots": [], "booked_slots": [], "message": "No availability for this day"}
     
     # Get all provider's service IDs
-    services = await db.services.find({"provider_id": provider["_id"]}).to_list(100)
-    service_ids = [s["_id"] for s in services]
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
     
     # Get all bookings for this date (pending or confirmed)
-    existing_bookings = await db.client_records.find({
-        "service_id": {"$in": service_ids},
-        "date": target_date,
-        "status": {"$in": ["pending", "confirmed"]}
-    }).to_list(100)
+    existing_bookings = []
+    if service_ids:
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).where("date", "==", target_date).get()
+            for doc in bookings_docs:
+                booking_status = doc.to_dict().get("status")
+                if booking_status in ["pending", "confirmed"]:
+                    existing_bookings.append({"id": doc.id, "data": doc.to_dict()})
     
     # Extract booked slots
     booked_slots = [
-        {"start_time": b["start_time"], "end_time": b["end_time"], "booking_id": b["_id"]}
+        {"start_time": b["data"]["start_time"], "end_time": b["data"]["end_time"], "booking_id": b["id"]}
         for b in existing_bookings
     ]
     
@@ -548,4 +648,167 @@ async def get_available_slots(
         "day_of_week": DAYS[day_of_week],
         "available_slots": available_slots,
         "booked_slots": booked_slots
+    }
+
+
+# customer snapshot
+@router.get("/customer/{customer_id}/snapshot", response_model=dict)
+# snapshot view, will provide a quick list of information on a specific customer given that they have booked with you previously
+async def get_customer_snapshot(
+    customer_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    logger.info(f"Fetching snapshot for customer: {customer_id}")
+
+    # make sure provider exists
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        logger.error(f"Provider profile not found for user: {current_user.id}")
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    provider_doc = provider_docs[0]
+    provider = provider_doc.to_dict()
+    provider["_id"] = provider_doc.id
+    logger.info(f"Provider found: {provider['_id']}")
+
+    # get customer using their id
+    customer_doc = db.collection("customers").document(customer_id).get()
+    if not customer_doc.exists:
+        logger.error(f"Customer not found: {customer_id}")
+        raise HTTPException(status_code=404, detail="Customer not found")
+    customer = customer_doc.to_dict()
+    customer["_id"] = customer_doc.id
+    
+    # DEBUG: Log all customer data fields
+    logger.info(f"[DEBUG] Customer found: {customer_id}")
+    logger.info(f"[DEBUG] Customer data keys: {list(customer.keys())}")
+    logger.info(f"[DEBUG] Customer name field: {customer.get('name')}")
+    logger.info(f"[DEBUG] Customer customer_name field: {customer.get('customer_name')}")
+    logger.info(f"[DEBUG] Full customer data: {customer}")
+
+    # get email from customer/user table
+    user_id = customer.get("user_id")
+    customer_email = "Not available"
+    if user_id:
+        user_doc = db.collection("users").document(user_id).get()
+        if user_doc.exists:
+            user = user_doc.to_dict()
+            customer_email = user.get("email", "Not available")
+            logger.info(f"User email found for customer {customer_id}: {customer_email}")
+        else:
+            logger.warning(f"User document not found for user_id: {user_id}")
+    else:
+        logger.warning(f"No user_id found for customer: {customer_id}")
+
+    # get the services that the provider offers
+    services_docs = db.collection("services").where("provider_id", "==", provider["_id"]).get()
+    services = [s.to_dict() for s in services_docs]
+    service_ids = [doc.id for doc in services_docs]
+
+    # get all prev bookings for this one customer
+    # Firestore 'in' only supports like 10 items so empty service_ids have to be handled defensively
+    bookings = []
+    if service_ids:
+        bookings_query = db.collection("client_records") # consider renaming to snapshot if we need to add more indexes to db
+        bookings_query = bookings_query.where("customer_id", "==", customer_id)
+        bookings_query = bookings_query.where("service_id", "in", service_ids)
+        bookings_query = bookings_query.where("status", "in", ["confirmed", "completed"]).order_by("date", direction=firestore.Query.DESCENDING)
+        bookings_docs = bookings_query.get()
+        # convert to dicts and include id
+        bookings = [b.to_dict() for b in bookings_docs]
+    
+    # calculate relevant snapshot data
+    total_visits = len(bookings)
+    total_spent = sum(booking.get("cost", 0) for booking in bookings) # might need to adjust - either test data is messed up or my brain doesn't work
+    
+    print(f"\n SNAPSHOT: {customer.get('name')} | Visits: {total_visits} | Spent: ${total_spent}") 
+    
+    last_service_date = None
+    last_service_name = None
+    if bookings:
+        latest_booking = bookings[0]
+        last_service_date = latest_booking.get("date").isoformat() if latest_booking.get("date") else None
+        # get service by document id
+        svc_id = latest_booking.get("service_id")
+        last_service_name = "Unknown Service"
+        if svc_id:
+            svc_doc = db.collection("services").document(svc_id).get()
+            if svc_doc.exists:
+                svc = svc_doc.to_dict()
+                last_service_name = svc.get("name", "Unknown Service")
+        print(f"   Last Service: {last_service_name} on {last_service_date}")
+    
+    # grab tags
+    tags_docs = db.collection("customer_tags").where("customer_id", "==", customer_id).where("provider_id", "==", provider["_id"]).get()
+    tags = [
+        {
+            "id": t.id,
+            "tag": t.to_dict().get("tag"),
+            "color": t.to_dict().get("color", "#f0c85a")
+        }
+        for t in tags_docs
+    ]
+    print(f"   Tags: {len(tags)}")
+    
+    # grab notes - this and the tags should be specific to provider, should test later
+    notes_query = db.collection("customer_notes").where("customer_id", "==", customer_id).where("provider_id", "==", provider["_id"]).order_by("created_at", direction=firestore.Query.DESCENDING)
+    notes = []
+    try:
+        notes_docs = notes_query.get()
+        for n in notes_docs:
+            nd = n.to_dict()
+            notes.append({
+                "id": n.id,
+                "note": nd.get("note"),
+                "created_at": nd.get("created_at").isoformat() if nd.get("created_at") else None,
+                "updated_at": nd.get("updated_at").isoformat() if nd.get("updated_at") else None,
+            })
+    except Exception as e:
+        # I actually am not sure of this one, I asked AI if i did it correctly and it said that i might need a fallback incase firestore requires composite indexes but it was indexed anyways
+        from google.api_core.exceptions import FailedPrecondition
+        if isinstance(e, FailedPrecondition):
+            # Fallback: query only by customer_id then filter provider_id in Python <-- This part was AI'd
+            fallback_docs = db.collection("customer_notes").where("customer_id", "==", customer_id).get()
+            for n in fallback_docs:
+                nd = n.to_dict()
+                    
+                if nd.get("provider_id") != provider["_id"]:
+                    continue
+
+                notes.append({
+                    "id": n.id,
+                    "note": nd.get("note"),
+                    "created_at": nd.get("created_at").isoformat() if nd.get("created_at") else None,
+                    "updated_at": nd.get("updated_at").isoformat() if nd.get("updated_at") else None,
+                })
+
+            # sorts notes descending
+            notes.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+        else:
+            raise
+    print(f"   Total Notes: {len(notes)}\n")
+    
+    #  using placeholder for test purposes - revisit later
+    payment_preference = "Not specified"
+    
+    # Ensure customer name has a fallback
+    customer_name = customer.get("name") or customer.get("customer_name") or "Unknown Customer"
+    customer_phone = customer.get("phone") or customer.get("customer_phone") or "Not available"
+    
+    logger.info(f"Returning snapshot for customer {customer_id}: name={customer_name}, visits={total_visits}, spent={total_spent}")
+    
+    return {
+        "customer_id": customer_id,
+        "customer_name": customer_name,
+        "customer_email": customer_email or "Not available",
+        "customer_phone": customer_phone,
+        "total_visits": total_visits,
+        "last_service_date": last_service_date,
+        "last_service_name": last_service_name,
+        "payment_preference": payment_preference,
+        "total_spent": total_spent,
+        "tags": tags,
+        "notes": notes
     }

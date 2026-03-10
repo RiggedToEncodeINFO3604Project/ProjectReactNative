@@ -12,7 +12,8 @@ import {
   DateScheduleData,
   TimeSlot,
 } from "@/types/scheduling";
-import React, { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -40,6 +41,7 @@ export default function BookingActionModal({
   onReschedule,
 }: BookingActionModalProps) {
   const { isDarkMode } = useTheme();
+  const router = useRouter();
 
   // Reschedule state
   const [showReschedule, setShowReschedule] = useState(false);
@@ -195,6 +197,18 @@ export default function BookingActionModal({
     setSelectedDate(null);
     setScheduleError(null);
     onClose();
+  };
+
+  const handleViewCustomerSnapshot = () => {
+    if (booking?.customer_id) {
+      handleClose();
+      router.push({
+        pathname: "/(provider)/snapshot/[customerId]",
+        params: { customerId: booking.customer_id },
+      } as any);
+    } else {
+      Alert.alert("Error", "Customer ID not available");
+    }
   };
 
   const handleBack = () => {

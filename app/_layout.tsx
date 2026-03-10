@@ -3,7 +3,7 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Redirect, Stack } from "expo-router";
+import { Redirect, Stack, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
@@ -18,6 +18,7 @@ import {
 function AuthNavigator() {
   const { isAuthenticated, role, isLoading } = useAuth();
   const { isDarkMode } = useTheme();
+  const segments = useSegments();
 
   console.log(
     "AuthNavigator - isAuthenticated:",
@@ -43,72 +44,42 @@ function AuthNavigator() {
     );
   }
 
-  // If not authenticated, show auth screens with redirect to login
-  if (!isAuthenticated) {
-    return (
-      <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="support"
-            options={{ presentation: "modal", title: "Home" }}
-          />
-        </Stack>
-        <Redirect href="/login" />
-        <StatusBar style={isDarkMode ? "light" : "dark"} />
-      </ThemeProvider>
-    );
-  }
+  // Determine top level group currently in - seems to have fixed the unmounting before loading
+  const inAuthGroup = segments[0] === "(auth)";
+  const inCustomerGroup = segments[0] === "(customer)";
+  const inProviderGroup = segments[0] === "(provider)";
 
-  // If authenticated as Customer, show customer screens
-  if (role === "Customer") {
-    return (
-      <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(customer)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="support"
-            options={{ presentation: "modal", title: "Home" }}
-          />
-        </Stack>
-        <Redirect href="/(customer)" />
-        <StatusBar style={isDarkMode ? "light" : "dark"} />
-      </ThemeProvider>
-    );
-  }
-
-  // If authenticated as Provider, show provider screens
-  if (role === "Provider") {
-    return (
-      <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(provider)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="support"
-            options={{ presentation: "modal", title: "Home" }}
-          />
-        </Stack>
-        <Redirect href="/(provider)" />
-        <StatusBar style={isDarkMode ? "light" : "dark"} />
-      </ThemeProvider>
-    );
-  }
-
-  // Fallback to auth screens
   return (
     <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
       <Stack>
+        {/* Auth screens */}
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+
+        {/* Customer screens */}
+        <Stack.Screen name="(customer)" options={{ headerShown: false }} />
+
+        {/* Provider screens */}
+        <Stack.Screen name="(provider)" options={{ headerShown: false }} />
+
+        {/* Shared screens — available to all roles */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="support"
           options={{ presentation: "modal", title: "Home" }}
         />
       </Stack>
-      <Redirect href="/login" />
+
+      {/* Redirect unauthenticated users to login if they aren't in an auth group */}
+      {!isAuthenticated && !inAuthGroup && <Redirect href="/login" />}
+
+      {/* Redirect authenticated users to their home screen if they're still in the auth group */}
+      {isAuthenticated && inAuthGroup && role === "Customer" && (
+        <Redirect href="/(customer)" />
+      )}
+      {isAuthenticated && inAuthGroup && role === "Provider" && (
+        <Redirect href="/(provider)" />
+      )}
+
       <StatusBar style={isDarkMode ? "light" : "dark"} />
     </ThemeProvider>
   );

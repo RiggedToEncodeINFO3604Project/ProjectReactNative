@@ -1,6 +1,6 @@
 """
-Script to reset the Firebase Firestore database.
-Deletes all documents from each collection.
+Script to clear all messaging data from Firebase Firestore.
+Deletes all documents from conversations and messages collections.
 """
 import sys
 import os
@@ -12,16 +12,17 @@ from firebase_db import initialize_firebase, get_database
 from firebase_admin import firestore
 
 
-def reset_database():
+def clear_messages():
     """
-    Reset the Firebase Firestore database by deleting all documents.
+    Clear all messaging data from Firebase Firestore.
+    Deletes all documents from 'conversations' and 'messages' collections.
     Uses batch operations for efficient deletion (max 500 operations per batch).
     """
     try:
         initialize_firebase()
         db = get_database()
         
-        collections = ["users", "customers", "providers", "services", "availability", "client_records"]
+        collections = ["conversations", "messages"]
         
         for collection_name in collections:
             print(f"Deleting documents from '{collection_name}' collection...")
@@ -51,7 +52,7 @@ def reset_database():
             
             print(f"  - Deleted {doc_count} documents from '{collection_name}'")
         
-        print("\nDatabase reset complete!")
+        print("\nMessaging data cleared successfully!")
         return True
         
     except Exception as e:
@@ -60,11 +61,12 @@ def reset_database():
 
 
 if __name__ == "__main__":
-    print("Resetting Firebase Firestore database...")
+    print("Clearing messaging data from Firebase Firestore...")
+    print("This will delete all conversations and messages.")
     print()
-    success = reset_database()
+    success = clear_messages()
     if success:
         sys.exit(0)
     else:
-        print("Database reset failed.")
+        print("Failed to clear messaging data.")
         sys.exit(1)

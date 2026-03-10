@@ -2,11 +2,12 @@
 cd /d "%~dp0"
 
 echo ============================================
-echo   Reset Firebase Firestore Database
+echo   Clear Messaging Data
 echo ============================================
 echo.
 
-echo WARNING: This will delete ALL data in the database!
+echo WARNING: This will delete ALL conversations and messages!
+echo User accounts and bookings will NOT be affected.
 echo.
 set /p confirm="Are you sure you want to continue? (y/N): "
 
@@ -18,7 +19,7 @@ if /i not "%confirm%"=="y" (
 )
 
 echo.
-echo Deleting all documents from collections...
+echo Deleting messaging data...
 echo.
 
 cd backend
@@ -32,28 +33,20 @@ if exist "venv\Scripts\activate" (
     exit /b 1
 )
 
-python reset_database.py
+python clear_messages.py
 
 if %errorlevel% equ 0 (
     echo.
     echo ============================================
-    echo   Database Reset Complete!
+    echo   Messaging Data Cleared!
     echo ============================================
     echo.
-    echo The database has been cleared.
-    echo.
-    set /p create="Would you like to recreate test users? (Y/n): "
-    
-    if /i not "%create%"=="n" (
-        echo.
-        echo Creating test users...
-        python create_test_users.py
-        echo.
-    )
+    echo All conversations and messages have been deleted.
+    echo User data and bookings are preserved.
 ) else (
     echo.
     echo ============================================
-    echo   Database Reset Failed!
+    echo   Operation Failed!
     echo ============================================
     echo.
     echo Could not connect to Firebase.

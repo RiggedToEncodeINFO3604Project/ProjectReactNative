@@ -1,1 +1,1 @@
-from . import auth_routes, customer_routes, provider_routes
+from . import auth_routes, customer_routes, provider_routes, messaging_routes

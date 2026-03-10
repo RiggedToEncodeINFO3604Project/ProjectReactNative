@@ -1,4 +1,6 @@
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useTheme } from "@/context/ThemeContext";
+import { startConversation } from "@/services/messagingApi";
 import {
   createBooking,
   getProviderAvailability,
@@ -154,6 +156,25 @@ export default function ProviderDetailsScreen() {
     }
   };
 
+  const handleMessagePress = async () => {
+    if (!provider) return;
+
+    setLoading(true);
+    try {
+      const result = await startConversation(provider.id);
+      // Navigate to chat screen with the conversation
+      router.push(`/messages/${result.conversation_id}`);
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.detail ||
+        error.message ||
+        "Failed to start conversation";
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getDayColor = (status: string) => {
     switch (status) {
       case "fully_booked":
@@ -218,6 +239,23 @@ export default function ProviderDetailsScreen() {
           <Text style={[styles.address, { color: colors.textMuted }]}>
             {provider.provider_address}
           </Text>
+
+          {/* Message Button */}
+          <TouchableOpacity
+            style={[styles.messageButton, { borderColor: colors.accent }]}
+            onPress={handleMessagePress}
+            disabled={loading}
+          >
+            <IconSymbol
+              name="message.fill"
+              size={18}
+              color={colors.accent}
+              style={styles.messageIcon}
+            />
+            <Text style={[styles.messageButtonText, { color: colors.accent }]}>
+              Message
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -599,5 +637,23 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     textAlign: "center",
+  },
+  messageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    marginTop: 15,
+    alignSelf: "flex-start",
+  },
+  messageIcon: {
+    marginRight: 8,
+  },
+  messageButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

@@ -14,9 +14,6 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 echo Frontend dependencies installed successfully!
-
-echo Running npm audit fix to address vulnerabilities...
-call npm audit fix
 echo.
 
 echo [2/5] Setting up backend...
@@ -61,8 +58,7 @@ if not exist ".env" (
     echo Warning: .env file not found in root directory
     echo Please create .env with the following variables:
     echo   EXPO_PUBLIC_API_URL=http://localhost:8000
-    echo   MONGODB_URL=your-mongodb-atlas-connection-string
-    echo   DATABASE_NAME=scheduling_db
+    echo   FIREBASE_CREDENTIALS=your-firebase-credentials-json-string
     echo   SECRET_KEY=your-secret-key
     echo   ALGORITHM=HS256
     echo   ACCESS_TOKEN_EXPIRE_MINUTES=30
@@ -71,14 +67,14 @@ if not exist ".env" (
 )
 echo.
 
-echo [4/5] Testing MongoDB connection...
+echo [4/5] Testing Firebase connection...
 cd backend
 call venv\Scripts\activate
-python test_mongodb_connection.py
+python test_firebase_connection.py
 if %errorlevel% neq 0 (
     echo.
-    echo Warning: Could not connect to MongoDB.
-    echo Please check your MONGODB_URL in .env file.
+    echo Warning: Could not connect to Firebase.
+    echo Please check your FIREBASE_CREDENTIALS in .env file.
 )
 cd ..
 echo.
