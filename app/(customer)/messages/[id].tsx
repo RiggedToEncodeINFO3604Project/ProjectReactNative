@@ -17,9 +17,9 @@ import {
   messagingSocket,
   sendMessage,
 } from "@/services/messagingApi";
-import { Conversation, Message } from "@/types/scheduling";
+import { Conversation, Message, MessageStatus } from "@/types/scheduling";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -266,10 +266,11 @@ export default function ChatScreen() {
       if (!conversationId || !content.trim()) return;
 
       const trimmedContent = content.trim();
+      const tempId = `temp-${Date.now()}`;
 
-      // Optimistic update
+      // Optimistic update - start with "sending" status
       const optimisticMessage: Message = {
-        id: `temp-${Date.now()}`,
+        id: tempId,
         conversation_id: conversationId,
         sender_id: currentUserId,
         sender_role: user?.role || "Customer",
@@ -277,28 +278,88 @@ export default function ChatScreen() {
         message_type: "text",
         created_at: new Date().toISOString(),
         read: false,
-        status: "sent",
+        status: "sending",
       };
 
       setMessages((prev) => [...prev, optimisticMessage]);
       setIsSending(true);
 
       try {
-        await sendMessage(conversationId, {
+        // Send the message to the server
+        const response = await sendMessage(conversationId, {
           content: trimmedContent,
           message_type: "text",
         });
+
+        // Update message status to "sent" on success
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? {
+                  ...m,
+                  status: "sent" as MessageStatus,
+                  id: response.message_id || tempId,
+                }
+              : m,
+          ),
+        );
       } catch (error) {
         console.error("Error sending message:", error);
-        // Remove optimistic message on error
+        // Update message status to "failed" on error (instead of removing it)
         setMessages((prev) =>
-          prev.filter((m) => m.id !== optimisticMessage.id),
+          prev.map((m) =>
+            m.id === tempId ? { ...m, status: "failed" as MessageStatus } : m,
+          ),
         );
       } finally {
         setIsSending(false);
       }
     },
     [conversationId, currentUserId, user?.role],
+  );
+
+  // Handle retry for failed messages
+  const handleRetryMessage = useCallback(
+    async (messageId: string) => {
+      // Find the failed message
+      const failedMessage = messages.find(
+        (m) => m.id === messageId && m.status === "failed",
+      );
+      if (!failedMessage || !conversationId) return;
+
+      // Update status to "sending"
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, status: "sending" as MessageStatus } : m,
+        ),
+      );
+
+      try {
+        // Retry sending the message
+        await sendMessage(conversationId, {
+          content: failedMessage.content,
+          message_type: failedMessage.message_type,
+        });
+
+        // Update status to "sent" on success
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, status: "sent" as MessageStatus } : m,
+          ),
+        );
+      } catch (error) {
+        console.error("Error retrying message:", error);
+        // Keep status as "failed"
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? { ...m, status: "failed" as MessageStatus }
+              : m,
+          ),
+        );
+      }
+    },
+    [conversationId, messages],
   );
 
   // Render loading state
@@ -396,6 +457,7 @@ export default function ChatScreen() {
                     searchResults.length > 0 &&
                     searchResults[currentResultIndex]?.id === message.id
                   }
+                  onRetry={handleRetryMessage}
                 />
               </View>
             ))
