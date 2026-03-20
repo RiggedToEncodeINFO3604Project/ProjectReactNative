@@ -209,6 +209,13 @@ def send_message(
     _, doc_ref = messages_ref.add(message_data)
     message_id = doc_ref.id
     
+    # Also write to conversation subcollection for Firebase real-time listening
+    try:
+        subcollection_ref = db.collection('conversations').document(conversation_id).collection('messages')
+        subcollection_ref.document(message_id).set(message_data)
+    except Exception as e:
+        print(f"Warning: Failed to write to conversation subcollection: {e}")
+    
     # Update conversation metadata with full last_message object
     last_message_obj = {
         'id': message_id,
