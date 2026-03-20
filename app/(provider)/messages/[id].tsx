@@ -11,6 +11,11 @@ import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
+  isFirebaseConfigured,
+  subscribeToConversationMessages,
+  unsubscribeFromConversation,
+} from "@/services/firebaseMessaging";
+import {
   getConversation,
   getMessages,
   markConversationAsRead,
@@ -19,13 +24,7 @@ import {
 } from "@/services/messagingApi";
 import { Conversation, Message, MessageStatus } from "@/types/scheduling";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -51,6 +50,7 @@ export default function ChatScreen() {
   const [connectionState, setConnectionState] = useState<
     "connected" | "disconnected" | "connecting"
   >("disconnected");
+  const [firebaseConnected, setFirebaseConnected] = useState(false);
 
   // Message search state
   const [isMessageSearching, setIsMessageSearching] = useState(false);
@@ -116,13 +116,83 @@ export default function ChatScreen() {
     (message: Message) => {
       if (message.conversation_id === conversationId) {
         setMessages((prev) => {
-          // Check if message already exists
-          if (prev.find((m) => m.id === message.id)) {
-            return prev;
+          // Check if message already exists by ID
+          const existingById = prev.find((m) => m.id === message.id);
+          if (existingById) {
+            return prev; // Already have this message
+          }
+
+          // Check if a temp message that matches (same sender, similar time)
+          const now = Date.now();
+          const tempMessage = prev.find(
+            (m) =>
+              m.id.startsWith("temp-") &&
+              m.sender_id === message.sender_id &&
+              m.content === message.content &&
+              Math.abs(
+                new Date(m.created_at).getTime() -
+                  new Date(message.created_at).getTime(),
+              ) < 5000,
+          );
+
+          if (tempMessage) {
+            // Replace temp message with real one
+            return prev.map((m) => (m.id === tempMessage.id ? message : m));
           }
           return [...prev, message];
         });
       }
+    },
+    [conversationId],
+  );
+
+  // Handle new message from Firebase
+  const handleFirebaseMessages = useCallback(
+    (firebaseMessages: Message[]) => {
+      if (!conversationId || !firebaseMessages.length) return;
+
+      setMessages((prev) => {
+        // Create a map of existing messages by ID
+        const existingMap = new Map(prev.map((m) => [m.id, m]));
+
+        // Process all Firebase messages
+        firebaseMessages.forEach((fm) => {
+          // Skip messages from current user (they're already displayed locally)
+          if (fm.sender_id === currentUserId) {
+            // Update if a temp ID that needs to be replaced
+            const existing = existingMap.get(fm.id);
+            if (
+              existing &&
+              existing.id.startsWith("temp-") &&
+              !fm.id.startsWith("temp-")
+            ) {
+              existingMap.set(fm.id, fm);
+            }
+            return;
+          }
+
+          // If new message, add it
+          // If it exists but has temp ID and Firebase has real ID, update it
+          const existing = existingMap.get(fm.id);
+          if (!existing) {
+            existingMap.set(fm.id, fm);
+          } else if (
+            existing.id.startsWith("temp-") &&
+            !fm.id.startsWith("temp-")
+          ) {
+            // Replace temp message with real one from Firebase
+            existingMap.set(fm.id, fm);
+          }
+        });
+
+        // Convert back to array and sort by time
+        const allMessages = Array.from(existingMap.values()).sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        );
+        return allMessages;
+      });
+      setFirebaseConnected(true);
     },
     [conversationId],
   );
@@ -146,6 +216,9 @@ export default function ChatScreen() {
     fetchConversation();
     fetchMessages();
 
+    /*
+    // WebSocket is disabled, Firebase now handles all real-time messaging
+    // Keeping this code as reference for future use
     if (token) {
       // Set up WebSocket callbacks
       messagingSocket.setCallbacks({
@@ -157,10 +230,15 @@ export default function ChatScreen() {
       // Connect WebSocket
       messagingSocket.connect(token);
     }
+    */
 
     return () => {
       // Cleanup WebSocket on unmount
       messagingSocket.disconnect();
+      // Cleanup Firebase subscription
+      if (conversationId) {
+        unsubscribeFromConversation(conversationId);
+      }
     };
   }, [
     token,
@@ -170,7 +248,7 @@ export default function ChatScreen() {
     handleConnectionChange,
   ]);
 
-  // Subscribe to conversation
+  // Subscribe to conversation (WebSocket)
   useEffect(() => {
     if (conversationId && messagingSocket.isConnected()) {
       messagingSocket.subscribeToConversation(conversationId);
@@ -180,6 +258,20 @@ export default function ChatScreen() {
       };
     }
   }, [conversationId]);
+
+  // Subscribe to Firebase Firestore real-time updates
+  useEffect(() => {
+    if (!conversationId || !isFirebaseConfigured()) return;
+
+    const unsubscribe = subscribeToConversationMessages(
+      conversationId,
+      handleFirebaseMessages,
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [conversationId, handleFirebaseMessages]);
 
   // Mark conversation as read when opened
   useEffect(() => {
