@@ -48,6 +48,10 @@ function AuthNavigator() {
   const inAuthGroup = segments[0] === "(auth)";
   const inCustomerGroup = segments[0] === "(customer)";
   const inProviderGroup = segments[0] === "(provider)";
+  
+  // Check if currently on settings screen (accessible without auth)
+  const currentRoute = segments.length > 0 ? segments[segments.length - 1] : "";
+  const isSettingsRoute = currentRoute === "settings";
 
   return (
     <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
@@ -69,8 +73,8 @@ function AuthNavigator() {
         />
       </Stack>
 
-      {/* Redirect unauthenticated users to login if they aren't in an auth group */}
-      {!isAuthenticated && !inAuthGroup && <Redirect href="/login" />}
+      {/* Redirect unauthenticated users to login if they aren't in an auth group and not on settings */}
+      {!isAuthenticated && !inAuthGroup && !isSettingsRoute && <Redirect href="/login" />}
 
       {/* Redirect authenticated users to their home screen if they're still in the auth group */}
       {isAuthenticated && inAuthGroup && role === "Customer" && (
