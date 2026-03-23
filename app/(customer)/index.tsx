@@ -1,3 +1,5 @@
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { searchProviders } from "@/services/schedulingApi";
@@ -14,11 +16,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CustomerHomeScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors: themeColors } = useTheme();
   const { logout } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [providers, setProviders] = useState<ProviderSearchResult[]>([]);
@@ -58,16 +62,22 @@ export default function CustomerHomeScreen() {
     );
   };
 
+  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+
   const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
-    error: "#FF3B30",
-    success: "#34C759",
+    background: extendedColors.background,
+    card: extendedColors.card,
+    text: extendedColors.text,
+    textMuted: extendedColors.textMuted,
+    border: extendedColors.border,
+    accent: themeColors.primary,
+    inputBg: extendedColors.inputBg,
+    error: SharedColors.error,
+    success: themeColors.primary,
+  };
+
+  const handleSettingsPress = () => {
+    router.push("/settings");
   };
 
   const renderProvider = ({ item }: { item: ProviderSearchResult }) => (
@@ -114,17 +124,31 @@ export default function CustomerHomeScreen() {
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          {
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+            paddingTop: 20,
+          },
         ]}
       >
         <Text style={[styles.title, { color: colors.text }]}>
           Find Providers
         </Text>
-        <TouchableOpacity onPress={handleLogout}>
-          <Text style={[styles.logoutText, { color: colors.error }]}>
-            Logout
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={handleSettingsPress}
+            style={styles.settingsButton}
+            accessibilityLabel="Settings"
+            accessibilityRole="button"
+          >
+            <IconSymbol name="gearshape.fill" size={24} color={colors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={[styles.logoutText, { color: colors.error }]}>
+              Logout
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
@@ -156,13 +180,25 @@ export default function CustomerHomeScreen() {
           style={[styles.dashboardButton, { backgroundColor: colors.success }]}
           onPress={handleViewBookings}
         >
-          <Text style={styles.dashboardButtonText}>My Bookings</Text>
+          <Text
+            style={[
+              styles.dashboardButtonText,
+              { color: UIColors.button.textLight },
+            ]}
+          >
+            My Bookings
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.dashboardButton, { backgroundColor: colors.accent }]}
           onPress={handleViewMessages}
         >
-          <Text style={[styles.dashboardButtonText, { color: "#151718" }]}>
+          <Text
+            style={[
+              styles.dashboardButtonText,
+              { color: UIColors.button.textLight },
+            ]}
+          >
             Messages
           </Text>
         </TouchableOpacity>
@@ -206,6 +242,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
   },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  settingsButton: {
+    padding: 4,
+  },
+  logoutButton: {
+    padding: 4,
+  },
   logoutText: {
     fontSize: 16,
   },
@@ -228,7 +275,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   searchButtonText: {
-    color: "#151718",
+    color: UIColors.button.textLight,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -245,7 +292,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   dashboardButtonText: {
-    color: "#fff",
+    color: SharedColors.white,
     fontSize: 16,
     fontWeight: "600",
   },
