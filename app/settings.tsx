@@ -18,7 +18,7 @@ export default function SettingsScreen() {
     border: extendedColors.border,
     accent: isDarkMode
       ? SharedColors.bookingStatus.pending
-      : extendedColors.background,
+      : extendedColors.text,
   };
 
   const handleBackPress = () => {
