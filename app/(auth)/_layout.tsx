@@ -18,7 +18,6 @@ export default function AuthLayout() {
       <Stack.Screen name="register/index" />
       <Stack.Screen name="register/customer" />
       <Stack.Screen name="register/provider" />
-      <Stack.Screen name="/settings" options={{ presentation: "modal" }} />
     </Stack>
   );
 }

@@ -68,6 +68,10 @@ function AuthNavigator() {
         {/* Shared screens — available to all roles */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
+          name="settings"
+          options={{ presentation: "modal", headerShown: false }}
+        />
+        <Stack.Screen
           name="support"
           options={{ presentation: "modal", title: "Home" }}
         />
