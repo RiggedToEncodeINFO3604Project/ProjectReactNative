@@ -1,5 +1,6 @@
 import BookingActionModal from "@/components/BookingActionModal";
 import MessageCustomerButton from "@/components/MessageCustomerButton";
+import { ExtendedColors, SharedColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { deleteBooking, getConfirmedBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
@@ -80,14 +81,16 @@ export default function ConfirmedBookingsScreen() {
     router.push("/manage-bookings");
   };
 
+  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+
   const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    success: "#34C759",
+    background: extendedColors.background,
+    card: extendedColors.card,
+    text: extendedColors.text,
+    textMuted: extendedColors.textMuted,
+    border: extendedColors.border,
+    accent: SharedColors.bookingStatus.pending,
+    success: SharedColors.success,
   };
 
   const renderBooking = ({ item }: { item: BookingWithDetails }) => (
@@ -287,7 +290,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusText: {
-    color: "#fff",
+    color: SharedColors.white,
     fontSize: 12,
     fontWeight: "600",
   },

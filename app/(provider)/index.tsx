@@ -1,3 +1,5 @@
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ExtendedColors, SharedColors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,25 +12,33 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ProviderHomeScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colors: themeColors } = useTheme();
   const { logout } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const handleLogout = async () => {
     await logout();
     // Navigation will be handled by auth state change
   };
 
+  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+
   const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    error: "#FF3B30",
+    background: extendedColors.background,
+    card: extendedColors.card,
+    text: extendedColors.text,
+    textMuted: extendedColors.textMuted,
+    border: extendedColors.border,
+    accent: themeColors.primary,
+    error: SharedColors.error,
+  };
+
+  const handleSettingsPress = () => {
+    router.push("/settings");
   };
 
   const menuItems = [
@@ -65,17 +75,31 @@ export default function ProviderHomeScreen() {
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          {
+            backgroundColor: colors.card,
+            borderBottomColor: colors.border,
+            paddingTop: 20,
+          },
         ]}
       >
         <Text style={[styles.title, { color: colors.text }]}>
           Provider Dashboard
         </Text>
-        <TouchableOpacity onPress={handleLogout}>
-          <Text style={[styles.logoutText, { color: colors.error }]}>
-            Logout
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={handleSettingsPress}
+            style={styles.settingsButton}
+            accessibilityLabel="Settings"
+            accessibilityRole="button"
+          >
+            <IconSymbol name="gearshape.fill" size={24} color={colors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Text style={[styles.logoutText, { color: colors.error }]}>
+              Logout
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -123,6 +147,17 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  settingsButton: {
+    padding: 4,
+  },
+  logoutButton: {
+    padding: 4,
   },
   logoutText: {
     fontSize: 16,

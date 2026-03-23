@@ -1,18 +1,19 @@
+import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { addService, getMyServices } from "@/services/schedulingApi";
 import { Service } from "@/types/scheduling";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function ManageServicesScreen() {
@@ -74,14 +75,16 @@ export default function ManageServicesScreen() {
     }
   };
 
+  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+
   const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
+    background: extendedColors.background,
+    card: extendedColors.card,
+    text: extendedColors.text,
+    textMuted: extendedColors.textMuted,
+    border: extendedColors.border,
+    accent: SharedColors.bookingStatus.pending,
+    inputBg: extendedColors.inputBg,
   };
 
   const renderService = ({ item }: { item: Service }) => (
@@ -236,7 +239,7 @@ export default function ManageServicesScreen() {
                 disabled={saving}
               >
                 {saving ? (
-                  <ActivityIndicator color="#151718" />
+                  <ActivityIndicator color={UIColors.button.textLight} />
                 ) : (
                   <Text style={styles.saveButtonText}>Save</Text>
                 )}
@@ -274,7 +277,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addButtonText: {
-    color: "#151718",
+    color: UIColors.button.textLight,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -312,7 +315,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: UIColors.overlay,
   },
   modalContent: {
     width: "90%",
@@ -357,7 +360,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {},
   saveButtonText: {
-    color: "#151718",
+    color: UIColors.button.textLight,
     fontSize: 16,
     fontWeight: "600",
   },

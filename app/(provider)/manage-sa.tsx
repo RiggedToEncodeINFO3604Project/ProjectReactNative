@@ -1,3 +1,4 @@
+import { ExtendedColors, SharedColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -7,13 +8,15 @@ export default function ManageSAScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
 
+  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+
   const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
+    background: extendedColors.background,
+    card: extendedColors.card,
+    text: extendedColors.text,
+    textMuted: extendedColors.textMuted,
+    border: extendedColors.border,
+    accent: SharedColors.bookingStatus.pending,
   };
 
   return (

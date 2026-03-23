@@ -1,3 +1,4 @@
+import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { getAvailability, setAvailability } from "@/services/schedulingApi";
 import {
@@ -247,17 +248,19 @@ export default function ManageAvailabilityScreen() {
     }
   };
 
+  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+
   const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
-    error: "#FF3B30",
-    success: "#34C759",
-    warning: "#FF9500",
+    background: extendedColors.background,
+    card: extendedColors.card,
+    text: extendedColors.text,
+    textMuted: extendedColors.textMuted,
+    border: extendedColors.border,
+    accent: SharedColors.bookingStatus.pending,
+    inputBg: extendedColors.inputBg,
+    error: SharedColors.error,
+    success: SharedColors.success,
+    warning: SharedColors.warning,
   };
 
   // Generate live preview for the modal
@@ -385,7 +388,7 @@ export default function ManageAvailabilityScreen() {
         disabled={saving}
       >
         {saving ? (
-          <ActivityIndicator color="#151718" />
+          <ActivityIndicator color={UIColors.button.textLight} />
         ) : (
           <Text style={styles.saveButtonText}>Save Availability</Text>
         )}
@@ -664,7 +667,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButtonText: {
-    color: "#151718",
+    color: UIColors.button.textLight,
     fontSize: 18,
     fontWeight: "600",
   },
@@ -675,7 +678,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: UIColors.overlay,
   },
   modalContent: {
     width: "90%",
@@ -731,7 +734,7 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#151718",
+    color: UIColors.button.textLight,
   },
   previewContainer: {
     padding: 12,
@@ -770,13 +773,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: UIColors.overlay,
   },
   successModalContent: {
     borderRadius: 20,
     padding: 30,
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: UIColors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -786,14 +789,14 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#34C759",
+    backgroundColor: SharedColors.success,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
   },
   successCheckmark: {
     fontSize: 40,
-    color: "#ffffff",
+    color: SharedColors.white,
     fontWeight: "bold",
   },
   successMessage: {

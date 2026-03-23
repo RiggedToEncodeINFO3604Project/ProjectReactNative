@@ -1,5 +1,6 @@
 import ConfirmModal from "@/components/ConfirmModal";
 import MessageCustomerButton from "@/components/MessageCustomerButton";
+import { ExtendedColors, SharedColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import {
   acceptBooking,
@@ -213,15 +214,17 @@ export default function PendingBookingsScreen() {
 
   // ─── Theme ─────────────────────────────────────────────────────────────────
 
+  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+
   const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    success: "#34C759",
-    error: "#FF3B30",
+    background: extendedColors.background,
+    card: extendedColors.card,
+    text: extendedColors.text,
+    textMuted: extendedColors.textMuted,
+    border: extendedColors.border,
+    accent: SharedColors.bookingStatus.pending,
+    success: SharedColors.success,
+    error: SharedColors.error,
   };
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -292,7 +295,7 @@ export default function PendingBookingsScreen() {
           disabled={processing === item.booking_id}
         >
           {processing === item.booking_id ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={SharedColors.white} size="small" />
           ) : (
             <Text style={styles.acceptButtonText}>Accept</Text>
           )}
@@ -428,7 +431,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  acceptButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  acceptButtonText: {
+    color: SharedColors.white,
+    fontSize: 16,
+    fontWeight: "600",
+  },
   rejectButton: {
     flex: 1,
     padding: 12,
