@@ -1,3 +1,4 @@
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
@@ -15,11 +16,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const { isDarkMode } = useTheme();
   const { login } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -79,11 +82,25 @@ export default function LoginScreen() {
     inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
   };
 
+  const handleSettingsPress = () => {
+    router.push("/settings");
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: colors.background }]}
     >
+      {/* Settings Button */}
+      <TouchableOpacity
+        style={[styles.settingsButton, { top: insets.top + 10, right: 16 }]}
+        onPress={handleSettingsPress}
+        accessibilityLabel="Settings"
+        accessibilityRole="button"
+      >
+        <IconSymbol name="gearshape.fill" size={28} color={colors.accent} />
+      </TouchableOpacity>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -197,6 +214,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  settingsButton: {
+    position: "absolute",
+    zIndex: 10,
+    padding: 8,
   },
   scrollContent: {
     flexGrow: 1,
