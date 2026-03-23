@@ -19,6 +19,7 @@ import {
   getConversation,
   getMessages,
   markConversationAsRead,
+  markMessageAsRead,
   messagingSocket,
   sendMessage,
 } from "@/services/messagingApi";
@@ -122,7 +123,7 @@ export default function ChatScreen() {
             return prev; // Already have this message
           }
 
-          const now = Date.now();
+          // Check if a temp message that matches (same sender, similar time)
           const tempMessage = prev.find(
             (m) =>
               m.id.startsWith("temp-") &&
@@ -145,46 +146,94 @@ export default function ChatScreen() {
     [conversationId],
   );
 
+  // Handle messages read notification from WebSocket (backup - Firebase handles primary updates)
+  const handleMessagesRead = useCallback(
+    (data: { conversation_id: string; reader_role: string }) => {
+      console.log("[Chat] WebSocket messages_read received:", data);
+      // Trigger a refresh of messages from API to ensure we have latest read status
+      fetchMessages();
+    },
+    [fetchMessages],
+  );
+
   // Handle new message from Firebase
   const handleFirebaseMessages = useCallback(
     (firebaseMessages: Message[]) => {
       if (!conversationId || !firebaseMessages.length) return;
 
       setMessages((prev) => {
+        if (!prev || !Array.isArray(prev)) {
+          return firebaseMessages;
+        }
+
         // Create a map of existing messages by ID
         const existingMap = new Map(prev.map((m) => [m.id, m]));
+        let hasChanges = false;
 
         // Process all Firebase messages
         firebaseMessages.forEach((fm) => {
-          // Skip messages from current user
-          if (fm.sender_id === currentUserId) {
-            // Update if temp ID that needs to be replaced
-            const existing = existingMap.get(fm.id);
-            if (
-              existing &&
+          const existing = existingMap.get(fm.id);
+
+          if (!existing) {
+            // Check if we have a temp message that matches this real message
+            const tempMatch = prev.find(
+              (m) =>
+                m &&
+                m.id &&
+                m.id.startsWith("temp-") &&
+                m.sender_id === fm.sender_id &&
+                m.content === fm.content &&
+                Math.abs(
+                  new Date(m.created_at).getTime() -
+                    new Date(fm.created_at).getTime(),
+                ) < 5000,
+            );
+
+            if (tempMatch) {
+              console.log(
+                "[Firebase] Replacing temp message:",
+                tempMatch.id,
+                "->",
+                fm.id,
+              );
+              // Remove the temp message and add the real message
+              existingMap.delete(tempMatch.id);
+              existingMap.set(fm.id, fm);
+              hasChanges = true;
+            } else {
+              console.log(
+                "[Firebase] Adding new message:",
+                fm.id,
+                "status:",
+                fm.status,
+              );
+              existingMap.set(fm.id, fm);
+              hasChanges = true;
+            }
+          } else {
+            const statusChanged = existing.status !== fm.status;
+            const readChanged = existing.read !== fm.read;
+
+            if (statusChanged || readChanged) {
+              console.log(
+                `[Firebase] Message ${fm.id} changed: status ${existing.status}->${fm.status}, read ${existing.read}->${fm.read}`,
+              );
+              existingMap.set(fm.id, fm);
+              hasChanges = true;
+            } else if (
               existing.id.startsWith("temp-") &&
               !fm.id.startsWith("temp-")
             ) {
               existingMap.set(fm.id, fm);
+              hasChanges = true;
             }
-            return;
-          }
-
-          // If new message from others, add it
-          // If it exists but has temp ID and Firebase has real ID, update it
-          const existing = existingMap.get(fm.id);
-          if (!existing) {
-            existingMap.set(fm.id, fm);
-          } else if (
-            existing.id.startsWith("temp-") &&
-            !fm.id.startsWith("temp-")
-          ) {
-            // Replace temp message with real one from Firebase
-            existingMap.set(fm.id, fm);
           }
         });
 
-        // Convert back to array and sort by time
+        if (!hasChanges && prev.length > 0) {
+          return prev;
+        }
+
         const allMessages = Array.from(existingMap.values()).sort(
           (a, b) =>
             new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -278,6 +327,34 @@ export default function ChatScreen() {
       markConversationAsRead(conversationId).catch(console.error);
     }
   }, [conversationId]);
+
+  // Mark individual messages as read when they become visible in the viewport
+  const markVisibleMessagesAsRead = useCallback(() => {
+    if (!conversationId) return;
+
+    // Get visible messages - check for any unread messages from the other user
+    messages.forEach((message) => {
+      // Only mark messages from the other party that have a valid (non-temp) ID
+      const isFromOther = message.sender_role !== user?.role;
+      const isUnread = !message.read;
+      const hasValidId = message.id && !message.id.startsWith("temp-");
+
+      if (isFromOther && isUnread && hasValidId) {
+        markMessageAsRead(conversationId, message.id).catch(console.error);
+      }
+    });
+  }, [conversationId, messages, user?.role]);
+
+  // Track visibility and mark messages as read when user is viewing
+  useEffect(() => {
+    // Mark all visible messages as read when the chat becomes visible
+    markVisibleMessagesAsRead();
+
+    // Also mark on mount in case the chat was already open
+    if (conversationId) {
+      markConversationAsRead(conversationId).catch(console.error);
+    }
+  }, [conversationId, markVisibleMessagesAsRead]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
