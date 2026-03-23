@@ -1,3 +1,4 @@
+import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import React from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -19,9 +20,11 @@ export default function SuccessModal({
 }: SuccessModalProps) {
   const { isDarkMode } = useTheme();
 
+  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+
   const colors = {
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
+    card: extendedColors.card,
+    text: extendedColors.text,
   };
 
   React.useEffect(() => {
@@ -65,13 +68,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: UIColors.overlay,
   },
   successModalContent: {
     borderRadius: 20,
     padding: 30,
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: UIColors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -81,14 +84,14 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#34C759",
+    backgroundColor: SharedColors.success,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
   },
   successCheckmark: {
     fontSize: 40,
-    color: "#ffffff",
+    color: SharedColors.white,
     fontWeight: "bold",
   },
   successMessage: {

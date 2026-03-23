@@ -1,12 +1,13 @@
+import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import React from "react";
 import {
-    ActivityIndicator,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface ConfirmModalProps {
@@ -34,20 +35,23 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   const { isDarkMode } = useTheme();
 
+  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+
   const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    danger: "#FF3B30",
-    buttonBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
+    background: extendedColors.background,
+    card: extendedColors.card,
+    text: extendedColors.text,
+    textMuted: extendedColors.textMuted,
+    border: extendedColors.border,
+    accent: SharedColors.bookingStatus.pending,
+    danger: SharedColors.error,
+    buttonBg: extendedColors.inputBg,
   };
 
   const confirmBackgroundColor =
     confirmStyle === "danger" ? colors.danger : colors.accent;
-  const confirmTextColor = confirmStyle === "danger" ? "#ffffff" : "#151718";
+  const confirmTextColor =
+    confirmStyle === "danger" ? SharedColors.white : UIColors.button.textLight;
 
   return (
     <Modal
@@ -120,7 +124,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: UIColors.overlay,
   },
   modalContent: {
     width: "85%",
@@ -128,7 +132,7 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 16,
     borderWidth: 1,
-    shadowColor: "#000",
+    shadowColor: UIColors.shadow,
     shadowOffset: {
       width: 0,
       height: 4,
