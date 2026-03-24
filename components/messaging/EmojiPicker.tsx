@@ -3,8 +3,8 @@
 // = Custom emoji picker for React Native Expo         =
 // =====================================================
 
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getExtendedColors } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
 import { useCallback, useMemo, useState } from "react";
 import {
   Dimensions,
@@ -445,8 +445,8 @@ export function EmojiPicker({
   onEmojiSelect,
   recentEmojis = [],
 }: EmojiPickerProps) {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const { isDarkMode, colors: theme } = useTheme();
+  const extendedColors = getExtendedColors(isDarkMode);
   const [activeCategory, setActiveCategory] = useState("smileys");
 
   // Get emojis for the current category (including recent)
@@ -492,7 +492,7 @@ export function EmojiPicker({
           styles.categoryTab,
           activeCategory === category.id && [
             styles.categoryTabActive,
-            { backgroundColor: colorScheme === "dark" ? "#333" : "#e9ecef" },
+            { backgroundColor: extendedColors.borderAlt },
           ],
         ]}
         onPress={() => setActiveCategory(category.id)}
@@ -501,7 +501,7 @@ export function EmojiPicker({
         <Text style={styles.categoryIcon}>{category.icon}</Text>
       </TouchableOpacity>
     ),
-    [activeCategory, colorScheme],
+    [activeCategory, extendedColors],
   );
 
   if (!visible) return null;
@@ -520,7 +520,7 @@ export function EmojiPicker({
             style={[
               styles.header,
               {
-                borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+                borderBottomColor: extendedColors.borderAlt,
               },
             ]}
           >
@@ -539,7 +539,7 @@ export function EmojiPicker({
             style={[
               styles.categoryContainer,
               {
-                borderBottomColor: colorScheme === "dark" ? "#333" : "#f0f0f0",
+                borderBottomColor: extendedColors.borderAlt,
               },
             ]}
             contentContainerStyle={styles.categoryContent}
