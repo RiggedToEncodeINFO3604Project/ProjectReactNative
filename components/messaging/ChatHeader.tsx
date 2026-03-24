@@ -4,8 +4,8 @@
 // =====================================================
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getExtendedColors } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Avatar } from "./Avatar";
 
@@ -38,8 +38,8 @@ export function ChatHeader({
   onNavigatePrevious,
   onNavigateNext,
 }: ChatHeaderProps) {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const { isDarkMode, colors: theme } = useTheme();
+  const extendedColors = getExtendedColors(isDarkMode);
   const isOnline = status?.toLowerCase() === "online";
 
   if (isSearching) {
@@ -49,7 +49,7 @@ export function ChatHeader({
           styles.container,
           {
             backgroundColor: theme.background,
-            borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+            borderBottomColor: extendedColors.borderAlt,
           },
         ]}
       >
@@ -57,7 +57,7 @@ export function ChatHeader({
         <View
           style={[
             styles.searchContainer,
-            { backgroundColor: colorScheme === "dark" ? "#2a2a2a" : "#f5f5f5" },
+            { backgroundColor: isDarkMode ? extendedColors.cardAlt : extendedColors.background },
           ]}
         >
           <IconSymbol
@@ -132,7 +132,7 @@ export function ChatHeader({
         styles.container,
         {
           backgroundColor: theme.background,
-          borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+          borderBottomColor: extendedColors.borderAlt,
         },
       ]}
     >
