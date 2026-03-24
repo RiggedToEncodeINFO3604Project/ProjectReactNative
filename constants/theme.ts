@@ -45,6 +45,9 @@ export const SharedColors = {
 
   // Chat bubble highlight
   highlight: "#ffeb3b",
+  chatBubble: {
+    yellow: "#ffeb3b",
+  },
 
   // Calendar specific
   calendar: {
@@ -158,7 +161,7 @@ export const ExtendedColors = {
 // ============================================================================
 export const ProviderColors = {
   light: {
-    primary: "#1e4e8c", // Main/Primary - dark blue
+    primary: "#01d0a8", // Main/Primary - teal/mint for provider
     secondary: "#000000", // Black
     secondaryGray: "#666666", // Gray
     secondaryLight: "#e6e6e6", // Light gray
@@ -168,12 +171,12 @@ export const ProviderColors = {
     textSecondary: "#687076",
     icon: "#687076",
     tabIconDefault: "#687076",
-    tabIconSelected: "#1e4e8c",
-    tint: "#1e4e8c",
+    tabIconSelected: "#01d0a8",
+    tint: "#01d0a8",
     accent: "#000000", // Black for light mode
   },
   dark: {
-    primary: "#f0c85a", // Gold - distinct dark mode primary for provider
+    primary: "#01d0a8", // Teal for dark mode as well
     secondary: "#000000", // Black
     secondaryGray: "#666666", // Gray
     secondaryLight: "#e6e6e6", // Light gray
@@ -183,9 +186,9 @@ export const ProviderColors = {
     textSecondary: "#9BA1A6",
     icon: "#9BA1A6",
     tabIconDefault: "#9BA1A6",
-    tabIconSelected: "#f0c85a",
-    tint: "#f0c85a",
-    accent: "#f0c85a", // Gold for dark mode
+    tabIconSelected: "#01d0a8",
+    tint: "#01d0a8",
+    accent: "#01d0a8", // Teal for dark mode as well
   },
 };
 
