@@ -3,6 +3,7 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
+import { useEffect } from "react";
 import { Redirect, Stack, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
@@ -17,8 +18,17 @@ import {
 // Component to handle auth-based routing
 function AuthNavigator() {
   const { isAuthenticated, role, isLoading } = useAuth();
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, setUserType } = useTheme();
   const segments = useSegments();
+
+  // Set userType based on role
+  useEffect(() => {
+    if (isAuthenticated && role === "Provider") {
+      setUserType("provider");
+    } else if (isAuthenticated && role === "Customer") {
+      setUserType("customer");
+    }
+  }, [isAuthenticated, role, setUserType]);
 
   console.log(
     "AuthNavigator - isAuthenticated:",
