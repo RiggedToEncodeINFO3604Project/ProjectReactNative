@@ -176,7 +176,7 @@ export const ProviderColors = {
     accent: "#000000", // Black for light mode
   },
   dark: {
-    primary: "#01d0a8", // Teal for dark mode as well
+    primary: "#f0c85a", // Gold - distinct dark mode primary for customer
     secondary: "#000000", // Black
     secondaryGray: "#666666", // Gray
     secondaryLight: "#e6e6e6", // Light gray
@@ -186,9 +186,9 @@ export const ProviderColors = {
     textSecondary: "#9BA1A6",
     icon: "#9BA1A6",
     tabIconDefault: "#9BA1A6",
-    tabIconSelected: "#01d0a8",
-    tint: "#01d0a8",
-    accent: "#01d0a8", // Teal for dark mode as well
+    tabIconSelected: "#f0c85a",
+    tint: "#f0c85a",
+    accent: "#f0c85a", // Gold for dark mode
   },
 };
 
