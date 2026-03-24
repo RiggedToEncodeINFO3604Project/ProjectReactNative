@@ -1,5 +1,5 @@
 import BackButton from "@/components/BackButton";
-import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
+import { ExtendedColours, SharedColours, UIColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { searchProviders } from "@/services/schedulingApi";
 import { ProviderSearchResult } from "@/types/scheduling";
@@ -18,7 +18,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function SearchProvidersScreen() {
-  const { isDarkMode, colors: themeColors } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -47,50 +47,50 @@ export default function SearchProvidersScreen() {
     );
   };
 
-  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
 
-  const colors = {
-    background: extendedColors.background,
-    card: extendedColors.card,
-    text: extendedColors.text,
-    textMuted: extendedColors.textMuted,
-    border: extendedColors.border,
-    accent: themeColors.primary,
-    inputBg: extendedColors.inputBg,
-    error: SharedColors.error,
+  const colours = {
+    background: extendedColours.background,
+    card: extendedColours.card,
+    text: extendedColours.text,
+    textMuted: extendedColours.textMuted,
+    border: extendedColours.border,
+    accent: themeColours.primary,
+    inputBg: extendedColours.inputBg,
+    error: SharedColours.error,
   };
 
   const renderProvider = ({ item }: { item: ProviderSearchResult }) => (
     <TouchableOpacity
       style={[
         styles.providerCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        { backgroundColor: colours.card, borderColor: colours.border },
       ]}
       onPress={() => handleProviderPress(item)}
     >
-      <Text style={[styles.providerName, { color: colors.text }]}>
+      <Text style={[styles.providerName, { color: colours.text }]}>
         {item.provider_name}
       </Text>
-      <Text style={[styles.businessName, { color: colors.textMuted }]}>
+      <Text style={[styles.businessName, { color: colours.textMuted }]}>
         {item.business_name}
       </Text>
       <Text
-        style={[styles.providerBio, { color: colors.textMuted }]}
+        style={[styles.providerBio, { color: colours.textMuted }]}
         numberOfLines={2}
       >
         {item.bio}
       </Text>
-      <Text style={[styles.providerAddress, { color: colors.textMuted }]}>
+      <Text style={[styles.providerAddress, { color: colours.textMuted }]}>
         {item.provider_address}
       </Text>
       <View style={styles.servicesContainer}>
-        <Text style={[styles.servicesLabel, { color: colors.text }]}>
+        <Text style={[styles.servicesLabel, { color: colours.text }]}>
           Services:
         </Text>
         {item.services.map((service) => (
           <Text
             key={service.id}
-            style={[styles.serviceName, { color: colors.textMuted }]}
+            style={[styles.serviceName, { color: colours.textMuted }]}
           >
             • {service.name} - ${service.price}
           </Text>
@@ -100,42 +100,42 @@ export default function SearchProvidersScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
         style={[
           styles.header,
           {
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
+            backgroundColor: colours.card,
+            borderBottomColor: colours.border,
             paddingTop: insets.top + 10,
           },
         ]}
       >
         <BackButton onPress={() => router.back()} style={styles.backButton} />
-        <Text style={[styles.title, { color: colors.text }]}>
+        <Text style={[styles.title, { color: colours.text }]}>
           Find Providers
         </Text>
         <View style={styles.placeholder} />
       </View>
 
-      <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
+      <View style={[styles.searchContainer, { backgroundColor: colours.card }]}>
         <TextInput
           style={[
             styles.searchInput,
             {
-              backgroundColor: colors.inputBg,
-              color: colors.text,
-              borderColor: colors.border,
+              backgroundColor: colours.inputBg,
+              color: colours.text,
+              borderColor: colours.border,
             },
           ]}
           placeholder="Search by name or Provider ID"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={colours.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
           onSubmitEditing={handleSearch}
         />
         <TouchableOpacity
-          style={[styles.searchButton, { backgroundColor: colors.accent }]}
+          style={[styles.searchButton, { backgroundColor: colours.accent }]}
           onPress={handleSearch}
         >
           <Text style={styles.searchButtonText}>Search</Text>
@@ -145,7 +145,7 @@ export default function SearchProvidersScreen() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color={colors.accent}
+          color={colours.accent}
           style={styles.loader}
         />
       ) : providers.length > 0 ? (
@@ -156,11 +156,11 @@ export default function SearchProvidersScreen() {
           contentContainerStyle={styles.listContent}
         />
       ) : searchQuery ? (
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+        <Text style={[styles.emptyText, { color: colours.textMuted }]}>
           No providers found
         </Text>
       ) : (
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+        <Text style={[styles.emptyText, { color: colours.textMuted }]}>
           Search for providers by name or Provider ID
         </Text>
       )}
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   searchButtonText: {
-    color: UIColors.button.textLight,
+    color: UIColours.button.textLight,
     fontSize: 16,
     fontWeight: "600",
   },

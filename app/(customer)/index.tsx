@@ -1,5 +1,5 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { ExtendedColors, SharedColors } from "@/constants/theme";
+import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CustomerHomeScreen() {
-  const { isDarkMode, colors: themeColors } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const { logout } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -25,16 +25,16 @@ export default function CustomerHomeScreen() {
     // Navigation will be handled by auth state change in root layout
   };
 
-  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
 
-  const colors = {
-    background: extendedColors.background,
-    card: extendedColors.card,
-    text: extendedColors.text,
-    textMuted: extendedColors.textMuted,
-    border: extendedColors.border,
-    accent: themeColors.primary,
-    error: SharedColors.error,
+  const colours = {
+    background: extendedColours.background,
+    card: extendedColours.card,
+    text: extendedColours.text,
+    textMuted: extendedColours.textMuted,
+    border: extendedColours.border,
+    accent: themeColours.primary,
+    error: SharedColours.error,
   };
 
   const handleSettingsPress = () => {
@@ -63,18 +63,18 @@ export default function CustomerHomeScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
         style={[
           styles.header,
           {
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
+            backgroundColor: colours.card,
+            borderBottomColor: colours.border,
             paddingTop: 20,
           },
         ]}
       >
-        <Text style={[styles.title, { color: colors.text }]}>
+        <Text style={[styles.title, { color: colours.text }]}>
           Customer Dashboard
         </Text>
         <View style={styles.headerRight}>
@@ -84,10 +84,10 @@ export default function CustomerHomeScreen() {
             accessibilityLabel="Settings"
             accessibilityRole="button"
           >
-            <IconSymbol name="gearshape.fill" size={24} color={colors.accent} />
+            <IconSymbol name="gearshape.fill" size={24} color={colours.accent} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={[styles.logoutText, { color: colors.error }]}>
+            <Text style={[styles.logoutText, { color: colours.error }]}>
               Logout
             </Text>
           </TouchableOpacity>
@@ -100,7 +100,7 @@ export default function CustomerHomeScreen() {
             key={index}
             style={[
               styles.menuCard,
-              { backgroundColor: colors.card, borderColor: colors.border },
+              { backgroundColor: colours.card, borderColor: colours.border },
             ]}
             onPress={() => router.push(item.route as never)}
           >
@@ -108,14 +108,14 @@ export default function CustomerHomeScreen() {
               <Ionicons
                 name={item.icon}
                 size={24}
-                color={colors.accent}
+                color={colours.accent}
                 style={styles.menuIcon}
               />
-              <Text style={[styles.menuTitle, { color: colors.accent }]}>
+              <Text style={[styles.menuTitle, { color: colours.accent }]}>
                 {item.title}
               </Text>
             </View>
-            <Text style={[styles.menuDescription, { color: colors.textMuted }]}>
+            <Text style={[styles.menuDescription, { color: colours.textMuted }]}>
               {item.description}
             </Text>
           </TouchableOpacity>

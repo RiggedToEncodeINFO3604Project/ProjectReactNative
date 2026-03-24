@@ -5,7 +5,7 @@
 
 import BackButton from "@/components/BackButton";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { getExtendedColors } from "@/constants/theme";
+import { getExtendedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Avatar } from "./Avatar";
@@ -39,8 +39,8 @@ export function ChatHeader({
   onNavigatePrevious,
   onNavigateNext,
 }: ChatHeaderProps) {
-  const { isDarkMode, colors: theme } = useTheme();
-  const extendedColors = getExtendedColors(isDarkMode);
+  const { isDarkMode, colours: theme } = useTheme();
+  const extendedColours = getExtendedColours(isDarkMode);
   const isOnline = status?.toLowerCase() === "online";
 
   if (isSearching) {
@@ -50,7 +50,7 @@ export function ChatHeader({
           styles.container,
           {
             backgroundColor: theme.background,
-            borderBottomColor: extendedColors.borderAlt,
+            borderBottomColor: extendedColours.borderAlt,
           },
         ]}
       >
@@ -58,7 +58,7 @@ export function ChatHeader({
         <View
           style={[
             styles.searchContainer,
-            { backgroundColor: isDarkMode ? extendedColors.cardAlt : extendedColors.background },
+            { backgroundColor: isDarkMode ? extendedColours.cardAlt : extendedColours.background },
           ]}
         >
           <IconSymbol
@@ -133,7 +133,7 @@ export function ChatHeader({
         styles.container,
         {
           backgroundColor: theme.background,
-          borderBottomColor: extendedColors.borderAlt,
+          borderBottomColor: extendedColours.borderAlt,
         },
       ]}
     >

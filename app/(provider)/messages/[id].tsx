@@ -35,7 +35,7 @@ import {
 
 export default function ChatScreen() {
   const { token, user } = useAuth();
-  const { colors: theme } = useTheme();
+  const { colours: theme } = useTheme();
   const currentUserId = user?.id || "";
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();

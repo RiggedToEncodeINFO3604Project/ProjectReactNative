@@ -1,6 +1,6 @@
 /**
- * Centralized theme colors for the app.
- * All colors should be defined here and imported from this file.
+ * Centralized theme colours for the app.
+ * All colours should be defined here and imported from this file.
  * There are many other ways to style your app. For example,
  * [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/),
  * [unistyles](https://reactnativeunistyles.vercel.app), etc.
@@ -9,21 +9,21 @@
 import { Platform } from "react-native";
 
 // ============================================================================
-// Base tint colors for light and dark mode
+// Base tint colours for light and dark mode
 // ============================================================================
 const tintColorLight = "#0a7ea4";
 const tintColorDark = "#fff";
 
 // ============================================================================
-// Shared/Common Colors (used across both provider and customer apps)
+// Shared/Common Colours (used across both provider and customer apps)
 // ============================================================================
-export const SharedColors = {
-  // Semantic colors (same in both light and dark)
+export const SharedColours = {
+  // Semantic colours (same in both light and dark)
   white: "#ffffff",
   black: "#000000",
   transparent: "transparent",
 
-  // Status colors
+  // Status colours
   success: "#34C759",
   error: "#FF3B30",
   errorAlt: "#e10600", // Alternative error red
@@ -31,7 +31,7 @@ export const SharedColors = {
   warningAlt: "#ffc107", // Warning yellow (for connection status)
   info: "#0a7ea4", // Primary tint color
 
-  // Avatar colors
+  // Avatar colours
   avatarColors: [
     "#0a7ea4", // Primary
     "#687076", // Gray
@@ -64,7 +64,7 @@ export const SharedColors = {
     dotColor: "#8B0000",
   },
 
-  // Booking status colors
+  // Booking status colours
   bookingStatus: {
     confirmed: "#34C759",
     pending: "#f0c85a",
@@ -73,7 +73,7 @@ export const SharedColors = {
     default: "#6b7280",
   },
 
-  // Availability status colors
+  // Availability status colours
   availabilityStatus: {
     fullyBooked: "#FF3B30",
     mostlyBooked: "#f0c85a",
@@ -83,35 +83,35 @@ export const SharedColors = {
 };
 
 // ============================================================================
-// Extended UI Colors (for components that need more colors than main theme)
+// Extended UI Colours (for components that need more colours than main theme)
 // ============================================================================
-export const ExtendedColors = {
+export const ExtendedColours = {
   light: {
-    // Extended background colors
+    // Extended background colours
     background: "#f5f5f5",
     backgroundAlt: "#ffffff",
     card: "#ffffff",
     cardAlt: "#f8f9fa",
 
-    // Extended text colors
+    // Extended text colours
     text: "#11181C",
     textMuted: "#6b7280",
     textSecondary: "#687076",
 
-    // Extended border colors
+    // Extended border colours
     border: "#dee2e6",
     borderAlt: "#e9ecef",
 
-    // Extended input colors
+    // Extended input colours
     inputBg: "#e9ecef",
     inputBorder: "#dee2e6",
 
-    // Extended status colors
+    // Extended status colours
     successBg: "#d4edda",
     errorBg: "#f8d7da",
     warningBg: "#fff3cd",
 
-    // Extended special colors
+    // Extended special colours
     selectedBg: "#e3f2fd",
     searchBg: "#f5f5f5",
     searchInputBg: "#f0f0f0",
@@ -121,31 +121,31 @@ export const ExtendedColors = {
     connecting: "#ffc107",
   },
   dark: {
-    // Extended background colors
+    // Extended background colours
     background: "#151718",
     backgroundAlt: "#1a1a1a",
     card: "#1e2333",
     cardAlt: "#1a1f2e",
 
-    // Extended text colors
+    // Extended text colours
     text: "#ECEDEE",
     textMuted: "#9BA1A6",
     textSecondary: "#9BA1A6",
 
-    // Extended border colors
+    // Extended border colours
     border: "#2a2f3e",
     borderAlt: "#333333",
 
-    // Extended input colors
+    // Extended input colours
     inputBg: "#1a1f2e",
     inputBorder: "#2a2f3e",
 
-    // Extended status colors
+    // Extended status colours
     successBg: "#1a3a2a",
     errorBg: "#2a1a1a",
     warningBg: "#2a2a1a",
 
-    // Extended special colors
+    // Extended special colours
     selectedBg: "#1a3a4a",
     searchBg: "#2a2a2a",
     searchInputBg: "#333333",
@@ -157,9 +157,9 @@ export const ExtendedColors = {
 };
 
 // ============================================================================
-// Provider (Business) Theme Colors
+// Provider (Business) Theme Colours
 // ============================================================================
-export const ProviderColors = {
+export const ProviderColours = {
   light: {
     primary: "#01d0a8", // Main/Primary - teal/mint for provider
     secondary: "#000000", // Black
@@ -193,9 +193,9 @@ export const ProviderColors = {
 };
 
 // ============================================================================
-// Customer Theme Colors
+// Customer Theme Colours
 // ============================================================================
-export const CustomerColors = {
+export const CustomerColours = {
   light: {
     primary: "#1e4e8c", // Main/Primary - teal/mint
     secondary: "#000000", // Black
@@ -229,9 +229,9 @@ export const CustomerColors = {
 };
 
 // ============================================================================
-// Original Colors (kept for backward compatibility)
+// Original Colours (kept for backward compatibility)
 // ============================================================================
-export const Colors = {
+export const Colours = {
   light: {
     text: "#11181C",
     background: "#fff",
@@ -251,10 +251,10 @@ export const Colors = {
 };
 
 // ============================================================================
-// UI Component Colors (Standard colors for buttons, switches, etc.)
+// UI Component Colours (Standard colours for buttons, switches, etc.)
 // ============================================================================
-export const UIColors = {
-  // Switch track colors
+export const UIColours = {
+  // Switch track colours
   switch: {
     trackFalse: "#767577",
     trackTrue: "#81b0ff",
@@ -263,7 +263,7 @@ export const UIColors = {
     thumbFalse: "#f4f3f4",
   },
 
-  // Default button colors
+  // Default button colours
   button: {
     primaryLight: "#f0c85a",
     primaryDark: "#f0c85a",
@@ -290,23 +290,23 @@ export const UIColors = {
 export type UserType = "provider" | "customer";
 
 // ============================================================================
-// Helper function to get colors based on user type and dark mode
+// Helper function to get colours based on user type and dark mode
 // ============================================================================
-export function getThemeColors(userType: UserType, isDarkMode: boolean) {
+export function getThemeColours(userType: UserType, isDarkMode: boolean) {
   const theme = isDarkMode ? "dark" : "light";
 
   if (userType === "provider") {
-    return ProviderColors[theme];
+    return ProviderColours[theme];
   } else {
-    return CustomerColors[theme];
+    return CustomerColours[theme];
   }
 }
 
 // ============================================================================
-// Helper function to get extended colors based on dark mode
+// Helper function to get extended colours based on dark mode
 // ============================================================================
-export function getExtendedColors(isDarkMode: boolean) {
-  return isDarkMode ? ExtendedColors.dark : ExtendedColors.light;
+export function getExtendedColours(isDarkMode: boolean) {
+  return isDarkMode ? ExtendedColours.dark : ExtendedColours.light;
 }
 
 // ============================================================================

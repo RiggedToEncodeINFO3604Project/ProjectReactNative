@@ -3,13 +3,13 @@
 // = Displays a single message bubble with tail        =
 // =====================================================
 
-import { getExtendedColors, getThemeColors, ProviderColors, CustomerColors, SharedColors } from "@/constants/theme";
+import { getExtendedColours, getThemeColours, ProviderColours, CustomerColours, SharedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { Message, MessageStatus } from "@/types/scheduling";
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
-const HIGHLIGHT_COLOR = SharedColors.highlight;
+const HIGHLIGHT_COLOR = SharedColours.highlight;
 
 interface MessageBubbleProps {
   message: Message;
@@ -95,17 +95,17 @@ export function MessageBubble({
   highlightQuery = "",
   isHighlighted = false,
 }: MessageBubbleProps) {
-  const { isDarkMode, userType, colors: theme } = useTheme();
-  const extendedColors = getExtendedColors(isDarkMode);
-  const userTypeTheme = getThemeColors(userType, isDarkMode);
+  const { isDarkMode, userType, colours: theme } = useTheme();
+  const extendedColours = getExtendedColours(isDarkMode);
+  const userTypeTheme = getThemeColours(userType, isDarkMode);
   const isImage = message.message_type === "image";
   const statusIcon = getStatusIcon(message.status);
   const statusColor = getStatusColor(message.status, theme.tint);
 
   // Get user's primary color based on userType
   const userPrimaryColor = userType === "provider" 
-    ? ProviderColors.light.primary  // Provider: #01d0a8 (teal)
-    : CustomerColors.light.primary; // Customer: #1e4e8c (blue)
+    ? ProviderColours.light.primary  // Provider: #01d0a8 (teal)
+    : CustomerColours.light.primary; // Customer: #1e4e8c (blue)
   const otherBubbleColor = "#f0c85a"; // Yellow for other person in both modes
   const bubbleColor = isCurrentUser ? userPrimaryColor : otherBubbleColor;
 

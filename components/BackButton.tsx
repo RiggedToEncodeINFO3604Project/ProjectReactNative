@@ -20,7 +20,7 @@ export default function BackButton({
   label = "Back",
   style,
 }: BackButtonProps) {
-  const { colors } = useTheme();
+  const { colours } = useTheme();
 
   return (
     <TouchableOpacity
@@ -30,8 +30,8 @@ export default function BackButton({
       accessibilityLabel={label}
       activeOpacity={0.7}
     >
-      <IconSymbol name="arrow.backward" size={18} color={colors.tint} />
-      <Text style={[styles.label, { color: colors.tint }]}>{label}</Text>
+      <IconSymbol name="arrow.backward" size={18} color={colours.tint} />
+      <Text style={[styles.label, { color: colours.tint }]}>{label}</Text>
     </TouchableOpacity>
   );
 }

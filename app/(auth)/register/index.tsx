@@ -14,7 +14,7 @@ export default function RegisterChoiceScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
 
-  const colors = {
+  const colours = {
     background: isDarkMode ? "#151718" : "#ffffff",
     card: isDarkMode ? "#1e2333" : "#f8f9fa",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -25,13 +25,13 @@ export default function RegisterChoiceScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: colours.background }]}
       contentContainerStyle={styles.content}
     >
-      <Text style={[styles.brandName, { color: colors.accent }]}>
+      <Text style={[styles.brandName, { color: colours.accent }]}>
         SkeduleIt
       </Text>
-      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+      <Text style={[styles.subtitle, { color: colours.textMuted }]}>
         Choose your account type
       </Text>
 
@@ -39,15 +39,15 @@ export default function RegisterChoiceScreen() {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            { backgroundColor: colours.card, borderColor: colours.border },
           ]}
           onPress={() => router.push("register/customer" as never)}
         >
           <Text style={styles.optionIcon}>👤</Text>
-          <Text style={[styles.optionTitle, { color: colors.text }]}>
+          <Text style={[styles.optionTitle, { color: colours.text }]}>
             Customer
           </Text>
-          <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+          <Text style={[styles.optionDescription, { color: colours.textMuted }]}>
             Book appointments with service providers, manage your bookings, and
             discover new services.
           </Text>
@@ -56,15 +56,15 @@ export default function RegisterChoiceScreen() {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            { backgroundColor: colours.card, borderColor: colours.border },
           ]}
           onPress={() => router.push("register/provider" as never)}
         >
           <Text style={styles.optionIcon}>💼</Text>
-          <Text style={[styles.optionTitle, { color: colors.text }]}>
+          <Text style={[styles.optionTitle, { color: colours.text }]}>
             Provider
           </Text>
-          <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+          <Text style={[styles.optionDescription, { color: colours.textMuted }]}>
             Offer your services, manage availability, and handle customer
             bookings.
           </Text>

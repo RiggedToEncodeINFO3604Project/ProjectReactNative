@@ -3,7 +3,7 @@
 // = Custom emoji picker for React Native Expo         =
 // =====================================================
 
-import { getExtendedColors } from "@/constants/theme";
+import { getExtendedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -445,8 +445,8 @@ export function EmojiPicker({
   onEmojiSelect,
   recentEmojis = [],
 }: EmojiPickerProps) {
-  const { isDarkMode, colors: theme } = useTheme();
-  const extendedColors = getExtendedColors(isDarkMode);
+  const { isDarkMode, colours: theme } = useTheme();
+  const extendedColours = getExtendedColours(isDarkMode);
   const [activeCategory, setActiveCategory] = useState("smileys");
 
   // Get emojis for the current category (including recent)
@@ -492,7 +492,7 @@ export function EmojiPicker({
           styles.categoryTab,
           activeCategory === category.id && [
             styles.categoryTabActive,
-            { backgroundColor: extendedColors.borderAlt },
+            { backgroundColor: extendedColours.borderAlt },
           ],
         ]}
         onPress={() => setActiveCategory(category.id)}
@@ -501,7 +501,7 @@ export function EmojiPicker({
         <Text style={styles.categoryIcon}>{category.icon}</Text>
       </TouchableOpacity>
     ),
-    [activeCategory, extendedColors],
+    [activeCategory, extendedColours],
   );
 
   if (!visible) return null;
@@ -520,7 +520,7 @@ export function EmojiPicker({
             style={[
               styles.header,
               {
-                borderBottomColor: extendedColors.borderAlt,
+                borderBottomColor: extendedColours.borderAlt,
               },
             ]}
           >
@@ -539,7 +539,7 @@ export function EmojiPicker({
             style={[
               styles.categoryContainer,
               {
-                borderBottomColor: extendedColors.borderAlt,
+                borderBottomColor: extendedColours.borderAlt,
               },
             ]}
             contentContainerStyle={styles.categoryContent}

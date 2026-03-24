@@ -1,5 +1,5 @@
 import BackButton from "@/components/BackButton";
-import { ExtendedColors, SharedColors } from "@/constants/theme";
+import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -9,27 +9,27 @@ export default function ManageSAScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
 
-  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
 
-  const colors = {
-    background: extendedColors.background,
-    card: extendedColors.card,
-    text: extendedColors.text,
-    textMuted: extendedColors.textMuted,
-    border: extendedColors.border,
-    accent: SharedColors.bookingStatus.pending,
+  const colours = {
+    background: extendedColours.background,
+    card: extendedColours.card,
+    text: extendedColours.text,
+    textMuted: extendedColours.textMuted,
+    border: extendedColours.border,
+    accent: SharedColours.bookingStatus.pending,
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          { backgroundColor: colours.card, borderBottomColor: colours.border },
         ]}
       >
         <BackButton onPress={() => router.replace("/")} />
-        <Text style={[styles.title, { color: colors.text }]}>
+        <Text style={[styles.title, { color: colours.text }]}>
           Manage Services & Availability
         </Text>
         <View style={{ width: 50 }} />
@@ -39,15 +39,15 @@ export default function ManageSAScreen() {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            { backgroundColor: colours.card, borderColor: colours.border },
           ]}
           onPress={() => router.push("/services")}
         >
-          <Text style={[styles.optionIcon, { color: colors.accent }]}>💼</Text>
-          <Text style={[styles.optionTitle, { color: colors.text }]}>
+          <Text style={[styles.optionIcon, { color: colours.accent }]}>💼</Text>
+          <Text style={[styles.optionTitle, { color: colours.text }]}>
             Manage Services
           </Text>
-          <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+          <Text style={[styles.optionDescription, { color: colours.textMuted }]}>
             Add, edit, or remove the services you offer
           </Text>
         </TouchableOpacity>
@@ -55,15 +55,15 @@ export default function ManageSAScreen() {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            { backgroundColor: colours.card, borderColor: colours.border },
           ]}
           onPress={() => router.push("/availability")}
         >
-          <Text style={[styles.optionIcon, { color: colors.accent }]}>📅</Text>
-          <Text style={[styles.optionTitle, { color: colors.text }]}>
+          <Text style={[styles.optionIcon, { color: colours.accent }]}>📅</Text>
+          <Text style={[styles.optionTitle, { color: colours.text }]}>
             Manage Availability
           </Text>
-          <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+          <Text style={[styles.optionDescription, { color: colours.textMuted }]}>
             Set your weekly schedule and available time slots
           </Text>
         </TouchableOpacity>

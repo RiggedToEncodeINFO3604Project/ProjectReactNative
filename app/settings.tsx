@@ -1,5 +1,5 @@
 import BackButton from "@/components/BackButton";
-import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
+import { ExtendedColours, SharedColours, UIColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { router } from "expo-router";
 import { StyleSheet, Switch, Text, View } from "react-native";
@@ -8,17 +8,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function SettingsScreen() {
   const { isDarkMode, toggleDarkMode } = useTheme();
 
-  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
 
-  const colors = {
-    background: extendedColors.background,
-    card: extendedColors.cardAlt,
-    text: extendedColors.text,
-    textMuted: extendedColors.textMuted,
-    border: extendedColors.border,
+  const colours = {
+    background: extendedColours.background,
+    card: extendedColours.cardAlt,
+    text: extendedColours.text,
+    textMuted: extendedColours.textMuted,
+    border: extendedColours.border,
     accent: isDarkMode
-      ? SharedColors.bookingStatus.pending
-      : extendedColors.text,
+      ? SharedColours.bookingStatus.pending
+      : extendedColours.text,
   };
 
   const handleBackPress = () => {
@@ -27,21 +27,21 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: colours.background }]}
     >
       {/* Header */}
       <View
         style={[
           styles.header,
           {
-            backgroundColor: colors.card,
-            borderBottomColor: colors.border,
+            backgroundColor: colours.card,
+            borderBottomColor: colours.border,
             paddingTop: 20,
           },
         ]}
       >
         <BackButton onPress={handleBackPress} style={styles.backButton} />
-        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+        <Text style={[styles.title, { color: colours.text }]}>Settings</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -50,15 +50,15 @@ export default function SettingsScreen() {
         <View
           style={[
             styles.settingItem,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            { backgroundColor: colours.card, borderColor: colours.border },
           ]}
         >
           <View style={styles.settingInfo}>
-            <Text style={[styles.settingLabel, { color: colors.text }]}>
+            <Text style={[styles.settingLabel, { color: colours.text }]}>
               Dark Mode
             </Text>
             <Text
-              style={[styles.settingDescription, { color: colors.textMuted }]}
+              style={[styles.settingDescription, { color: colours.textMuted }]}
             >
               {isDarkMode
                 ? "Currently using dark theme"
@@ -69,23 +69,23 @@ export default function SettingsScreen() {
             value={isDarkMode}
             onValueChange={toggleDarkMode}
             trackColor={{
-              false: UIColors.switch.trackFalse,
-              true: UIColors.switch.trackTrue,
+              false: UIColours.switch.trackFalse,
+              true: UIColours.switch.trackTrue,
             }}
             thumbColor={
               isDarkMode
-                ? UIColors.switch.thumbTrueDark
-                : UIColors.switch.thumbFalse
+                ? UIColours.switch.thumbTrueDark
+                : UIColours.switch.thumbFalse
             }
           />
         </View>
 
         {/* App Info Section */}
         <View style={styles.infoSection}>
-          <Text style={[styles.appName, { color: colors.accent }]}>
+          <Text style={[styles.appName, { color: colours.accent }]}>
             SkeduleIt
           </Text>
-          <Text style={[styles.versionText, { color: colors.textMuted }]}>
+          <Text style={[styles.versionText, { color: colours.textMuted }]}>
             Version 1.0.0
           </Text>
         </View>

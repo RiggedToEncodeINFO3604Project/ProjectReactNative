@@ -1,7 +1,7 @@
 import {
-  CustomerColors,
-  getThemeColors,
-  ProviderColors,
+  CustomerColours,
+  getThemeColours,
+  ProviderColours,
   UserType,
 } from "@/constants/theme";
 import {
@@ -20,8 +20,8 @@ type ThemeContextType = {
   toggleDarkMode: () => void;
   setDarkMode: (value: boolean) => void;
   setUserType: (type: UserType) => void;
-  // Current colors based on isDarkMode and userType
-  colors: ReturnType<typeof getThemeColors>;
+  // Current colours based on isDarkMode and userType
+  colours: ReturnType<typeof getThemeColours>;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -55,8 +55,8 @@ export function ThemeProvider({
     setUserType(type);
   };
 
-  // Get the current colors based on isDarkMode and userType
-  const colors = getThemeColors(userType, isDarkMode);
+  // Get the current colours based on isDarkMode and userType
+  const colours = getThemeColours(userType, isDarkMode);
 
   // Memoize the context value to ensure proper theme change propagation
   const contextValue = useMemo(
@@ -66,9 +66,9 @@ export function ThemeProvider({
       toggleDarkMode,
       setDarkMode,
       setUserType: setUserTypeHandler,
-      colors,
+      colours,
     }),
-    [isDarkMode, userType, colors],
+    [isDarkMode, userType, colours],
   );
 
   return (
@@ -86,6 +86,6 @@ export function useTheme() {
   return context;
 }
 
-// Export function to get appropriate colors based on user type and dark mode
-export { CustomerColors, getThemeColors, ProviderColors };
+// Export function to get appropriate colours based on user type and dark mode
+export { CustomerColours, getThemeColours, ProviderColours };
 

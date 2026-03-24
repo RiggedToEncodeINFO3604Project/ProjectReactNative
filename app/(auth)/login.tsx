@@ -72,7 +72,7 @@ export default function LoginScreen() {
     }
   };
 
-  const colors = {
+  const colours = {
     background: isDarkMode ? "#151718" : "#ffffff",
     card: isDarkMode ? "#1e2333" : "#f8f9fa",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -89,7 +89,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: colours.background }]}
     >
       {/* Settings Button */}
       <TouchableOpacity
@@ -98,7 +98,7 @@ export default function LoginScreen() {
         accessibilityLabel="Settings"
         accessibilityRole="button"
       >
-        <IconSymbol name="gearshape.fill" size={28} color={colors.accent} />
+        <IconSymbol name="gearshape.fill" size={28} color={colours.accent} />
       </TouchableOpacity>
 
       <ScrollView
@@ -106,30 +106,30 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={[styles.brandName, { color: colors.accent }]}>
+          <Text style={[styles.brandName, { color: colours.accent }]}>
             SkeduleIt
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          <Text style={[styles.subtitle, { color: colours.textMuted }]}>
             Sign in to your account
           </Text>
 
           <View
             style={[
               styles.form,
-              { backgroundColor: colors.card, borderColor: colors.border },
+              { backgroundColor: colours.card, borderColor: colours.border },
             ]}
           >
             <TextInput
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Email"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -140,20 +140,20 @@ export default function LoginScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Password"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
             />
 
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.accent }]}
+              style={[styles.button, { backgroundColor: colours.accent }]}
               onPress={handleLogin}
               disabled={loading}
             >
@@ -165,13 +165,13 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <View style={styles.registerContainer}>
-              <Text style={[styles.registerText, { color: colors.textMuted }]}>
+              <Text style={[styles.registerText, { color: colours.textMuted }]}>
                 Don't have an account?
               </Text>
               <TouchableOpacity
                 onPress={() => router.push("register" as never)}
               >
-                <Text style={[styles.registerLink, { color: colors.accent }]}>
+                <Text style={[styles.registerLink, { color: colours.accent }]}>
                   Register
                 </Text>
               </TouchableOpacity>
@@ -180,12 +180,12 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.videoButton,
-                { backgroundColor: colors.inputBg, borderColor: colors.border },
+                { backgroundColor: colours.inputBg, borderColor: colours.border },
               ]}
               onPress={handleOpenVideo}
             >
               <Text
-                style={[styles.videoButtonText, { color: colors.textMuted }]}
+                style={[styles.videoButtonText, { color: colours.textMuted }]}
               >
                 Video
               </Text>
@@ -194,12 +194,12 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.videoButton,
-                { backgroundColor: colors.inputBg, borderColor: colors.border },
+                { backgroundColor: colours.inputBg, borderColor: colours.border },
               ]}
               onPress={handleOpenRagServer}
             >
               <Text
-                style={[styles.videoButtonText, { color: colors.textMuted }]}
+                style={[styles.videoButtonText, { color: colours.textMuted }]}
               >
                 RAG Server
               </Text>

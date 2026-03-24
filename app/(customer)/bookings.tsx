@@ -1,7 +1,7 @@
 import BackButton from "@/components/BackButton";
 import ConfirmModal from "@/components/ConfirmModal";
 import SuccessModal from "@/components/SuccessModal";
-import { ExtendedColors, SharedColors } from "@/constants/theme";
+import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cancelBooking, getMyBookings } from "@/services/schedulingApi";
@@ -18,7 +18,7 @@ import {
 } from "react-native";
 
 export default function MyBookingsScreen() {
-  const { isDarkMode, colors: themeColors } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const { logout } = useAuth();
   const router = useRouter();
 
@@ -109,66 +109,66 @@ export default function MyBookingsScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed":
-        return SharedColors.bookingStatus.confirmed;
+        return SharedColours.bookingStatus.confirmed;
       case "pending":
-        return SharedColors.bookingStatus.pending;
+        return SharedColours.bookingStatus.pending;
       case "cancelled":
-        return SharedColors.bookingStatus.cancelled;
+        return SharedColours.bookingStatus.cancelled;
       case "completed":
-        return SharedColors.bookingStatus.completed;
+        return SharedColours.bookingStatus.completed;
       default:
-        return SharedColors.bookingStatus.default;
+        return SharedColours.bookingStatus.default;
     }
   };
 
-  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
 
-  const colors = {
-    background: extendedColors.background,
-    card: extendedColors.card,
-    text: extendedColors.text,
-    textMuted: extendedColors.textMuted,
-    border: extendedColors.border,
-    accent: themeColors.accent,
+  const colours = {
+    background: extendedColours.background,
+    card: extendedColours.card,
+    text: extendedColours.text,
+    textMuted: extendedColours.textMuted,
+    border: extendedColours.border,
+    accent: themeColours.accent,
   };
 
   const renderBooking = ({ item }: { item: BookingWithDetails }) => (
     <View
       style={[
         styles.bookingCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        { backgroundColor: colours.card, borderColor: colours.border },
       ]}
     >
       <View style={styles.bookingHeader}>
-        <Text style={[styles.serviceName, { color: colors.text }]}>
+        <Text style={[styles.serviceName, { color: colours.text }]}>
           {item.service_name}
         </Text>
         <Text style={[styles.status, { color: getStatusColor(item.status) }]}>
           {item.status.toUpperCase()}
         </Text>
       </View>
-      <Text style={[styles.providerName, { color: colors.textMuted }]}>
+      <Text style={[styles.providerName, { color: colours.textMuted }]}>
         {item.provider_name}
       </Text>
       <View style={styles.bookingDetails}>
-        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+        <Text style={[styles.detailText, { color: colours.textMuted }]}>
           📅 {new Date(item.date).toLocaleDateString()}
         </Text>
-        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+        <Text style={[styles.detailText, { color: colours.textMuted }]}>
           🕐 {item.start_time} - {item.end_time}
         </Text>
-        <Text style={[styles.detailText, { color: colors.accent }]}>
+        <Text style={[styles.detailText, { color: colours.accent }]}>
           ${item.cost}
         </Text>
       </View>
       {(item.status === "pending" || item.status === "confirmed") && (
         <TouchableOpacity
-          style={[styles.cancelButton, { borderColor: SharedColors.error }]}
+          style={[styles.cancelButton, { borderColor: SharedColours.error }]}
           onPress={() => handleCancelBooking(item.booking_id)}
           disabled={processing === item.booking_id}
         >
           {processing === item.booking_id ? (
-            <ActivityIndicator color={SharedColors.error} />
+            <ActivityIndicator color={SharedColours.error} />
           ) : (
             <Text style={styles.cancelButtonText}>Cancel Booking</Text>
           )}
@@ -178,22 +178,22 @@ export default function MyBookingsScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          { backgroundColor: colours.card, borderBottomColor: colours.border },
         ]}
       >
         <BackButton onPress={() => router.back()} />
-        <Text style={[styles.title, { color: colors.text }]}>My Bookings</Text>
+        <Text style={[styles.title, { color: colours.text }]}>My Bookings</Text>
         <View style={{ width: 50 }} />
       </View>
 
       {loading ? (
         <ActivityIndicator
           size="large"
-          color={colors.accent}
+          color={colours.accent}
           style={styles.loader}
         />
       ) : (
@@ -203,7 +203,7 @@ export default function MyBookingsScreen() {
           keyExtractor={(item) => item.booking_id}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+            <Text style={[styles.emptyText, { color: colours.textMuted }]}>
               No bookings found
             </Text>
           }
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButtonText: {
-    color: SharedColors.error,
+    color: SharedColours.error,
     fontWeight: "600",
   },
   loader: {

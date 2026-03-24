@@ -3,7 +3,7 @@
 // = Displays a conversation in the inbox list         =
 // =====================================================
 
-import { getExtendedColors } from "@/constants/theme";
+import { getExtendedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { ConversationPreview } from "@/types/scheduling";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -44,7 +44,7 @@ export function ConversationListItem({
   onPress,
 }: ConversationListItemProps) {
   const { isDarkMode } = useTheme();
-  const extendedColors = getExtendedColors(isDarkMode);
+  const extendedColours = getExtendedColours(isDarkMode);
   const hasUnread = conversation.unread_count > 0;
 
   // Format preview text
@@ -61,9 +61,9 @@ export function ConversationListItem({
       onPress={onPress}
       style={[
         styles.container,
-        { backgroundColor: extendedColors.card },
+        { backgroundColor: extendedColours.card },
         isSelected && {
-          backgroundColor: extendedColors.selectedBg,
+          backgroundColor: extendedColours.selectedBg,
         },
       ]}
       android_ripple={{
@@ -81,7 +81,7 @@ export function ConversationListItem({
           <Text
             style={[
               styles.name,
-              { color: extendedColors.text },
+              { color: extendedColours.text },
               hasUnread && styles.unreadName,
             ]}
             numberOfLines={1}
@@ -92,8 +92,8 @@ export function ConversationListItem({
             <Text
               style={[
                 styles.timestamp,
-                { color: extendedColors.textSecondary },
-                hasUnread && { color: extendedColors.text, fontWeight: "600" },
+                { color: extendedColours.textSecondary },
+                hasUnread && { color: extendedColours.text, fontWeight: "600" },
               ]}
             >
               {formatTimestamp(conversation.last_message_time)}
@@ -105,8 +105,8 @@ export function ConversationListItem({
           <Text
             style={[
               styles.preview,
-              { color: extendedColors.textSecondary },
-              hasUnread && { color: extendedColors.text, fontWeight: "500" },
+              { color: extendedColours.textSecondary },
+              hasUnread && { color: extendedColours.text, fontWeight: "500" },
             ]}
             numberOfLines={1}
           >
@@ -115,10 +115,10 @@ export function ConversationListItem({
 
           {hasUnread && (
             <View
-              style={[styles.badge, { backgroundColor: extendedColors.text }]}
+              style={[styles.badge, { backgroundColor: extendedColours.text }]}
             >
               <Text
-                style={[styles.badgeText, { color: extendedColors.background }]}
+                style={[styles.badgeText, { color: extendedColours.background }]}
               >
                 {conversation.unread_count > 99
                   ? "99+"

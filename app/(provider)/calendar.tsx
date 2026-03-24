@@ -25,7 +25,7 @@ const CALENDAR_HEIGHT = width * 0.95;
 export default function CalendarScreen() {
   const router = useRouter();
   const { isDarkMode } = useTheme();
-  const colors = {
+  const colours = {
     background: isDarkMode ? "#151718" : "#f5f5f5",
     card: isDarkMode ? "#1e2333" : "#ffffff",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -193,7 +193,7 @@ export default function CalendarScreen() {
           styles.header,
           {
             backgroundColor: isDarkMode ? "#1e2333" : "#fff",
-            borderBottomColor: colors.border,
+            borderBottomColor: colours.border,
           },
         ]}
       >
@@ -231,7 +231,7 @@ export default function CalendarScreen() {
             {selectedDayDeviceEvents.length > 0 && (
               <>
                 <Text
-                  style={[styles.modalSectionLabel, { color: colors.accent }]}
+                  style={[styles.modalSectionLabel, { color: colours.accent }]}
                 >
                   Unavailable
                 </Text>
@@ -279,7 +279,7 @@ export default function CalendarScreen() {
             {selectedDayBookings.length > 0 && (
               <>
                 <Text
-                  style={[styles.modalSectionLabel, { color: colors.accent }]}
+                  style={[styles.modalSectionLabel, { color: colours.accent }]}
                 >
                   Bookings
                 </Text>
@@ -322,7 +322,7 @@ export default function CalendarScreen() {
               )}
 
             <TouchableOpacity onPress={() => setModalVisible(false)}>
-              <Text style={[styles.closeText, { color: colors.accent }]}>
+              <Text style={[styles.closeText, { color: colours.accent }]}>
                 Close
               </Text>
             </TouchableOpacity>

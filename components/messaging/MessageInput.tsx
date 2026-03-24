@@ -5,7 +5,7 @@
 
 import { EmojiPicker } from "@/components/messaging/EmojiPicker";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { getExtendedColors } from "@/constants/theme";
+import { getExtendedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -30,8 +30,8 @@ export function MessageInput({
   onAttachment,
   disabled = false,
 }: MessageInputProps) {
-  const { isDarkMode, colors: theme } = useTheme();
-  const extendedColors = getExtendedColors(isDarkMode);
+  const { isDarkMode, colours: theme } = useTheme();
+  const extendedColours = getExtendedColours(isDarkMode);
 
   const [text, setText] = useState("");
   const [inputHeight, setInputHeight] = useState(44);
@@ -106,7 +106,7 @@ export function MessageInput({
           styles.container,
           {
             backgroundColor: theme.background,
-            borderTopColor: extendedColors.borderAlt,
+            borderTopColor: extendedColours.borderAlt,
           },
         ]}
       >
@@ -143,7 +143,7 @@ export function MessageInput({
             styles.inputContainer,
             {
               minHeight: inputHeight,
-              backgroundColor: isDarkMode ? extendedColors.cardAlt : extendedColors.background,
+              backgroundColor: isDarkMode ? extendedColours.cardAlt : extendedColours.background,
             },
           ]}
         >
@@ -178,7 +178,7 @@ export function MessageInput({
             { backgroundColor: theme.tint },
             !canSend && [
               styles.sendButtonDisabled,
-              { backgroundColor: isDarkMode ? extendedColors.textMuted : "#c4c4c4" },
+              { backgroundColor: isDarkMode ? extendedColours.textMuted : "#c4c4c4" },
             ],
           ]}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

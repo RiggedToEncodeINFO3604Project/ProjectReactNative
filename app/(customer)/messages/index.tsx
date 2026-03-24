@@ -48,7 +48,7 @@ function toConversationPreview(
 
 export default function MessagesScreen() {
   const { token, user } = useAuth();
-  const { colors: theme, isDarkMode } = useTheme();
+  const { colours: theme, isDarkMode } = useTheme();
   const currentUserId = user?.id || "";
   const router = useRouter();
 

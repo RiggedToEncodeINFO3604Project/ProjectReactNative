@@ -1,4 +1,4 @@
-import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
+import { ExtendedColours, SharedColours, UIColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import React from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -20,11 +20,11 @@ export default function SuccessModal({
 }: SuccessModalProps) {
   const { isDarkMode } = useTheme();
 
-  const extendedColors = ExtendedColors[isDarkMode ? "dark" : "light"];
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
 
-  const colors = {
-    card: extendedColors.card,
-    text: extendedColors.text,
+  const colours = {
+    card: extendedColours.card,
+    text: extendedColours.text,
   };
 
   React.useEffect(() => {
@@ -49,12 +49,12 @@ export default function SuccessModal({
         onPress={onClose}
       >
         <View
-          style={[styles.successModalContent, { backgroundColor: colors.card }]}
+          style={[styles.successModalContent, { backgroundColor: colours.card }]}
         >
           <View style={styles.successCircle}>
             <Text style={styles.successCheckmark}>✓</Text>
           </View>
-          <Text style={[styles.successMessage, { color: colors.text }]}>
+          <Text style={[styles.successMessage, { color: colours.text }]}>
             {message}
           </Text>
         </View>
@@ -68,13 +68,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: UIColors.overlay,
+    backgroundColor: UIColours.overlay,
   },
   successModalContent: {
     borderRadius: 20,
     padding: 30,
     alignItems: "center",
-    shadowColor: UIColors.shadow,
+    shadowColor: UIColours.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -84,14 +84,14 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: SharedColors.success,
+    backgroundColor: SharedColours.success,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
   },
   successCheckmark: {
     fontSize: 40,
-    color: SharedColors.white,
+    color: SharedColours.white,
     fontWeight: "bold",
   },
   successMessage: {

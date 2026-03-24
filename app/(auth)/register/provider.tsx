@@ -71,7 +71,7 @@ export default function RegisterProviderScreen() {
     }
   };
 
-  const colors = {
+  const colours = {
     background: isDarkMode ? "#151718" : "#ffffff",
     card: isDarkMode ? "#1e2333" : "#f8f9fa",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -84,37 +84,37 @@ export default function RegisterProviderScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: colours.background }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text style={[styles.title, { color: colours.text }]}>
             Register as Provider
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          <Text style={[styles.subtitle, { color: colours.textMuted }]}>
             Create your provider account to offer services
           </Text>
 
           <View
             style={[
               styles.form,
-              { backgroundColor: colors.card, borderColor: colors.border },
+              { backgroundColor: colours.card, borderColor: colours.border },
             ]}
           >
             <TextInput
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Provider Name (Your Name)"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={providerName}
               onChangeText={setProviderName}
             />
@@ -123,13 +123,13 @@ export default function RegisterProviderScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Business Name"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={businessName}
               onChangeText={setBusinessName}
             />
@@ -138,13 +138,13 @@ export default function RegisterProviderScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Email"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -156,13 +156,13 @@ export default function RegisterProviderScreen() {
                 styles.input,
                 styles.textArea,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Bio / Description"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={bio}
               onChangeText={setBio}
               multiline
@@ -173,13 +173,13 @@ export default function RegisterProviderScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Provider Address"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={providerAddress}
               onChangeText={setProviderAddress}
             />
@@ -188,13 +188,13 @@ export default function RegisterProviderScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Password"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -204,20 +204,20 @@ export default function RegisterProviderScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Confirm Password"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
             />
 
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.accent }]}
+              style={[styles.button, { backgroundColor: colours.accent }]}
               onPress={handleRegister}
               disabled={loading}
             >
