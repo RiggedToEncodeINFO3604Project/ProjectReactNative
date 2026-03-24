@@ -3,8 +3,7 @@
 // = Reusable avatar with image or initials fallback   =
 // =====================================================
 
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTheme } from "@/context/ThemeContext";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 interface AvatarProps {
@@ -38,8 +37,7 @@ export function Avatar({
   size = "medium",
   online = false,
 }: AvatarProps) {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const { colors: theme } = useTheme();
 
   const dimension = SIZE_MAP[size];
   const fontSize = FONT_SIZE_MAP[size];
