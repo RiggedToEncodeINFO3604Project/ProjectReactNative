@@ -69,7 +69,7 @@ export const SharedColours = {
     confirmed: "#34C759",
     pending: "#f0c85a",
     cancelled: "#FF3B30",
-    completed: "#01d0a8",
+    completed: "#6b7280",
     default: "#6b7280",
   },
 
@@ -88,9 +88,9 @@ export const SharedColours = {
 export const ExtendedColours = {
   light: {
     // Extended background colours
-    background: "#f5f5f5",
-    backgroundAlt: "#ffffff",
-    card: "#ffffff",
+    background: "#ffffff",
+    backgroundAlt: "#f5f5f5",
+    card: "#f5f5f5",
     cardAlt: "#f8f9fa",
 
     // Extended text colours

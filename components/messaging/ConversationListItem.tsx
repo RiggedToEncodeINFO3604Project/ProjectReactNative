@@ -61,7 +61,7 @@ export function ConversationListItem({
       onPress={onPress}
       style={[
         styles.container,
-        { backgroundColor: extendedColours.card },
+        { backgroundColor: extendedColours.background },
         isSelected && {
           backgroundColor: extendedColours.selectedBg,
         },
@@ -118,7 +118,10 @@ export function ConversationListItem({
               style={[styles.badge, { backgroundColor: extendedColours.text }]}
             >
               <Text
-                style={[styles.badgeText, { color: extendedColours.background }]}
+                style={[
+                  styles.badgeText,
+                  { color: extendedColours.background },
+                ]}
               >
                 {conversation.unread_count > 99
                   ? "99+"
