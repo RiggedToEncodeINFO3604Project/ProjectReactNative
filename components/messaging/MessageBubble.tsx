@@ -3,11 +3,13 @@
 // = Displays a single message bubble with tail        =
 // =====================================================
 
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getExtendedColors, getThemeColors, ProviderColors, CustomerColors, SharedColors } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
 import { Message, MessageStatus } from "@/types/scheduling";
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
+
+const HIGHLIGHT_COLOR = SharedColors.highlight;
 
 interface MessageBubbleProps {
   message: Message;
@@ -19,7 +21,6 @@ interface MessageBubbleProps {
 
 const CHECK_ICON = "✓";
 const DOUBLE_CHECK_ICON = "✓✓";
-const HIGHLIGHT_COLOR = "#ffeb3b"; // Yellow highlight
 
 function formatTime(timestamp: string): string {
   const date = new Date(timestamp);
@@ -94,11 +95,19 @@ export function MessageBubble({
   highlightQuery = "",
   isHighlighted = false,
 }: MessageBubbleProps) {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const { isDarkMode, userType, colors: theme } = useTheme();
+  const extendedColors = getExtendedColors(isDarkMode);
+  const userTypeTheme = getThemeColors(userType, isDarkMode);
   const isImage = message.message_type === "image";
   const statusIcon = getStatusIcon(message.status);
   const statusColor = getStatusColor(message.status, theme.tint);
+
+  // Get user's primary color based on userType
+  const userPrimaryColor = userType === "provider" 
+    ? ProviderColors.light.primary  // Provider: #01d0a8 (teal)
+    : CustomerColors.light.primary; // Customer: #1e4e8c (blue)
+  const otherBubbleColor = "#f0c85a"; // Yellow for other person in both modes
+  const bubbleColor = isCurrentUser ? userPrimaryColor : otherBubbleColor;
 
   return (
     <View
@@ -111,21 +120,10 @@ export function MessageBubble({
       <View
         style={[
           styles.bubble,
-          isCurrentUser
-            ? [
-                styles.sentBubble,
-                {
-                  backgroundColor:
-                    colorScheme === "dark" ? "#0a7ea4" : theme.tint,
-                },
-              ]
-            : [
-                styles.receivedBubble,
-                {
-                  backgroundColor:
-                    colorScheme === "dark" ? "#2a2a2a" : "#e9ecef",
-                },
-              ],
+          isCurrentUser ? styles.sentBubble : styles.receivedBubble,
+          {
+            backgroundColor: bubbleColor,
+          },
           isImage && styles.imageBubble,
           isHighlighted && styles.highlightedBubble,
         ]}
@@ -134,25 +132,12 @@ export function MessageBubble({
         <View
           style={[
             styles.tail,
-            isCurrentUser
-              ? [
-                  styles.sentTail,
-                  {
-                    borderLeftColor:
-                      colorScheme === "dark" ? "#0a7ea4" : theme.tint,
-                    borderBottomColor:
-                      colorScheme === "dark" ? "#0a7ea4" : theme.tint,
-                  },
-                ]
-              : [
-                  styles.receivedTail,
-                  {
-                    borderRightColor:
-                      colorScheme === "dark" ? "#2a2a2a" : "#e9ecef",
-                    borderBottomColor:
-                      colorScheme === "dark" ? "#2a2a2a" : "#e9ecef",
-                  },
-                ],
+            isCurrentUser ? styles.sentTail : styles.receivedTail,
+            {
+              borderLeftColor: bubbleColor,
+              borderBottomColor: bubbleColor,
+              borderRightColor: bubbleColor,
+            },
             isHighlighted &&
               (isCurrentUser
                 ? styles.highlightedSentTail
@@ -168,7 +153,8 @@ export function MessageBubble({
             highlight={highlightQuery}
             style={[
               styles.content,
-              isCurrentUser ? { color: "#fff" } : { color: theme.text },
+              // Use white text for primary color bubbles, black for yellow bubbles
+              { color: bubbleColor === otherBubbleColor ? "#000" : "#fff" },
             ]}
             highlightStyle={styles.highlightText}
           />
@@ -179,7 +165,8 @@ export function MessageBubble({
           <Text
             style={[
               styles.timestamp,
-              isCurrentUser ? styles.sentTimestamp : { color: theme.icon },
+              // Use darker color for yellow bubble, lighter for primary color bubble
+              { color: bubbleColor === otherBubbleColor ? "rgba(0,0,0,0.6)" : (isCurrentUser ? "rgba(255,255,255,0.7)" : theme.icon) },
             ]}
           >
             {formatTime(message.created_at)}
