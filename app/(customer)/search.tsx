@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { searchProviders } from "@/services/schedulingApi";
@@ -110,14 +111,7 @@ export default function SearchProvidersScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} style={styles.backButton} />
         <Text style={[styles.title, { color: colors.text }]}>
           Find Providers
         </Text>
@@ -187,10 +181,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 5,
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: "600",
   },
   title: {
     fontSize: 20,

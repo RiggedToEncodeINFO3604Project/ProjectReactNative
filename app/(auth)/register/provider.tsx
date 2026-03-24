@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
@@ -228,11 +229,7 @@ export default function RegisterProviderScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={[styles.backLink, { color: colors.accent }]}>
-              ← Back
-            </Text>
-          </TouchableOpacity>
+          <BackButton onPress={() => router.back()} style={styles.backLink} />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -292,7 +289,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   backLink: {
-    fontSize: 16,
     marginTop: 24,
   },
 });

@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import { ExtendedColors, SharedColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
@@ -27,11 +28,7 @@ export default function ManageSAScreen() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.replace("/")}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.replace("/")} />
         <Text style={[styles.title, { color: colors.text }]}>
           Manage Services & Availability
         </Text>
@@ -85,9 +82,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-  },
-  backText: {
-    fontSize: 16,
   },
   title: {
     fontSize: 20,

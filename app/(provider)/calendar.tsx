@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import { useTheme } from "@/context/ThemeContext";
 import { getConfirmedBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
@@ -196,11 +197,7 @@ export default function CalendarScreen() {
           },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            {"<"} Back
-          </Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} />
       </View>
 
       {/* Modal for day's event details */}
@@ -418,9 +415,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
-  },
-  backText: {
-    fontSize: 16,
   },
   title: {
     fontSize: 24,

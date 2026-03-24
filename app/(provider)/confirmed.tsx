@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import BookingActionModal from "@/components/BookingActionModal";
 import MessageCustomerButton from "@/components/MessageCustomerButton";
 import { ExtendedColors, SharedColors } from "@/constants/theme";
@@ -170,11 +171,7 @@ export default function ConfirmedBookingsScreen() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity onPress={handleBackPress}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            {"<"} Back
-          </Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleBackPress} />
         <Text style={[styles.title, { color: colors.text }]}>
           Confirmed Bookings
         </Text>
@@ -225,9 +222,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-  },
-  backText: {
-    fontSize: 16,
   },
   title: {
     fontSize: 20,

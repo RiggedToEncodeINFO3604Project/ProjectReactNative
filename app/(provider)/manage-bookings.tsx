@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import { ExtendedColors, SharedColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
@@ -39,11 +40,7 @@ export default function ManageBookingsScreen() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity onPress={handleBackPress}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
+        <BackButton onPress={handleBackPress} />
         <Text style={[styles.title, { color: colors.text }]}>
           Manage Bookings
         </Text>
@@ -97,9 +94,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-  },
-  backText: {
-    fontSize: 16,
   },
   title: {
     fontSize: 20,

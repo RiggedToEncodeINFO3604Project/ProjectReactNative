@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import ConfirmModal from "@/components/ConfirmModal";
 import MessageCustomerButton from "@/components/MessageCustomerButton";
 import { ExtendedColors, SharedColors } from "@/constants/theme";
@@ -322,11 +323,7 @@ export default function PendingBookingsScreen() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} />
         <Text style={[styles.title, { color: colors.text }]}>
           Pending Bookings
         </Text>
@@ -387,7 +384,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
   },
-  backText: { fontSize: 16 },
   syncText: { fontSize: 14, fontWeight: "600" },
   title: { fontSize: 20, fontWeight: "bold" },
   listContainer: { padding: 15 },

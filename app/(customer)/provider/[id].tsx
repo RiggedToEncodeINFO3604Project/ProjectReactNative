@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useTheme } from "@/context/ThemeContext";
 import { startConversation } from "@/services/messagingApi";
@@ -219,11 +220,7 @@ export default function ProviderDetailsScreen() {
             { backgroundColor: colors.card, borderBottomColor: colors.border },
           ]}
         >
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={[styles.backText, { color: colors.accent }]}>
-              {"<"} Back
-            </Text>
-          </TouchableOpacity>
+          <BackButton onPress={() => router.back()} />
         </View>
 
         <View style={[styles.providerInfo, { backgroundColor: colors.card }]}>
@@ -481,9 +478,6 @@ const styles = StyleSheet.create({
   header: {
     padding: 15,
     borderBottomWidth: 1,
-  },
-  backText: {
-    fontSize: 16,
   },
   providerInfo: {
     padding: 20,

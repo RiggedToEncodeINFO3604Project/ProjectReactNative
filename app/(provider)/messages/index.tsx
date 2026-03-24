@@ -3,6 +3,7 @@
 // = Shows conversation list only                      =
 // =====================================================
 
+import BackButton from "@/components/BackButton";
 import { ConversationListItem } from "@/components/messaging/ConversationListItem";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/context/AuthContext";
@@ -237,12 +238,7 @@ export default function MessagesScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Text style={[styles.backText, { color: theme.tint }]}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} style={styles.backButton} />
         <Text style={[styles.headerTitle, { color: theme.text }]}>
           Messages
         </Text>
@@ -386,10 +382,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     paddingRight: 12,
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: "500",
   },
   headerTitle: {
     fontSize: 24,

@@ -1,8 +1,8 @@
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import BackButton from "@/components/BackButton";
 import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { router } from "expo-router";
-import { StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SettingsScreen() {
@@ -40,14 +40,7 @@ export default function SettingsScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={handleBackPress}
-          style={styles.backButton}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <IconSymbol name="arrow.left" size={24} color={colors.accent} />
-        </TouchableOpacity>
+        <BackButton onPress={handleBackPress} style={styles.backButton} />
         <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
         <View style={styles.placeholder} />
       </View>

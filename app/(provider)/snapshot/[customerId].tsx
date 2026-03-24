@@ -1,9 +1,9 @@
 // AI'd display components - will remove deprecated components and manually review and rewrite all display elements before final sprint
+import BackButton from "@/components/BackButton";
 import CustomerSnapshotView from "@/components/CustomerSnapshotView";
 import { useTheme } from "@/context/ThemeContext";
 import { getCustomerSnapshot } from "@/services/schedulingApi";
 import { CustomerSnapshot } from "@/types/scheduling";
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -124,9 +124,7 @@ export default function CustomerSnapshotScreen() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} />
         <Text style={[styles.title, { color: colors.text }]}>
           Customer Snapshot
         </Text>

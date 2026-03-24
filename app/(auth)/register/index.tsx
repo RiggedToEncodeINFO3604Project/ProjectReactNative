@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -70,11 +71,11 @@ export default function RegisterChoiceScreen() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={() => router.back()}>
-        <Text style={[styles.backLink, { color: colors.accent }]}>
-          ← Back to Login
-        </Text>
-      </TouchableOpacity>
+      <BackButton
+        onPress={() => router.back()}
+        label="Back to Login"
+        style={styles.backLink}
+      />
     </ScrollView>
   );
 }
@@ -127,7 +128,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   backLink: {
-    fontSize: 16,
     marginTop: 32,
   },
 });

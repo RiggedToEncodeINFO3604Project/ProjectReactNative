@@ -3,6 +3,7 @@
 // = Header for the chat/conversation screen           =
 // =====================================================
 
+import BackButton from "@/components/BackButton";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { getExtendedColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
@@ -139,13 +140,7 @@ export function ChatHeader({
       {/* Left section - Back button & Avatar */}
       <View style={styles.leftSection}>
         {onBack && (
-          <Pressable
-            onPress={onBack}
-            style={styles.backButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <IconSymbol name="arrow.backward" size={24} color={theme.text} />
-          </Pressable>
+          <BackButton onPress={onBack} style={styles.backButton} />
         )}
 
         <Avatar uri={avatar} name={name} size="small" online={isOnline} />
@@ -212,7 +207,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 8,
-    padding: 4,
   },
   centerSection: {
     flex: 1,

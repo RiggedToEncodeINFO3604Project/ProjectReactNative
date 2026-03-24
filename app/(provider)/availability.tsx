@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import { ExtendedColors, SharedColors, UIColors } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { getAvailability, setAvailability } from "@/services/schedulingApi";
@@ -304,11 +305,7 @@ export default function ManageAvailabilityScreen() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            {"<"} Back
-          </Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} />
         <Text style={[styles.title, { color: colors.text }]}>
           Manage Availability
         </Text>
@@ -595,9 +592,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-  },
-  backText: {
-    fontSize: 16,
   },
   title: {
     fontSize: 20,
