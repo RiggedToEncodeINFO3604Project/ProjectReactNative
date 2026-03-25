@@ -3,7 +3,13 @@
 // = Displays a single message bubble with tail        =
 // =====================================================
 
-import { getExtendedColours, getThemeColours, ProviderColours, CustomerColours, SharedColours } from "@/constants/theme";
+import {
+  CustomerColours,
+  getExtendedColours,
+  getThemeColours,
+  ProviderColours,
+  SharedColours,
+} from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { Message, MessageStatus } from "@/types/scheduling";
 import {
@@ -14,8 +20,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const HIGHLIGHT_COLOR = SharedColours.highlight;
 
 interface MessageBubbleProps {
   message: Message;
@@ -135,9 +139,10 @@ export function MessageBubble({
   };
 
   // Get user's primary color based on userType
-  const userPrimaryColor = userType === "provider" 
-    ? ProviderColours.light.primary  // Provider: #01d0a8 (teal)
-    : CustomerColours.light.primary; // Customer: #1e4e8c (blue)
+  const userPrimaryColor =
+    userType === "provider"
+      ? ProviderColours.light.primary // Provider: #01d0a8 (teal)
+      : CustomerColours.light.primary; // Customer: #1e4e8c (blue)
   const otherBubbleColor = "#f0c85a"; // Yellow for other person in both modes
   const bubbleColor = isCurrentUser ? userPrimaryColor : otherBubbleColor;
 
@@ -199,7 +204,14 @@ export function MessageBubble({
             style={[
               styles.timestamp,
               // Use darker color for yellow bubble, lighter for primary color bubble
-              { color: bubbleColor === otherBubbleColor ? "rgba(0,0,0,0.6)" : (isCurrentUser ? "rgba(255,255,255,0.7)" : theme.icon) },
+              {
+                color:
+                  bubbleColor === otherBubbleColor
+                    ? "rgba(0,0,0,0.6)"
+                    : isCurrentUser
+                      ? "rgba(255,255,255,0.7)"
+                      : theme.icon,
+              },
             ]}
           >
             {formatTime(message.created_at)}
