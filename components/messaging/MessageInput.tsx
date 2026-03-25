@@ -5,8 +5,8 @@
 
 import { EmojiPicker } from "@/components/messaging/EmojiPicker";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getExtendedColours } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
 import { useCallback, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -30,8 +30,8 @@ export function MessageInput({
   onAttachment,
   disabled = false,
 }: MessageInputProps) {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const { isDarkMode, colours: theme } = useTheme();
+  const extendedColours = getExtendedColours(isDarkMode);
 
   const [text, setText] = useState("");
   const [inputHeight, setInputHeight] = useState(44);
@@ -106,7 +106,7 @@ export function MessageInput({
           styles.container,
           {
             backgroundColor: theme.background,
-            borderTopColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+            borderTopColor: extendedColours.borderAlt,
           },
         ]}
       >
@@ -143,7 +143,7 @@ export function MessageInput({
             styles.inputContainer,
             {
               minHeight: inputHeight,
-              backgroundColor: colorScheme === "dark" ? "#2a2a2a" : "#f5f5f5",
+              backgroundColor: isDarkMode ? extendedColours.cardAlt : extendedColours.background,
             },
           ]}
         >
@@ -178,7 +178,7 @@ export function MessageInput({
             { backgroundColor: theme.tint },
             !canSend && [
               styles.sendButtonDisabled,
-              { backgroundColor: colorScheme === "dark" ? "#444" : "#c4c4c4" },
+              { backgroundColor: isDarkMode ? extendedColours.textMuted : "#c4c4c4" },
             ],
           ]}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}

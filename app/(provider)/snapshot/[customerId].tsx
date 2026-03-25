@@ -1,9 +1,9 @@
 // AI'd display components - will remove deprecated components and manually review and rewrite all display elements before final sprint
+import BackButton from "@/components/BackButton";
 import CustomerSnapshotView from "@/components/CustomerSnapshotView";
 import { useTheme } from "@/context/ThemeContext";
 import { getCustomerSnapshot } from "@/services/schedulingApi";
 import { CustomerSnapshot } from "@/types/scheduling";
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -43,8 +43,8 @@ export default function CustomerSnapshotScreen() {
     console.log("   customerId:", customerId);
   }, [loading, error, snapshot, customerId]);
 
-  // attempted fix for unmounting - thought colors relaoding was triggering unmount
-  const colors = useMemo(
+  // attempted fix for unmounting - thought colours relaoding was triggering unmount
+  const colours = useMemo(
     () => ({
       background: isDarkMode ? "#151718" : "#f5f5f5",
       card: isDarkMode ? "#1e2333" : "#ffffff",
@@ -115,19 +115,17 @@ export default function CustomerSnapshotScreen() {
 
   return (
     <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: colours.background }]}
     >
       {/* Header always stays stable */}
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          { backgroundColor: colours.card, borderBottomColor: colours.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>
+        <BackButton onPress={() => router.back()} />
+        <Text style={[styles.title, { color: colours.text }]}>
           Customer Snapshot
         </Text>
         <View style={{ width: 24 }} />
@@ -136,22 +134,22 @@ export default function CustomerSnapshotScreen() {
       {/* loading */}
       {loading && (
         <View style={styles.centeredContainer}>
-          <ActivityIndicator size="large" color={colors.accent} />
+          <ActivityIndicator size="large" color={colours.accent} />
         </View>
       )}
 
       {/* error handling */}
       {!loading && error && (
         <View style={styles.centeredContainer}>
-          <Text style={[styles.errorText, { color: colors.error }]}>
+          <Text style={[styles.errorText, { color: colours.error }]}>
             {error}
           </Text>
           <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: colors.accent }]}
+            style={[styles.retryButton, { backgroundColor: colours.accent }]}
             onPress={() => loadSnapshot()}
           >
             <Text
-              style={[styles.retryButtonText, { color: colors.background }]}
+              style={[styles.retryButtonText, { color: colours.background }]}
             >
               Retry
             </Text>

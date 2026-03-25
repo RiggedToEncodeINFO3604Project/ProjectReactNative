@@ -1,18 +1,20 @@
+import BackButton from "@/components/BackButton";
+import { ExtendedColours, SharedColours, UIColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { addService, getMyServices } from "@/services/schedulingApi";
 import { Service } from "@/types/scheduling";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function ManageServicesScreen() {
@@ -74,56 +76,54 @@ export default function ManageServicesScreen() {
     }
   };
 
-  const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
+
+  const colours = {
+    background: extendedColours.background,
+    card: extendedColours.card,
+    text: extendedColours.text,
+    textMuted: extendedColours.textMuted,
+    border: extendedColours.border,
+    accent: SharedColours.bookingStatus.pending,
+    inputBg: extendedColours.inputBg,
   };
 
   const renderService = ({ item }: { item: Service }) => (
     <View
       style={[
         styles.serviceCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        { backgroundColor: colours.card, borderColor: colours.border },
       ]}
     >
-      <Text style={[styles.serviceName, { color: colors.text }]}>
+      <Text style={[styles.serviceName, { color: colours.text }]}>
         {item.name}
       </Text>
-      <Text style={[styles.serviceDescription, { color: colors.textMuted }]}>
+      <Text style={[styles.serviceDescription, { color: colours.textMuted }]}>
         {item.description}
       </Text>
-      <Text style={[styles.servicePrice, { color: colors.accent }]}>
+      <Text style={[styles.servicePrice, { color: colours.accent }]}>
         ${item.price}
       </Text>
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          { backgroundColor: colours.card, borderBottomColor: colours.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>
+        <BackButton onPress={() => router.back()} />
+        <Text style={[styles.title, { color: colours.text }]}>
           Manage Services
         </Text>
         <View style={{ width: 50 }} />
       </View>
 
       <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: colors.accent }]}
+        style={[styles.addButton, { backgroundColor: colours.accent }]}
         onPress={() => setModalVisible(true)}
       >
         <Text style={styles.addButtonText}>+ Add New Service</Text>
@@ -132,7 +132,7 @@ export default function ManageServicesScreen() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color={colors.accent}
+          color={colours.accent}
           style={styles.loader}
         />
       ) : (
@@ -142,7 +142,7 @@ export default function ManageServicesScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+            <Text style={[styles.emptyText, { color: colours.textMuted }]}>
               No services yet. Add your first service!
             </Text>
           }
@@ -156,8 +156,8 @@ export default function ManageServicesScreen() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
+          <View style={[styles.modalContent, { backgroundColor: colours.card }]}>
+            <Text style={[styles.modalTitle, { color: colours.text }]}>
               Add New Service
             </Text>
 
@@ -165,13 +165,13 @@ export default function ManageServicesScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Service Name"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={serviceName}
               onChangeText={setServiceName}
             />
@@ -181,13 +181,13 @@ export default function ManageServicesScreen() {
                 styles.input,
                 styles.textArea,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Description"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={serviceDescription}
               onChangeText={setServiceDescription}
               multiline
@@ -198,13 +198,13 @@ export default function ManageServicesScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Price"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={servicePrice}
               onChangeText={setServicePrice}
               keyboardType="decimal-pad"
@@ -215,12 +215,12 @@ export default function ManageServicesScreen() {
                 style={[
                   styles.modalButton,
                   styles.cancelButton,
-                  { borderColor: colors.border },
+                  { borderColor: colours.border },
                 ]}
                 onPress={() => setModalVisible(false)}
               >
                 <Text
-                  style={[styles.cancelButtonText, { color: colors.textMuted }]}
+                  style={[styles.cancelButtonText, { color: colours.textMuted }]}
                 >
                   Cancel
                 </Text>
@@ -230,13 +230,13 @@ export default function ManageServicesScreen() {
                 style={[
                   styles.modalButton,
                   styles.saveButton,
-                  { backgroundColor: colors.accent },
+                  { backgroundColor: colours.accent },
                 ]}
                 onPress={handleAddService}
                 disabled={saving}
               >
                 {saving ? (
-                  <ActivityIndicator color="#151718" />
+                  <ActivityIndicator color={UIColours.button.textLight} />
                 ) : (
                   <Text style={styles.saveButtonText}>Save</Text>
                 )}
@@ -260,9 +260,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
   },
-  backText: {
-    fontSize: 16,
-  },
   title: {
     fontSize: 20,
     fontWeight: "bold",
@@ -274,7 +271,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addButtonText: {
-    color: "#151718",
+    color: UIColours.button.textLight,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -312,7 +309,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: UIColours.overlay,
   },
   modalContent: {
     width: "90%",
@@ -357,7 +354,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {},
   saveButtonText: {
-    color: "#151718",
+    color: UIColours.button.textLight,
     fontSize: 16,
     fontWeight: "600",
   },
