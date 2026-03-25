@@ -53,7 +53,7 @@ interface QuickAction {
   query: string;
 }
 
-interface Colors {
+interface Colours {
   bgDeep: string;
   bgCard: string;
   bgInput: string;
@@ -183,14 +183,14 @@ const sendToApi = async (
 const InlineText = React.memo(
   ({
     part,
-    colors,
+    colours,
     isUser,
   }: {
     part: TextPart;
-    colors: Colors;
+    colours: Colours;
     isUser: boolean;
   }) => {
-    const textColor = isUser ? colors.bgDeep : colors.textPrimary;
+    const textColor = isUser ? colours.bgDeep : colours.textPrimary;
 
     const handleLinkPress = useCallback(() => {
       if (part.url) {
@@ -225,7 +225,7 @@ const InlineText = React.memo(
             style={[
               styles.messageText,
               styles.linkText,
-              { color: colors.accent },
+              { color: colours.accent },
             ]}
             onPress={handleLinkPress}
           >
@@ -245,11 +245,11 @@ const InlineText = React.memo(
 const RichTextLine = React.memo(
   ({
     line,
-    colors,
+    colours,
     isUser,
   }: {
     line: string;
-    colors: Colors;
+    colours: Colours;
     isUser: boolean;
   }) => {
     const trimmedLine = line.trim();
@@ -272,7 +272,7 @@ const RichTextLine = React.memo(
 
       return (
         <View style={styles.listItem}>
-          <Text style={[styles.listPrefix, { color: colors.accent }]}>
+          <Text style={[styles.listPrefix, { color: colours.accent }]}>
             {prefix}
           </Text>
           <View style={styles.listContent}>
@@ -280,7 +280,7 @@ const RichTextLine = React.memo(
               <InlineText
                 key={index}
                 part={part}
-                colors={colors}
+                colours={colours}
                 isUser={isUser}
               />
             ))}
@@ -292,7 +292,7 @@ const RichTextLine = React.memo(
     return (
       <View style={styles.textLine}>
         {parts.map((part, index) => (
-          <InlineText key={index} part={part} colors={colors} isUser={isUser} />
+          <InlineText key={index} part={part} colours={colours} isUser={isUser} />
         ))}
       </View>
     );
@@ -300,7 +300,7 @@ const RichTextLine = React.memo(
 );
 
 const MessageBubble = React.memo(
-  ({ message, colors }: { message: Message; colors: Colors }) => {
+  ({ message, colours }: { message: Message; colours: Colours }) => {
     const isUser = message.role === "user";
     const lines = useMemo(() => message.text.split("\n"), [message.text]);
 
@@ -310,15 +310,15 @@ const MessageBubble = React.memo(
           styles.bubble,
           isUser ? styles.bubbleUser : styles.bubbleBot,
           {
-            backgroundColor: isUser ? colors.accent : colors.bubbleBot,
-            borderColor: colors.border,
+            backgroundColor: isUser ? colours.accent : colours.bubbleBot,
+            borderColor: colours.border,
             borderTopLeftRadius: isUser ? 14 : 4,
             borderTopRightRadius: isUser ? 4 : 14,
           },
         ]}
       >
         {isUser ? (
-          <Text style={[styles.messageText, { color: colors.bgDeep }]}>
+          <Text style={[styles.messageText, { color: colours.bgDeep }]}>
             {message.text}
           </Text>
         ) : (
@@ -327,7 +327,7 @@ const MessageBubble = React.memo(
               <RichTextLine
                 key={index}
                 line={line}
-                colors={colors}
+                colours={colours}
                 isUser={isUser}
               />
             ))}
@@ -341,9 +341,9 @@ const MessageBubble = React.memo(
                 style={[
                   styles.sectionBadgeText,
                   {
-                    color: colors.accentDim,
-                    backgroundColor: `${colors.accent}20`,
-                    borderColor: `${colors.accent}30`,
+                    color: colours.accentDim,
+                    backgroundColor: `${colours.accent}20`,
+                    borderColor: `${colours.accent}30`,
                   },
                 ]}
               >
@@ -359,12 +359,12 @@ const MessageBubble = React.memo(
 
 const TypingIndicator = React.memo(
   ({
-    colors,
+    colours,
     anim1,
     anim2,
     anim3,
   }: {
-    colors: Colors;
+    colours: Colours;
     anim1: Animated.Value;
     anim2: Animated.Value;
     anim3: Animated.Value;
@@ -372,7 +372,7 @@ const TypingIndicator = React.memo(
     const animatedStyles = useMemo(
       () =>
         [anim1, anim2, anim3].map((anim) => ({
-          backgroundColor: colors.textMuted,
+          backgroundColor: colours.textMuted,
           transform: [
             {
               translateY: anim.interpolate({
@@ -382,7 +382,7 @@ const TypingIndicator = React.memo(
             },
           ],
         })),
-      [anim1, anim2, anim3, colors.textMuted],
+      [anim1, anim2, anim3, colours.textMuted],
     );
 
     return (
@@ -391,16 +391,16 @@ const TypingIndicator = React.memo(
           style={[
             styles.avatar,
             styles.avatarBot,
-            { backgroundColor: colors.accent, borderColor: colors.accent },
+            { backgroundColor: colours.accent, borderColor: colours.accent },
           ]}
         >
-          <Text style={[styles.avatarText, { color: colors.bgDeep }]}>S</Text>
+          <Text style={[styles.avatarText, { color: colours.bgDeep }]}>S</Text>
         </View>
         <View
           style={[
             styles.bubble,
             styles.typingBubble,
-            { backgroundColor: colors.bubbleBot, borderColor: colors.border },
+            { backgroundColor: colours.bubbleBot, borderColor: colours.border },
           ]}
         >
           <View style={styles.typingDots}>
@@ -417,7 +417,7 @@ const TypingIndicator = React.memo(
 export default function Chatbot() {
   const { isDarkMode } = useTheme();
 
-  const COLORS = useMemo<Colors>(
+  const COLORS = useMemo<Colours>(
     () =>
       isDarkMode
         ? {
@@ -619,7 +619,7 @@ export default function Chatbot() {
         return (
           <TypingIndicator
             key={message.id}
-            colors={COLORS}
+            colours={COLORS}
             anim1={typingAnim1}
             anim2={typingAnim2}
             anim3={typingAnim3}
@@ -646,7 +646,7 @@ export default function Chatbot() {
               {isUser ? "U" : "S"}
             </Text>
           </View>
-          <MessageBubble message={message} colors={COLORS} />
+          <MessageBubble message={message} colours={COLORS} />
         </View>
       );
     },

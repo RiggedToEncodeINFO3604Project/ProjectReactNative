@@ -9,7 +9,7 @@ A full-stack scheduling service built with React Native Expo (frontend) and Fast
 - Register and login
 - Search providers by name or Provider ID
 - View provider services and availability
-- Interactive calendar with color-coded booking status:
+- Interactive calendar with colour-coded booking status:
   - Red: Fully booked days
   - Yellow: 60%+ of available time booked
   - Green: Available days
@@ -84,7 +84,7 @@ A full-stack scheduling service built with React Native Expo (frontend) and Fast
 ├── types/                        # TypeScript types
 │   └── scheduling.ts            # Scheduling types
 └── constants/                    # App constants
-    └── theme.ts                 # Theme colors
+    └── theme.ts                 # Theme colours
 ```
 
 ## Prerequisites

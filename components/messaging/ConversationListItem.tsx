@@ -3,8 +3,8 @@
 // = Displays a conversation in the inbox list         =
 // =====================================================
 
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getExtendedColours } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
 import { ConversationPreview } from "@/types/scheduling";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "./Avatar";
@@ -43,8 +43,8 @@ export function ConversationListItem({
   isSelected = false,
   onPress,
 }: ConversationListItemProps) {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const { isDarkMode } = useTheme();
+  const extendedColours = getExtendedColours(isDarkMode);
   const hasUnread = conversation.unread_count > 0;
 
   // Format preview text
@@ -61,14 +61,13 @@ export function ConversationListItem({
       onPress={onPress}
       style={[
         styles.container,
-        { backgroundColor: theme.background },
+        { backgroundColor: extendedColours.background },
         isSelected && {
-          backgroundColor: colorScheme === "dark" ? "#1a3a4a" : "#e3f2fd",
+          backgroundColor: extendedColours.selectedBg,
         },
       ]}
       android_ripple={{
-        color:
-          colorScheme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+        color: isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
       }}
     >
       <Avatar
@@ -82,7 +81,7 @@ export function ConversationListItem({
           <Text
             style={[
               styles.name,
-              { color: theme.text },
+              { color: extendedColours.text },
               hasUnread && styles.unreadName,
             ]}
             numberOfLines={1}
@@ -93,8 +92,8 @@ export function ConversationListItem({
             <Text
               style={[
                 styles.timestamp,
-                { color: theme.icon },
-                hasUnread && { color: theme.tint, fontWeight: "600" },
+                { color: extendedColours.textSecondary },
+                hasUnread && { color: extendedColours.text, fontWeight: "600" },
               ]}
             >
               {formatTimestamp(conversation.last_message_time)}
@@ -106,8 +105,8 @@ export function ConversationListItem({
           <Text
             style={[
               styles.preview,
-              { color: theme.icon },
-              hasUnread && { color: theme.text, fontWeight: "500" },
+              { color: extendedColours.textSecondary },
+              hasUnread && { color: extendedColours.text, fontWeight: "500" },
             ]}
             numberOfLines={1}
           >
@@ -115,8 +114,15 @@ export function ConversationListItem({
           </Text>
 
           {hasUnread && (
-            <View style={[styles.badge, { backgroundColor: theme.tint }]}>
-              <Text style={[styles.badgeText, { color: theme.background }]}>
+            <View
+              style={[styles.badge, { backgroundColor: extendedColours.text }]}
+            >
+              <Text
+                style={[
+                  styles.badgeText,
+                  { color: extendedColours.background },
+                ]}
+              >
                 {conversation.unread_count > 99
                   ? "99+"
                   : conversation.unread_count}
