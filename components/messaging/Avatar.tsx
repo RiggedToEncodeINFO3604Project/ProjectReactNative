@@ -3,7 +3,8 @@
 // = Reusable avatar with image or initials fallback   =
 // =====================================================
 
-import { useTheme } from "@/context/ThemeContext";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 interface AvatarProps {
@@ -37,7 +38,8 @@ export function Avatar({
   size = "medium",
   online = false,
 }: AvatarProps) {
-  const { colours: theme } = useTheme();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
 
   const dimension = SIZE_MAP[size];
   const fontSize = FONT_SIZE_MAP[size];
@@ -54,7 +56,7 @@ export function Avatar({
 
   // Generate a consistent color based on name
   const getBackgroundColor = (name: string): string => {
-    const colours = [
+    const colors = [
       "#0a7ea4", // Primary
       "#687076", // Gray
       "#f0c85a", // Accent yellow
@@ -68,7 +70,7 @@ export function Avatar({
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
     }
-    return colours[Math.abs(hash) % colours.length];
+    return colors[Math.abs(hash) % colors.length];
   };
 
   return (

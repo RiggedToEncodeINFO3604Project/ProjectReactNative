@@ -1,4 +1,3 @@
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
@@ -16,13 +15,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function LoginScreen() {
   const { isDarkMode } = useTheme();
   const { login } = useAuth();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -72,7 +69,7 @@ export default function LoginScreen() {
     }
   };
 
-  const colours = {
+  const colors = {
     background: isDarkMode ? "#151718" : "#ffffff",
     card: isDarkMode ? "#1e2333" : "#f8f9fa",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -82,54 +79,40 @@ export default function LoginScreen() {
     inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
   };
 
-  const handleSettingsPress = () => {
-    router.push("/settings");
-  };
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={[styles.container, { backgroundColor: colours.background }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
     >
-      {/* Settings Button */}
-      <TouchableOpacity
-        style={[styles.settingsButton, { top: insets.top + 10, right: 16 }]}
-        onPress={handleSettingsPress}
-        accessibilityLabel="Settings"
-        accessibilityRole="button"
-      >
-        <IconSymbol name="gearshape.fill" size={28} color={colours.accent} />
-      </TouchableOpacity>
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={[styles.brandName, { color: colours.accent }]}>
+          <Text style={[styles.brandName, { color: colors.accent }]}>
             SkeduleIt
           </Text>
-          <Text style={[styles.subtitle, { color: colours.textMuted }]}>
+          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
             Sign in to your account
           </Text>
 
           <View
             style={[
               styles.form,
-              { backgroundColor: colours.card, borderColor: colours.border },
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
             <TextInput
               style={[
                 styles.input,
                 {
-                  backgroundColor: colours.inputBg,
-                  color: colours.text,
-                  borderColor: colours.border,
+                  backgroundColor: colors.inputBg,
+                  color: colors.text,
+                  borderColor: colors.border,
                 },
               ]}
               placeholder="Email"
-              placeholderTextColor={colours.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -140,20 +123,20 @@ export default function LoginScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colours.inputBg,
-                  color: colours.text,
-                  borderColor: colours.border,
+                  backgroundColor: colors.inputBg,
+                  color: colors.text,
+                  borderColor: colors.border,
                 },
               ]}
               placeholder="Password"
-              placeholderTextColor={colours.textMuted}
+              placeholderTextColor={colors.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
             />
 
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: colours.accent }]}
+              style={[styles.button, { backgroundColor: colors.accent }]}
               onPress={handleLogin}
               disabled={loading}
             >
@@ -165,13 +148,13 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <View style={styles.registerContainer}>
-              <Text style={[styles.registerText, { color: colours.textMuted }]}>
+              <Text style={[styles.registerText, { color: colors.textMuted }]}>
                 Don't have an account?
               </Text>
               <TouchableOpacity
                 onPress={() => router.push("register" as never)}
               >
-                <Text style={[styles.registerLink, { color: colours.accent }]}>
+                <Text style={[styles.registerLink, { color: colors.accent }]}>
                   Register
                 </Text>
               </TouchableOpacity>
@@ -180,12 +163,12 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.videoButton,
-                { backgroundColor: colours.inputBg, borderColor: colours.border },
+                { backgroundColor: colors.inputBg, borderColor: colors.border },
               ]}
               onPress={handleOpenVideo}
             >
               <Text
-                style={[styles.videoButtonText, { color: colours.textMuted }]}
+                style={[styles.videoButtonText, { color: colors.textMuted }]}
               >
                 Video
               </Text>
@@ -194,12 +177,12 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.videoButton,
-                { backgroundColor: colours.inputBg, borderColor: colours.border },
+                { backgroundColor: colors.inputBg, borderColor: colors.border },
               ]}
               onPress={handleOpenRagServer}
             >
               <Text
-                style={[styles.videoButtonText, { color: colours.textMuted }]}
+                style={[styles.videoButtonText, { color: colors.textMuted }]}
               >
                 RAG Server
               </Text>
@@ -214,11 +197,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  settingsButton: {
-    position: "absolute",
-    zIndex: 10,
-    padding: 8,
   },
   scrollContent: {
     flexGrow: 1,

@@ -1,4 +1,3 @@
-import BackButton from "@/components/BackButton";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useTheme } from "@/context/ThemeContext";
 import { startConversation } from "@/services/messagingApi";
@@ -190,7 +189,7 @@ export default function ProviderDetailsScreen() {
     }
   };
 
-  const colours = {
+  const colors = {
     background: isDarkMode ? "#151718" : "#f5f5f5",
     card: isDarkMode ? "#1e2333" : "#ffffff",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -201,8 +200,8 @@ export default function ProviderDetailsScreen() {
 
   if (!provider) {
     return (
-      <View style={[styles.container, { backgroundColor: colours.background }]}>
-        <Text style={[styles.errorText, { color: colours.textMuted }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.textMuted }]}>
           Provider not found
         </Text>
       </View>
@@ -210,53 +209,57 @@ export default function ProviderDetailsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colours.background }}>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView
-        style={[styles.container, { backgroundColor: colours.background }]}
+        style={[styles.container, { backgroundColor: colors.background }]}
       >
         <View
           style={[
             styles.header,
-            { backgroundColor: colours.card, borderBottomColor: colours.border },
+            { backgroundColor: colors.card, borderBottomColor: colors.border },
           ]}
         >
-          <BackButton onPress={() => router.back()} />
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={[styles.backText, { color: colors.accent }]}>
+              {"<"} Back
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={[styles.providerInfo, { backgroundColor: colours.card }]}>
-          <Text style={[styles.providerName, { color: colours.text }]}>
+        <View style={[styles.providerInfo, { backgroundColor: colors.card }]}>
+          <Text style={[styles.providerName, { color: colors.text }]}>
             {provider.provider_name}
           </Text>
-          <Text style={[styles.businessName, { color: colours.textMuted }]}>
+          <Text style={[styles.businessName, { color: colors.textMuted }]}>
             {provider.business_name}
           </Text>
-          <Text style={[styles.bio, { color: colours.textMuted }]}>
+          <Text style={[styles.bio, { color: colors.textMuted }]}>
             {provider.bio}
           </Text>
-          <Text style={[styles.address, { color: colours.textMuted }]}>
+          <Text style={[styles.address, { color: colors.textMuted }]}>
             {provider.provider_address}
           </Text>
 
           {/* Message Button */}
           <TouchableOpacity
-            style={[styles.messageButton, { borderColor: colours.accent }]}
+            style={[styles.messageButton, { borderColor: colors.accent }]}
             onPress={handleMessagePress}
             disabled={loading}
           >
             <IconSymbol
               name="message.fill"
               size={18}
-              color={colours.accent}
+              color={colors.accent}
               style={styles.messageIcon}
             />
-            <Text style={[styles.messageButtonText, { color: colours.accent }]}>
+            <Text style={[styles.messageButtonText, { color: colors.accent }]}>
               Message
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colours.text }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Select Service
           </Text>
           {provider.services.map((service) => (
@@ -267,9 +270,9 @@ export default function ProviderDetailsScreen() {
                 {
                   backgroundColor:
                     selectedService?.id === service.id
-                      ? colours.accent
-                      : colours.card,
-                  borderColor: colours.border,
+                      ? colors.accent
+                      : colors.card,
+                  borderColor: colors.border,
                 },
               ]}
               onPress={() => setSelectedService(service)}
@@ -281,7 +284,7 @@ export default function ProviderDetailsScreen() {
                     color:
                       selectedService?.id === service.id
                         ? "#151718"
-                        : colours.text,
+                        : colors.text,
                   },
                 ]}
               >
@@ -294,7 +297,7 @@ export default function ProviderDetailsScreen() {
                     color:
                       selectedService?.id === service.id
                         ? "#151718"
-                        : colours.accent,
+                        : colors.accent,
                   },
                 ]}
               >
@@ -317,11 +320,11 @@ export default function ProviderDetailsScreen() {
                   )
                 }
               >
-                <Text style={[styles.monthNav, { color: colours.accent }]}>
+                <Text style={[styles.monthNav, { color: colors.accent }]}>
                   &#8592;
                 </Text>
               </TouchableOpacity>
-              <Text style={[styles.monthTitle, { color: colours.text }]}>
+              <Text style={[styles.monthTitle, { color: colors.text }]}>
                 {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
               </Text>
               <TouchableOpacity
@@ -334,7 +337,7 @@ export default function ProviderDetailsScreen() {
                   )
                 }
               >
-                <Text style={[styles.monthNav, { color: colours.accent }]}>
+                <Text style={[styles.monthNav, { color: colors.accent }]}>
                   &#8594;
                 </Text>
               </TouchableOpacity>
@@ -344,7 +347,7 @@ export default function ProviderDetailsScreen() {
               {DAYS_OF_WEEK.map((day) => (
                 <View key={day} style={styles.dayHeader}>
                   <Text
-                    style={[styles.dayHeaderText, { color: colours.textMuted }]}
+                    style={[styles.dayHeaderText, { color: colors.textMuted }]}
                   >
                     {day}
                   </Text>
@@ -365,9 +368,9 @@ export default function ProviderDetailsScreen() {
                     {
                       backgroundColor:
                         selectedDate === day.date
-                          ? colours.accent
+                          ? colors.accent
                           : getDayColor(day.status),
-                      borderColor: colours.border,
+                      borderColor: colors.border,
                     },
                   ]}
                   onPress={() =>
@@ -392,7 +395,7 @@ export default function ProviderDetailsScreen() {
 
         {selectedDate && availableSlots.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colours.text }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
               Available Time Slots
             </Text>
             <View style={styles.slotsContainer}>
@@ -403,8 +406,8 @@ export default function ProviderDetailsScreen() {
                     styles.slotButton,
                     {
                       backgroundColor:
-                        selectedSlot === slot ? colours.accent : colours.card,
-                      borderColor: colours.border,
+                        selectedSlot === slot ? colors.accent : colors.card,
+                      borderColor: colors.border,
                     },
                   ]}
                   onPress={() => setSelectedSlot(slot)}
@@ -413,7 +416,7 @@ export default function ProviderDetailsScreen() {
                     style={[
                       styles.slotText,
                       {
-                        color: selectedSlot === slot ? "#151718" : colours.text,
+                        color: selectedSlot === slot ? "#151718" : colors.text,
                       },
                     ]}
                   >
@@ -427,7 +430,7 @@ export default function ProviderDetailsScreen() {
 
         {selectedSlot && (
           <TouchableOpacity
-            style={[styles.bookButton, { backgroundColor: colours.accent }]}
+            style={[styles.bookButton, { backgroundColor: colors.accent }]}
             onPress={handleBooking}
             disabled={loading}
           >
@@ -455,13 +458,13 @@ export default function ProviderDetailsScreen() {
           <View
             style={[
               styles.successModalContent,
-              { backgroundColor: colours.card },
+              { backgroundColor: colors.card },
             ]}
           >
             <View style={styles.successCircle}>
               <Text style={styles.successCheckmark}>✓</Text>
             </View>
-            <Text style={[styles.successMessage, { color: colours.text }]}>
+            <Text style={[styles.successMessage, { color: colors.text }]}>
               Booking Request Sent Successfully
             </Text>
           </View>
@@ -478,6 +481,9 @@ const styles = StyleSheet.create({
   header: {
     padding: 15,
     borderBottomWidth: 1,
+  },
+  backText: {
+    fontSize: 16,
   },
   providerInfo: {
     padding: 20,

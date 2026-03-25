@@ -1,4 +1,3 @@
-import BackButton from "@/components/BackButton";
 import { useTheme } from "@/context/ThemeContext";
 import { getConfirmedBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
@@ -25,7 +24,7 @@ const CALENDAR_HEIGHT = width * 0.95;
 export default function CalendarScreen() {
   const router = useRouter();
   const { isDarkMode } = useTheme();
-  const colours = {
+  const colors = {
     background: isDarkMode ? "#151718" : "#f5f5f5",
     card: isDarkMode ? "#1e2333" : "#ffffff",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -193,11 +192,15 @@ export default function CalendarScreen() {
           styles.header,
           {
             backgroundColor: isDarkMode ? "#1e2333" : "#fff",
-            borderBottomColor: colours.border,
+            borderBottomColor: colors.border,
           },
         ]}
       >
-        <BackButton onPress={() => router.back()} />
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={[styles.backText, { color: colors.accent }]}>
+            {"<"} Back
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Modal for day's event details */}
@@ -231,7 +234,7 @@ export default function CalendarScreen() {
             {selectedDayDeviceEvents.length > 0 && (
               <>
                 <Text
-                  style={[styles.modalSectionLabel, { color: colours.accent }]}
+                  style={[styles.modalSectionLabel, { color: colors.accent }]}
                 >
                   Unavailable
                 </Text>
@@ -279,7 +282,7 @@ export default function CalendarScreen() {
             {selectedDayBookings.length > 0 && (
               <>
                 <Text
-                  style={[styles.modalSectionLabel, { color: colours.accent }]}
+                  style={[styles.modalSectionLabel, { color: colors.accent }]}
                 >
                   Bookings
                 </Text>
@@ -322,7 +325,7 @@ export default function CalendarScreen() {
               )}
 
             <TouchableOpacity onPress={() => setModalVisible(false)}>
-              <Text style={[styles.closeText, { color: colours.accent }]}>
+              <Text style={[styles.closeText, { color: colors.accent }]}>
                 Close
               </Text>
             </TouchableOpacity>
@@ -415,6 +418,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
+  },
+  backText: {
+    fontSize: 16,
   },
   title: {
     fontSize: 24,

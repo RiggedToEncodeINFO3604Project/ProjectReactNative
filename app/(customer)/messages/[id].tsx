@@ -7,8 +7,9 @@ import { ChatHeader } from "@/components/messaging/ChatHeader";
 import { MessageBubble } from "@/components/messaging/MessageBubble";
 import { MessageInput } from "@/components/messaging/MessageInput";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
-import { useTheme } from "@/context/ThemeContext";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import {
   getConversation,
   getMessages,
@@ -35,7 +36,8 @@ import {
 
 export default function ChatScreen() {
   const { token, user } = useAuth();
-  const { colours: theme } = useTheme();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
   const currentUserId = user?.id || "";
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();

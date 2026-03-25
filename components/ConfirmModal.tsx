@@ -1,13 +1,12 @@
-import { ExtendedColours, SharedColours, UIColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import React from "react";
 import {
-  ActivityIndicator,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Modal,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 interface ConfirmModalProps {
@@ -35,23 +34,20 @@ export default function ConfirmModal({
 }: ConfirmModalProps) {
   const { isDarkMode } = useTheme();
 
-  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
-
-  const colours = {
-    background: extendedColours.background,
-    card: extendedColours.card,
-    text: extendedColours.text,
-    textMuted: extendedColours.textMuted,
-    border: extendedColours.border,
-    accent: SharedColours.bookingStatus.pending,
-    danger: SharedColours.error,
-    buttonBg: extendedColours.inputBg,
+  const colors = {
+    background: isDarkMode ? "#151718" : "#f5f5f5",
+    card: isDarkMode ? "#1e2333" : "#ffffff",
+    text: isDarkMode ? "#ECEDEE" : "#11181C",
+    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
+    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
+    accent: "#f0c85a",
+    danger: "#FF3B30",
+    buttonBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
   };
 
   const confirmBackgroundColor =
-    confirmStyle === "danger" ? colours.danger : colours.accent;
-  const confirmTextColor =
-    confirmStyle === "danger" ? SharedColours.white : UIColours.button.textLight;
+    confirmStyle === "danger" ? colors.danger : colors.accent;
+  const confirmTextColor = confirmStyle === "danger" ? "#ffffff" : "#151718";
 
   return (
     <Modal
@@ -64,14 +60,14 @@ export default function ConfirmModal({
         <View
           style={[
             styles.modalContent,
-            { backgroundColor: colours.card, borderColor: colours.border },
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
-          <Text style={[styles.modalTitle, { color: colours.text }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>
             {title}
           </Text>
 
-          <Text style={[styles.modalMessage, { color: colours.textMuted }]}>
+          <Text style={[styles.modalMessage, { color: colors.textMuted }]}>
             {message}
           </Text>
 
@@ -80,12 +76,12 @@ export default function ConfirmModal({
               style={[
                 styles.button,
                 styles.cancelButton,
-                { backgroundColor: colours.buttonBg },
+                { backgroundColor: colors.buttonBg },
               ]}
               onPress={onCancel}
               disabled={loading}
             >
-              <Text style={[styles.cancelButtonText, { color: colours.text }]}>
+              <Text style={[styles.cancelButtonText, { color: colors.text }]}>
                 {cancelText}
               </Text>
             </TouchableOpacity>
@@ -124,7 +120,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: UIColours.overlay,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
   },
   modalContent: {
     width: "85%",
@@ -132,7 +128,7 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 16,
     borderWidth: 1,
-    shadowColor: UIColours.shadow,
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,

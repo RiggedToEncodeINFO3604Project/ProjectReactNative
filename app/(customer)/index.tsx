@@ -1,126 +1,192 @@
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { Ionicons } from "@expo/vector-icons";
+import { searchProviders } from "@/services/schedulingApi";
+import { ProviderSearchResult } from "@/types/scheduling";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useState } from "react";
 import {
-  ScrollView,
+  ActivityIndicator,
+  Alert,
+  FlatList,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CustomerHomeScreen() {
-  const { isDarkMode, colours: themeColours } = useTheme();
+  const { isDarkMode } = useTheme();
   const { logout } = useAuth();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [providers, setProviders] = useState<ProviderSearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleSearch = async () => {
+    setLoading(true);
+    try {
+      const results = await searchProviders(searchQuery || null, null);
+      setProviders(results);
+    } catch (error: any) {
+      Alert.alert(
+        "Error",
+        error.response?.data?.detail || "Failed to search providers",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
     // Navigation will be handled by auth state change in root layout
   };
 
-  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
-
-  const colours = {
-    background: extendedColours.background,
-    card: extendedColours.card,
-    text: extendedColours.text,
-    textMuted: extendedColours.textMuted,
-    border: extendedColours.border,
-    accent: themeColours.primary,
-    error: SharedColours.error,
+  const handleViewBookings = () => {
+    router.push("bookings" as never);
   };
 
-  const handleSettingsPress = () => {
-    router.push("/settings");
+  const handleViewMessages = () => {
+    router.push("/messages" as never);
   };
 
-  const menuItems = [
-    {
-      title: "My Bookings",
-      description: "View and manage your upcoming appointments",
-      route: "bookings",
-      icon: "calendar-outline" as const,
-    },
-    {
-      title: "Messages",
-      description: "View and respond to messages from providers",
-      route: "/messages",
-      icon: "chatbubble-outline" as const,
-    },
-    {
-      title: "Find Providers",
-      description: "Search for service providers in your area",
-      route: "/search",
-      icon: "search-outline" as const,
-    },
-  ];
+  const handleProviderPress = (provider: ProviderSearchResult) => {
+    router.push(
+      `provider/${provider.id}?provider=${encodeURIComponent(JSON.stringify(provider))}` as never,
+    );
+  };
+
+  const colors = {
+    background: isDarkMode ? "#151718" : "#f5f5f5",
+    card: isDarkMode ? "#1e2333" : "#ffffff",
+    text: isDarkMode ? "#ECEDEE" : "#11181C",
+    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
+    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
+    accent: "#f0c85a",
+    inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
+    error: "#FF3B30",
+    success: "#34C759",
+  };
+
+  const renderProvider = ({ item }: { item: ProviderSearchResult }) => (
+    <TouchableOpacity
+      style={[
+        styles.providerCard,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+      onPress={() => handleProviderPress(item)}
+    >
+      <Text style={[styles.providerName, { color: colors.text }]}>
+        {item.provider_name}
+      </Text>
+      <Text style={[styles.businessName, { color: colors.textMuted }]}>
+        {item.business_name}
+      </Text>
+      <Text
+        style={[styles.providerBio, { color: colors.textMuted }]}
+        numberOfLines={2}
+      >
+        {item.bio}
+      </Text>
+      <Text style={[styles.providerAddress, { color: colors.textMuted }]}>
+        {item.provider_address}
+      </Text>
+      <View style={styles.servicesContainer}>
+        <Text style={[styles.servicesLabel, { color: colors.text }]}>
+          Services:
+        </Text>
+        {item.services.map((service) => (
+          <Text
+            key={service.id}
+            style={[styles.serviceName, { color: colors.textMuted }]}
+          >
+            • {service.name} - ${service.price}
+          </Text>
+        ))}
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={[styles.container, { backgroundColor: colours.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
         style={[
           styles.header,
-          {
-            backgroundColor: colours.card,
-            borderBottomColor: colours.border,
-            paddingTop: 20,
-          },
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <Text style={[styles.title, { color: colours.text }]}>
-          Customer Dashboard
+        <Text style={[styles.title, { color: colors.text }]}>
+          Find Providers
         </Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            onPress={handleSettingsPress}
-            style={styles.settingsButton}
-            accessibilityLabel="Settings"
-            accessibilityRole="button"
-          >
-            <IconSymbol name="gearshape.fill" size={24} color={colours.accent} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={[styles.logoutText, { color: colours.error }]}>
-              Logout
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={handleLogout}>
+          <Text style={[styles.logoutText, { color: colors.error }]}>
+            Logout
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.menuCard,
-              { backgroundColor: colours.card, borderColor: colours.border },
-            ]}
-            onPress={() => router.push(item.route as never)}
-          >
-            <View style={styles.menuCardHeader}>
-              <Ionicons
-                name={item.icon}
-                size={24}
-                color={colours.accent}
-                style={styles.menuIcon}
-              />
-              <Text style={[styles.menuTitle, { color: colours.accent }]}>
-                {item.title}
-              </Text>
-            </View>
-            <Text style={[styles.menuDescription, { color: colours.textMuted }]}>
-              {item.description}
+      <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
+        <TextInput
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: colors.inputBg,
+              color: colors.text,
+              borderColor: colors.border,
+            },
+          ]}
+          placeholder="Search by name or Provider ID"
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={handleSearch}
+        />
+        <TouchableOpacity
+          style={[styles.searchButton, { backgroundColor: colors.accent }]}
+          onPress={handleSearch}
+        >
+          <Text style={styles.searchButtonText}>Search</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.dashboardButtonsContainer}>
+        <TouchableOpacity
+          style={[styles.dashboardButton, { backgroundColor: colors.success }]}
+          onPress={handleViewBookings}
+        >
+          <Text style={styles.dashboardButtonText}>My Bookings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.dashboardButton, { backgroundColor: colors.accent }]}
+          onPress={handleViewMessages}
+        >
+          <Text style={[styles.dashboardButtonText, { color: "#151718" }]}>
+            Messages
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <ActivityIndicator
+          size="large"
+          color={colors.accent}
+          style={styles.loader}
+        />
+      ) : (
+        <FlatList
+          data={providers}
+          renderItem={renderProvider}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+              {searchQuery ? "No providers found" : "Search for providers"}
             </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -140,43 +206,94 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
   },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  settingsButton: {
-    padding: 4,
-  },
-  logoutButton: {
-    padding: 4,
-  },
   logoutText: {
     fontSize: 16,
   },
-  content: {
+  searchContainer: {
+    flexDirection: "row",
+    padding: 15,
+    marginBottom: 10,
+  },
+  searchInput: {
+    flex: 1,
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 16,
+    marginRight: 10,
+  },
+  searchButton: {
+    padding: 12,
+    borderRadius: 8,
+    justifyContent: "center",
+  },
+  searchButtonText: {
+    color: "#151718",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  dashboardButtonsContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 15,
+    marginBottom: 10,
+    gap: 10,
+  },
+  dashboardButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  dashboardButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  listContainer: {
     padding: 15,
   },
-  menuCard: {
-    padding: 20,
+  providerCard: {
+    padding: 15,
     borderRadius: 10,
     marginBottom: 15,
     borderWidth: 1,
   },
-  menuCardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  menuIcon: {
-    marginRight: 10,
-  },
-  menuTitle: {
+  providerName: {
     fontSize: 20,
     fontWeight: "bold",
-    flex: 1,
+    marginBottom: 5,
   },
-  menuDescription: {
+  businessName: {
+    fontSize: 16,
+    fontWeight: "500",
+    marginBottom: 5,
+  },
+  providerBio: {
     fontSize: 14,
+    marginBottom: 5,
+  },
+  providerAddress: {
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  servicesContainer: {
+    marginTop: 10,
+  },
+  servicesLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 5,
+  },
+  serviceName: {
+    fontSize: 14,
+    marginLeft: 10,
+  },
+  loader: {
+    marginTop: 50,
+  },
+  emptyText: {
+    textAlign: "center",
+    fontSize: 16,
+    marginTop: 50,
   },
 });

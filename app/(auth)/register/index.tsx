@@ -1,4 +1,3 @@
-import BackButton from "@/components/BackButton";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -14,7 +13,7 @@ export default function RegisterChoiceScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
 
-  const colours = {
+  const colors = {
     background: isDarkMode ? "#151718" : "#ffffff",
     card: isDarkMode ? "#1e2333" : "#f8f9fa",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -25,13 +24,13 @@ export default function RegisterChoiceScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colours.background }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
     >
-      <Text style={[styles.brandName, { color: colours.accent }]}>
+      <Text style={[styles.brandName, { color: colors.accent }]}>
         SkeduleIt
       </Text>
-      <Text style={[styles.subtitle, { color: colours.textMuted }]}>
+      <Text style={[styles.subtitle, { color: colors.textMuted }]}>
         Choose your account type
       </Text>
 
@@ -39,15 +38,15 @@ export default function RegisterChoiceScreen() {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            { backgroundColor: colours.card, borderColor: colours.border },
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
           onPress={() => router.push("register/customer" as never)}
         >
           <Text style={styles.optionIcon}>👤</Text>
-          <Text style={[styles.optionTitle, { color: colours.text }]}>
+          <Text style={[styles.optionTitle, { color: colors.text }]}>
             Customer
           </Text>
-          <Text style={[styles.optionDescription, { color: colours.textMuted }]}>
+          <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
             Book appointments with service providers, manage your bookings, and
             discover new services.
           </Text>
@@ -56,26 +55,26 @@ export default function RegisterChoiceScreen() {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            { backgroundColor: colours.card, borderColor: colours.border },
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
           onPress={() => router.push("register/provider" as never)}
         >
           <Text style={styles.optionIcon}>💼</Text>
-          <Text style={[styles.optionTitle, { color: colours.text }]}>
+          <Text style={[styles.optionTitle, { color: colors.text }]}>
             Provider
           </Text>
-          <Text style={[styles.optionDescription, { color: colours.textMuted }]}>
+          <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
             Offer your services, manage availability, and handle customer
             bookings.
           </Text>
         </TouchableOpacity>
       </View>
 
-      <BackButton
-        onPress={() => router.back()}
-        label="Back to Login"
-        style={styles.backLink}
-      />
+      <TouchableOpacity onPress={() => router.back()}>
+        <Text style={[styles.backLink, { color: colors.accent }]}>
+          ← Back to Login
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -128,6 +127,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   backLink: {
+    fontSize: 16,
     marginTop: 32,
   },
 });

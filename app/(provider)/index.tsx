@@ -1,5 +1,3 @@
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,33 +10,25 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ProviderHomeScreen() {
-  const { isDarkMode, colours: themeColours } = useTheme();
+  const { isDarkMode } = useTheme();
   const { logout } = useAuth();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   const handleLogout = async () => {
     await logout();
     // Navigation will be handled by auth state change
   };
 
-  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
-
-  const colours = {
-    background: extendedColours.background,
-    card: extendedColours.card,
-    text: extendedColours.text,
-    textMuted: extendedColours.textMuted,
-    border: extendedColours.border,
-    accent: themeColours.primary,
-    error: SharedColours.error,
-  };
-
-  const handleSettingsPress = () => {
-    router.push("/settings");
+  const colors = {
+    background: isDarkMode ? "#151718" : "#f5f5f5",
+    card: isDarkMode ? "#1e2333" : "#ffffff",
+    text: isDarkMode ? "#ECEDEE" : "#11181C",
+    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
+    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
+    accent: "#f0c85a",
+    error: "#FF3B30",
   };
 
   const menuItems = [
@@ -71,35 +61,21 @@ export default function ProviderHomeScreen() {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: colours.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
         style={[
           styles.header,
-          {
-            backgroundColor: colours.card,
-            borderBottomColor: colours.border,
-            paddingTop: 20,
-          },
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <Text style={[styles.title, { color: colours.text }]}>
+        <Text style={[styles.title, { color: colors.text }]}>
           Provider Dashboard
         </Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            onPress={handleSettingsPress}
-            style={styles.settingsButton}
-            accessibilityLabel="Settings"
-            accessibilityRole="button"
-          >
-            <IconSymbol name="gearshape.fill" size={24} color={colours.accent} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Text style={[styles.logoutText, { color: colours.error }]}>
-              Logout
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={handleLogout}>
+          <Text style={[styles.logoutText, { color: colors.error }]}>
+            Logout
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -108,7 +84,7 @@ export default function ProviderHomeScreen() {
             key={index}
             style={[
               styles.menuCard,
-              { backgroundColor: colours.card, borderColor: colours.border },
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
             onPress={() => router.push(item.route as any)}
           >
@@ -116,14 +92,14 @@ export default function ProviderHomeScreen() {
               <Ionicons
                 name={item.icon}
                 size={24}
-                color={colours.accent}
+                color={colors.accent}
                 style={styles.menuIcon}
               />
-              <Text style={[styles.menuTitle, { color: colours.accent }]}>
+              <Text style={[styles.menuTitle, { color: colors.accent }]}>
                 {item.title}
               </Text>
             </View>
-            <Text style={[styles.menuDescription, { color: colours.textMuted }]}>
+            <Text style={[styles.menuDescription, { color: colors.textMuted }]}>
               {item.description}
             </Text>
           </TouchableOpacity>
@@ -147,17 +123,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  settingsButton: {
-    padding: 4,
-  },
-  logoutButton: {
-    padding: 4,
   },
   logoutText: {
     fontSize: 16,

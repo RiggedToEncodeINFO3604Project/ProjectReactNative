@@ -1,5 +1,3 @@
-import BackButton from "@/components/BackButton";
-import { ExtendedColours, SharedColours, UIColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { getAvailability, setAvailability } from "@/services/schedulingApi";
 import {
@@ -249,19 +247,17 @@ export default function ManageAvailabilityScreen() {
     }
   };
 
-  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
-
-  const colours = {
-    background: extendedColours.background,
-    card: extendedColours.card,
-    text: extendedColours.text,
-    textMuted: extendedColours.textMuted,
-    border: extendedColours.border,
-    accent: SharedColours.bookingStatus.pending,
-    inputBg: extendedColours.inputBg,
-    error: SharedColours.error,
-    success: SharedColours.success,
-    warning: SharedColours.warning,
+  const colors = {
+    background: isDarkMode ? "#151718" : "#f5f5f5",
+    card: isDarkMode ? "#1e2333" : "#ffffff",
+    text: isDarkMode ? "#ECEDEE" : "#11181C",
+    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
+    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
+    accent: "#f0c85a",
+    inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
+    error: "#FF3B30",
+    success: "#34C759",
+    warning: "#FF9500",
   };
 
   // Generate live preview for the modal
@@ -287,10 +283,10 @@ export default function ManageAvailabilityScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: colours.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <ActivityIndicator
           size="large"
-          color={colours.accent}
+          color={colors.accent}
           style={styles.loader}
         />
       </View>
@@ -298,15 +294,19 @@ export default function ManageAvailabilityScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colours.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
         style={[
           styles.header,
-          { backgroundColor: colours.card, borderBottomColor: colours.border },
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <BackButton onPress={() => router.back()} />
-        <Text style={[styles.title, { color: colours.text }]}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={[styles.backText, { color: colors.accent }]}>
+            {"<"} Back
+          </Text>
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.text }]}>
           Manage Availability
         </Text>
         <View style={{ width: 50 }} />
@@ -321,10 +321,10 @@ export default function ManageAvailabilityScreen() {
               key={dayIndex}
               style={[
                 styles.dayCard,
-                { backgroundColor: colours.card, borderColor: colours.border },
+                { backgroundColor: colors.card, borderColor: colors.border },
               ]}
             >
-              <Text style={[styles.dayTitle, { color: colours.text }]}>
+              <Text style={[styles.dayTitle, { color: colors.text }]}>
                 {day}
               </Text>
 
@@ -334,31 +334,31 @@ export default function ManageAvailabilityScreen() {
                   style={[
                     styles.slotRow,
                     {
-                      backgroundColor: colours.inputBg,
-                      borderColor: colours.border,
+                      backgroundColor: colors.inputBg,
+                      borderColor: colors.border,
                     },
                   ]}
                   onPress={() => openEditModal(dayIndex, slotIndex, slot)}
                 >
                   <View style={styles.slotInfo}>
-                    <Text style={[styles.slotTimeText, { color: colours.text }]}>
+                    <Text style={[styles.slotTimeText, { color: colors.text }]}>
                       {slot.start_time} - {slot.end_time}
                     </Text>
                     <Text
                       style={[
                         styles.slotDurationText,
-                        { color: colours.textMuted },
+                        { color: colors.textMuted },
                       ]}
                     >
                       {slot.session_duration || 30} min sessions
                     </Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.removeButton, { borderColor: colours.error }]}
+                    style={[styles.removeButton, { borderColor: colors.error }]}
                     onPress={() => removeTimeSlot(dayIndex, slotIndex)}
                   >
                     <Text
-                      style={[styles.removeButtonText, { color: colours.error }]}
+                      style={[styles.removeButtonText, { color: colors.error }]}
                     >
                       {"\u2715"}
                     </Text>
@@ -367,10 +367,10 @@ export default function ManageAvailabilityScreen() {
               ))}
 
               <TouchableOpacity
-                style={[styles.addSlotButton, { borderColor: colours.accent }]}
+                style={[styles.addSlotButton, { borderColor: colors.accent }]}
                 onPress={() => addTimeSlot(dayIndex)}
               >
-                <Text style={[styles.addSlotText, { color: colours.accent }]}>
+                <Text style={[styles.addSlotText, { color: colors.accent }]}>
                   + Add Time Slot
                 </Text>
               </TouchableOpacity>
@@ -380,12 +380,12 @@ export default function ManageAvailabilityScreen() {
       </ScrollView>
 
       <TouchableOpacity
-        style={[styles.saveButton, { backgroundColor: colours.accent }]}
+        style={[styles.saveButton, { backgroundColor: colors.accent }]}
         onPress={handleSave}
         disabled={saving}
       >
         {saving ? (
-          <ActivityIndicator color={UIColours.button.textLight} />
+          <ActivityIndicator color="#151718" />
         ) : (
           <Text style={styles.saveButtonText}>Save Availability</Text>
         )}
@@ -402,51 +402,51 @@ export default function ManageAvailabilityScreen() {
           <View
             style={[
               styles.modalContent,
-              { backgroundColor: colours.card, borderColor: colours.border },
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: colours.text }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
               {editingSlot?.slotIndex === null
                 ? "Add Time Slot"
                 : "Edit Time Slot"}
             </Text>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
                 Start Time (HH:MM)
               </Text>
               <TextInput
                 style={[
                   styles.timeInput,
-                  { backgroundColor: colours.inputBg, color: colours.text },
+                  { backgroundColor: colors.inputBg, color: colors.text },
                 ]}
                 value={tempStartTime}
                 onChangeText={setTempStartTime}
                 placeholder="09:00"
-                placeholderTextColor={colours.textMuted}
+                placeholderTextColor={colors.textMuted}
                 maxLength={5}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
                 End Time (HH:MM)
               </Text>
               <TextInput
                 style={[
                   styles.timeInput,
-                  { backgroundColor: colours.inputBg, color: colours.text },
+                  { backgroundColor: colors.inputBg, color: colors.text },
                 ]}
                 value={tempEndTime}
                 onChangeText={setTempEndTime}
                 placeholder="17:00"
-                placeholderTextColor={colours.textMuted}
+                placeholderTextColor={colors.textMuted}
                 maxLength={5}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+              <Text style={[styles.inputLabel, { color: colors.textMuted }]}>
                 Session Duration (minutes)
               </Text>
               <View style={styles.durationOptions}>
@@ -458,9 +458,9 @@ export default function ManageAvailabilityScreen() {
                       {
                         backgroundColor:
                           tempDuration === duration
-                            ? colours.accent
-                            : colours.inputBg,
-                        borderColor: colours.border,
+                            ? colors.accent
+                            : colors.inputBg,
+                        borderColor: colors.border,
                       },
                     ]}
                     onPress={() => setTempDuration(duration)}
@@ -470,7 +470,7 @@ export default function ManageAvailabilityScreen() {
                         styles.durationButtonText,
                         {
                           color:
-                            tempDuration === duration ? "#151718" : colours.text,
+                            tempDuration === duration ? "#151718" : colors.text,
                         },
                       ]}
                     >
@@ -487,21 +487,21 @@ export default function ManageAvailabilityScreen() {
                 style={[
                   styles.previewContainer,
                   {
-                    backgroundColor: colours.inputBg,
-                    borderColor: colours.border,
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.border,
                   },
                 ]}
               >
-                <Text style={[styles.previewTitle, { color: colours.text }]}>
+                <Text style={[styles.previewTitle, { color: colors.text }]}>
                   Sessions Preview
                 </Text>
-                <Text style={[styles.previewText, { color: colours.textMuted }]}>
+                <Text style={[styles.previewText, { color: colors.textMuted }]}>
                   {preview.sessionsCreated} session
                   {preview.sessionsCreated !== 1 ? "s" : ""} will be created
                 </Text>
                 {preview.sessions.length > 0 && (
                   <Text
-                    style={[styles.previewSessions, { color: colours.text }]}
+                    style={[styles.previewSessions, { color: colors.text }]}
                   >
                     {preview.sessions
                       .slice(0, 4)
@@ -514,12 +514,12 @@ export default function ManageAvailabilityScreen() {
                 {preview.remainderMinutes > 0 && (
                   <View style={styles.warningBox}>
                     <Text
-                      style={[styles.warningText, { color: colours.warning }]}
+                      style={[styles.warningText, { color: colors.warning }]}
                     >
                       ⚠️ {preview.remainderMinutes} minutes will be unused
                     </Text>
                     <Text
-                      style={[styles.warningHint, { color: colours.textMuted }]}
+                      style={[styles.warningHint, { color: colors.textMuted }]}
                     >
                       Consider adjusting end time or session duration
                     </Text>
@@ -532,16 +532,16 @@ export default function ManageAvailabilityScreen() {
               <TouchableOpacity
                 style={[
                   styles.modalButton,
-                  { backgroundColor: colours.inputBg },
+                  { backgroundColor: colors.inputBg },
                 ]}
                 onPress={() => setEditModalVisible(false)}
               >
-                <Text style={[styles.modalButtonText, { color: colours.text }]}>
+                <Text style={[styles.modalButtonText, { color: colors.text }]}>
                   Cancel
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colours.accent }]}
+                style={[styles.modalButton, { backgroundColor: colors.accent }]}
                 onPress={saveSlotEdit}
               >
                 <Text style={styles.modalButtonText}>Save</Text>
@@ -566,13 +566,13 @@ export default function ManageAvailabilityScreen() {
           <View
             style={[
               styles.successModalContent,
-              { backgroundColor: colours.card },
+              { backgroundColor: colors.card },
             ]}
           >
             <View style={styles.successCircle}>
               <Text style={styles.successCheckmark}>✓</Text>
             </View>
-            <Text style={[styles.successMessage, { color: colours.text }]}>
+            <Text style={[styles.successMessage, { color: colors.text }]}>
               Time Slots Saved Successfully
             </Text>
           </View>
@@ -592,6 +592,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
+  },
+  backText: {
+    fontSize: 16,
   },
   title: {
     fontSize: 20,
@@ -661,7 +664,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButtonText: {
-    color: UIColours.button.textLight,
+    color: "#151718",
     fontSize: 18,
     fontWeight: "600",
   },
@@ -672,7 +675,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: UIColours.overlay,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
     width: "90%",
@@ -728,7 +731,7 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: UIColours.button.textLight,
+    color: "#151718",
   },
   previewContainer: {
     padding: 12,
@@ -767,13 +770,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: UIColours.overlay,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   successModalContent: {
     borderRadius: 20,
     padding: 30,
     alignItems: "center",
-    shadowColor: UIColours.shadow,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -783,14 +786,14 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: SharedColours.success,
+    backgroundColor: "#34C759",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
   },
   successCheckmark: {
     fontSize: 40,
-    color: SharedColours.white,
+    color: "#ffffff",
     fontWeight: "bold",
   },
   successMessage: {

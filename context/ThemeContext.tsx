@@ -1,43 +1,17 @@
-import {
-  CustomerColours,
-  getThemeColours,
-  ProviderColours,
-  UserType,
-} from "@/constants/theme";
-import {
-  createContext,
-  ReactNode,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useColorScheme as useRNColorScheme } from "react-native";
 
 type ThemeContextType = {
   isDarkMode: boolean;
-  userType: UserType;
   toggleDarkMode: () => void;
   setDarkMode: (value: boolean) => void;
-  setUserType: (type: UserType) => void;
-  // Current colours based on isDarkMode and userType
-  colours: ReturnType<typeof getThemeColours>;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-interface ThemeProviderProps {
-  children: ReactNode;
-  initialUserType?: UserType;
-}
-
-export function ThemeProvider({
-  children,
-  initialUserType = "customer",
-}: ThemeProviderProps) {
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useRNColorScheme();
   const [isDarkMode, setIsDarkMode] = useState(systemColorScheme === "dark");
-  const [userType, setUserType] = useState<UserType>(initialUserType);
 
   useEffect(() => {
     setIsDarkMode(systemColorScheme === "dark");
@@ -51,28 +25,8 @@ export function ThemeProvider({
     setIsDarkMode(value);
   };
 
-  const setUserTypeHandler = (type: UserType) => {
-    setUserType(type);
-  };
-
-  // Get the current colours based on isDarkMode and userType
-  const colours = getThemeColours(userType, isDarkMode);
-
-  // Memoize the context value to ensure proper theme change propagation
-  const contextValue = useMemo(
-    () => ({
-      isDarkMode,
-      userType,
-      toggleDarkMode,
-      setDarkMode,
-      setUserType: setUserTypeHandler,
-      colours,
-    }),
-    [isDarkMode, userType, colours],
-  );
-
   return (
-    <ThemeContext.Provider value={contextValue}>
+    <ThemeContext.Provider value={{ isDarkMode, toggleDarkMode, setDarkMode }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -85,7 +39,3 @@ export function useTheme() {
   }
   return context;
 }
-
-// Export function to get appropriate colours based on user type and dark mode
-export { CustomerColours, getThemeColours, ProviderColours };
-

@@ -1,7 +1,5 @@
-import BackButton from "@/components/BackButton";
 import ConfirmModal from "@/components/ConfirmModal";
 import SuccessModal from "@/components/SuccessModal";
-import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cancelBooking, getMyBookings } from "@/services/schedulingApi";
@@ -14,11 +12,11 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 export default function MyBookingsScreen() {
-  const { isDarkMode, colours: themeColours } = useTheme();
+  const { isDarkMode } = useTheme();
   const { logout } = useAuth();
   const router = useRouter();
 
@@ -109,66 +107,64 @@ export default function MyBookingsScreen() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "confirmed":
-        return SharedColours.bookingStatus.confirmed;
+        return "#34C759";
       case "pending":
-        return SharedColours.bookingStatus.pending;
+        return "#f0c85a";
       case "cancelled":
-        return SharedColours.bookingStatus.cancelled;
+        return "#FF3B30";
       case "completed":
-        return SharedColours.bookingStatus.completed;
+        return "#007AFF";
       default:
-        return SharedColours.bookingStatus.default;
+        return "#6b7280";
     }
   };
 
-  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
-
-  const colours = {
-    background: extendedColours.background,
-    card: extendedColours.card,
-    text: extendedColours.text,
-    textMuted: extendedColours.textMuted,
-    border: extendedColours.border,
-    accent: themeColours.accent,
+  const colors = {
+    background: isDarkMode ? "#151718" : "#f5f5f5",
+    card: isDarkMode ? "#1e2333" : "#ffffff",
+    text: isDarkMode ? "#ECEDEE" : "#11181C",
+    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
+    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
+    accent: "#f0c85a",
   };
 
   const renderBooking = ({ item }: { item: BookingWithDetails }) => (
     <View
       style={[
         styles.bookingCard,
-        { backgroundColor: colours.card, borderColor: colours.border },
+        { backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
       <View style={styles.bookingHeader}>
-        <Text style={[styles.serviceName, { color: colours.text }]}>
+        <Text style={[styles.serviceName, { color: colors.text }]}>
           {item.service_name}
         </Text>
         <Text style={[styles.status, { color: getStatusColor(item.status) }]}>
           {item.status.toUpperCase()}
         </Text>
       </View>
-      <Text style={[styles.providerName, { color: colours.textMuted }]}>
+      <Text style={[styles.providerName, { color: colors.textMuted }]}>
         {item.provider_name}
       </Text>
       <View style={styles.bookingDetails}>
-        <Text style={[styles.detailText, { color: colours.textMuted }]}>
+        <Text style={[styles.detailText, { color: colors.textMuted }]}>
           📅 {new Date(item.date).toLocaleDateString()}
         </Text>
-        <Text style={[styles.detailText, { color: colours.textMuted }]}>
+        <Text style={[styles.detailText, { color: colors.textMuted }]}>
           🕐 {item.start_time} - {item.end_time}
         </Text>
-        <Text style={[styles.detailText, { color: colours.accent }]}>
+        <Text style={[styles.detailText, { color: colors.accent }]}>
           ${item.cost}
         </Text>
       </View>
       {(item.status === "pending" || item.status === "confirmed") && (
         <TouchableOpacity
-          style={[styles.cancelButton, { borderColor: SharedColours.error }]}
+          style={[styles.cancelButton, { borderColor: "#FF3B30" }]}
           onPress={() => handleCancelBooking(item.booking_id)}
           disabled={processing === item.booking_id}
         >
           {processing === item.booking_id ? (
-            <ActivityIndicator color={SharedColours.error} />
+            <ActivityIndicator color="#FF3B30" />
           ) : (
             <Text style={styles.cancelButtonText}>Cancel Booking</Text>
           )}
@@ -178,22 +174,26 @@ export default function MyBookingsScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colours.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
         style={[
           styles.header,
-          { backgroundColor: colours.card, borderBottomColor: colours.border },
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <BackButton onPress={() => router.back()} />
-        <Text style={[styles.title, { color: colours.text }]}>My Bookings</Text>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Text style={[styles.backText, { color: colors.accent }]}>
+            ← Back
+          </Text>
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: colors.text }]}>My Bookings</Text>
         <View style={{ width: 50 }} />
       </View>
 
       {loading ? (
         <ActivityIndicator
           size="large"
-          color={colours.accent}
+          color={colors.accent}
           style={styles.loader}
         />
       ) : (
@@ -203,7 +203,7 @@ export default function MyBookingsScreen() {
           keyExtractor={(item) => item.booking_id}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: colours.textMuted }]}>
+            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
               No bookings found
             </Text>
           }
@@ -255,6 +255,9 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
   },
+  backText: {
+    fontSize: 16,
+  },
   title: {
     fontSize: 20,
     fontWeight: "bold",
@@ -303,7 +306,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButtonText: {
-    color: SharedColours.error,
+    color: "#FF3B30",
     fontWeight: "600",
   },
   loader: {

@@ -67,7 +67,7 @@ export default function CustomerSnapshotView({
   }
 
   // tried memo here as well for color reloading - wasn't the problem but i'll keep it for now
-  const colours = useMemo(
+  const colors = useMemo(
     () => ({
       background: isDarkMode ? "#151718" : "#f5f5f5",
       card: isDarkMode ? "#1e2333" : "#ffffff",
@@ -99,27 +99,27 @@ export default function CustomerSnapshotView({
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: colours.background }]}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.contentContainer}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colours.card }]}>
+      <View style={[styles.header, { backgroundColor: colors.card }]}>
         <View style={styles.headerContent}>
           <View
             style={[
               styles.avatarPlaceholder,
-              { backgroundColor: colours.accent },
+              { backgroundColor: colors.accent },
             ]}
           >
-            <Text style={[styles.avatarText, { color: colours.background }]}>
+            <Text style={[styles.avatarText, { color: colors.background }]}>
               {(snapshot.customer_name?.charAt(0) ?? "?").toUpperCase()}
             </Text>
           </View>
           <View style={styles.headerInfo}>
-            <Text style={[styles.name, { color: colours.text }]}>
+            <Text style={[styles.name, { color: colors.text }]}>
               {snapshot.customer_name ?? "Unknown Customer"}
             </Text>
-            <Text style={[styles.email, { color: colours.textMuted }]}>
+            <Text style={[styles.email, { color: colors.textMuted }]}>
               {snapshot.customer_email ?? "No email available"}
             </Text>
           </View>
@@ -127,34 +127,34 @@ export default function CustomerSnapshotView({
       </View>
 
       {/* Contact Information */}
-      <View style={[styles.section, { backgroundColor: colours.card }]}>
-        <Text style={[styles.sectionTitle, { color: colours.accent }]}>
+      <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.accent }]}>
           Contact Information
         </Text>
         <View style={styles.infoRow}>
-          <Ionicons name="call" size={18} color={colours.textMuted} />
-          <Text style={[styles.infoText, { color: colours.text }]}>
+          <Ionicons name="call" size={18} color={colors.textMuted} />
+          <Text style={[styles.infoText, { color: colors.text }]}>
             {snapshot.customer_phone ?? "No phone available"}
           </Text>
         </View>
       </View>
 
       {/* Statistics */}
-      <View style={[styles.statsContainer, { backgroundColor: colours.card }]}>
+      <View style={[styles.statsContainer, { backgroundColor: colors.card }]}>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: colours.accent }]}>
+          <Text style={[styles.statValue, { color: colors.accent }]}>
             {snapshot.total_visits ?? 0}
           </Text>
-          <Text style={[styles.statLabel, { color: colours.textMuted }]}>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
             Total Visits
           </Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: colours.accent }]}>
+          <Text style={[styles.statValue, { color: colors.accent }]}>
             {formatCurrency(snapshot.total_spent)}
           </Text>
-          <Text style={[styles.statLabel, { color: colours.textMuted }]}>
+          <Text style={[styles.statLabel, { color: colors.textMuted }]}>
             Total Spent
           </Text>
         </View>
@@ -162,40 +162,40 @@ export default function CustomerSnapshotView({
 
       {/* Last Service */}
       {snapshot.last_service_date && (
-        <View style={[styles.section, { backgroundColor: colours.card }]}>
-          <Text style={[styles.sectionTitle, { color: colours.accent }]}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.accent }]}>
             Last Service
           </Text>
           <View style={styles.serviceInfo}>
             <View>
-              <Text style={[styles.serviceDate, { color: colours.text }]}>
+              <Text style={[styles.serviceDate, { color: colors.text }]}>
                 {formatDate(snapshot.last_service_date)}
               </Text>
-              <Text style={[styles.serviceName, { color: colours.textMuted }]}>
+              <Text style={[styles.serviceName, { color: colors.textMuted }]}>
                 {snapshot.last_service_name ?? "Unknown service"}
               </Text>
             </View>
             <Ionicons
               name="checkmark-circle"
               size={24}
-              color={colours.success}
+              color={colors.success}
             />
           </View>
         </View>
       )}
 
       {/* Payment Preference */}
-      <View style={[styles.section, { backgroundColor: colours.card }]}>
-        <Text style={[styles.sectionTitle, { color: colours.accent }]}>
+      <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.accent }]}>
           Payment Preference
         </Text>
         <View
           style={[
             styles.paymentBadge,
-            { backgroundColor: colours.inputBg, borderColor: colours.accent },
+            { backgroundColor: colors.inputBg, borderColor: colors.accent },
           ]}
         >
-          <Text style={[styles.paymentText, { color: colours.text }]}>
+          <Text style={[styles.paymentText, { color: colors.text }]}>
             {snapshot.payment_preference ?? "Not specified"}
           </Text>
         </View>
@@ -203,8 +203,8 @@ export default function CustomerSnapshotView({
 
       {/* Tags */}
       {snapshot.tags?.length > 0 && (
-        <View style={[styles.section, { backgroundColor: colours.card }]}>
-          <Text style={[styles.sectionTitle, { color: colours.accent }]}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.accent }]}>
             Tags
           </Text>
           <View style={styles.tagsContainer}>
@@ -230,8 +230,8 @@ export default function CustomerSnapshotView({
 
       {/* Notes */}
       {snapshot.notes?.length > 0 && (
-        <View style={[styles.section, { backgroundColor: colours.card }]}>
-          <Text style={[styles.sectionTitle, { color: colours.accent }]}>
+        <View style={[styles.section, { backgroundColor: colors.card }]}>
+          <Text style={[styles.sectionTitle, { color: colors.accent }]}>
             Notes
           </Text>
           <FlatList
@@ -243,16 +243,16 @@ export default function CustomerSnapshotView({
                 style={[
                   styles.noteCard,
                   {
-                    backgroundColor: colours.inputBg,
-                    borderColor: colours.border,
+                    backgroundColor: colors.inputBg,
+                    borderColor: colors.border,
                   },
                 ]}
               >
-                <Text style={[styles.noteText, { color: colours.text }]}>
+                <Text style={[styles.noteText, { color: colors.text }]}>
                   {item.note ?? "No note content"}
                 </Text>
                 <Text
-                  style={[styles.noteDate, { color: colours.textMuted }]}
+                  style={[styles.noteDate, { color: colors.textMuted }]}
                   numberOfLines={1}
                 >
                   Updated {formatDate(item.updated_at)}
@@ -267,15 +267,15 @@ export default function CustomerSnapshotView({
         <View
           style={[
             styles.emptyState,
-            { backgroundColor: colours.inputBg, borderColor: colours.border },
+            { backgroundColor: colors.inputBg, borderColor: colors.border },
           ]}
         >
           <Ionicons
             name="information-circle-outline"
             size={32}
-            color={colours.textMuted}
+            color={colors.textMuted}
           />
-          <Text style={[styles.emptyStateText, { color: colours.textMuted }]}>
+          <Text style={[styles.emptyStateText, { color: colors.textMuted }]}>
             No tags or notes yet
           </Text>
         </View>

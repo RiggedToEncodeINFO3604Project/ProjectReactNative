@@ -3,7 +3,6 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { useEffect } from "react";
 import { Redirect, Stack, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
@@ -18,17 +17,8 @@ import {
 // Component to handle auth-based routing
 function AuthNavigator() {
   const { isAuthenticated, role, isLoading } = useAuth();
-  const { isDarkMode, setUserType } = useTheme();
+  const { isDarkMode } = useTheme();
   const segments = useSegments();
-
-  // Set userType based on role
-  useEffect(() => {
-    if (isAuthenticated && role === "Provider") {
-      setUserType("provider");
-    } else if (isAuthenticated && role === "Customer") {
-      setUserType("customer");
-    }
-  }, [isAuthenticated, role, setUserType]);
 
   console.log(
     "AuthNavigator - isAuthenticated:",
@@ -58,10 +48,6 @@ function AuthNavigator() {
   const inAuthGroup = segments[0] === "(auth)";
   const inCustomerGroup = segments[0] === "(customer)";
   const inProviderGroup = segments[0] === "(provider)";
-  
-  // Check if currently on settings screen (accessible without auth)
-  const currentRoute = segments.length > 0 ? segments[segments.length - 1] : "";
-  const isSettingsRoute = currentRoute === "settings";
 
   return (
     <ThemeProvider value={isDarkMode ? DarkTheme : DefaultTheme}>
@@ -78,17 +64,13 @@ function AuthNavigator() {
         {/* Shared screens — available to all roles */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
-          name="settings"
-          options={{ presentation: "modal", headerShown: false }}
-        />
-        <Stack.Screen
           name="support"
           options={{ presentation: "modal", title: "Home" }}
         />
       </Stack>
 
-      {/* Redirect unauthenticated users to login if they aren't in an auth group and not on settings */}
-      {!isAuthenticated && !inAuthGroup && !isSettingsRoute && <Redirect href="/login" />}
+      {/* Redirect unauthenticated users to login if they aren't in an auth group */}
+      {!isAuthenticated && !inAuthGroup && <Redirect href="/login" />}
 
       {/* Redirect authenticated users to their home screen if they're still in the auth group */}
       {isAuthenticated && inAuthGroup && role === "Customer" && (
