@@ -200,6 +200,42 @@ class WebSocketManager:
         
         log.debug(f"Broadcasted message to {sent_count} connections in conversation {conversation_id}")
     
+    # Broadcast message read status to all subscribers of a conversation
+    async def broadcast_message_read(self, conversation_id: str, user_role: str):
+        log.info(f"[DEBUG] broadcast_message_read called for conversation {conversation_id} by role {user_role}")
+        if conversation_id not in self.conversation_subscribers:
+            log.warning(f"[DEBUG] No subscribers found for conversation {conversation_id}")
+            return
+        
+        broadcast_data = {
+            "type": "messages_read",
+            "data": {
+                "conversation_id": conversation_id,
+                "reader_role": user_role
+            }
+        }
+        
+        # Get all user IDs subscribed to this conversation
+        user_ids = self.conversation_subscribers[conversation_id]
+        log.info(f"[DEBUG] Found {len(user_ids)} subscribers for conversation {conversation_id}: {user_ids}")
+        
+        sent_count = 0
+        for user_id in user_ids:
+            # Send to all active connections for this user
+            connections = self.active_connections.get(user_id, [])
+            log.info(f"[DEBUG] User {user_id} has {len(connections)} active connections")
+            for connection in connections:
+                # Only send if the connection is subscribed to this conversation
+                if connection.is_subscribed_to(conversation_id):
+                    try:
+                        await connection.send_json(broadcast_data)
+                        sent_count += 1
+                        log.info(f"[DEBUG] Sent messages_read to user {user_id}")
+                    except Exception as e:
+                        log.error(f"Error sending read status to user {user_id}: {e}")
+        
+        log.info(f"[DEBUG] Broadcasted read status to {sent_count} connections in conversation {conversation_id}")
+    
     # Send a message directly to all connections of a specific user
     async def send_to_user(self, user_id: str, message: dict):
         connections = self.active_connections.get(user_id, [])

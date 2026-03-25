@@ -81,6 +81,15 @@ export interface ErrorMessage extends WebSocketMessage {
   };
 }
 
+// Messages read notification from server
+export interface MessagesReadNotification extends WebSocketMessage {
+  type: "messages_read";
+  data: {
+    conversation_id: string;
+    reader_role: string;
+  };
+}
+
 // Union type for all incoming WebSocket messages
 export type IncomingWebSocketMessage =
   | NewMessageNotification
@@ -88,7 +97,8 @@ export type IncomingWebSocketMessage =
   | SubscribedMessage
   | UnsubscribedMessage
   | PongMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | MessagesReadNotification;
 
 // ======================================================================
 // = REST API Functions                                                 =
@@ -180,6 +190,20 @@ export const markConversationAsRead = async (
   await api.post(`/api/messaging/conversations/${conversationId}/read`);
 };
 
+/**
+ * Mark a specific message as read
+ * @param conversationId - The ID of the conversation
+ * @param messageId - The ID of the message to mark as read
+ */
+export const markMessageAsRead = async (
+  conversationId: string,
+  messageId: string,
+): Promise<void> => {
+  await api.post(
+    `/api/messaging/conversations/${conversationId}/messages/${messageId}/read`,
+  );
+};
+
 // ====================================================================== // = WebSocket Manager Class                                            =
 // ======================================================================
 
@@ -200,6 +224,11 @@ export type ErrorCallback = (error: Error) => void;
 export interface MessagingWebSocketOptions {
   // Callback when a new message is received
   onMessageReceived?: MessageReceivedCallback;
+  // Callback when messages are read by the other user
+  onMessagesRead?: (data: {
+    conversation_id: string;
+    reader_role: string;
+  }) => void;
   // Callback when connection state changes
   onConnectionChange?: ConnectionChangeCallback;
   // Callback when an error occurs
@@ -241,6 +270,7 @@ export class MessagingWebSocket {
   constructor(options: MessagingWebSocketOptions = {}) {
     this.options = {
       onMessageReceived: options.onMessageReceived ?? (() => {}),
+      onMessagesRead: options.onMessagesRead ?? (() => {}),
       onConnectionChange: options.onConnectionChange ?? (() => {}),
       onError: options.onError ?? (() => {}),
       autoReconnect: options.autoReconnect ?? true,
@@ -431,6 +461,21 @@ export class MessagingWebSocket {
         case "pong":
           // Pong received, connection is alive
           break;
+
+        case "messages_read": {
+          const readNotification = message as MessagesReadNotification;
+          console.log(
+            "[MessagingWebSocket] Messages read in conversation:",
+            readNotification.data.conversation_id,
+            "by role:",
+            readNotification.data.reader_role,
+          );
+          // Call the callback if provided
+          if (this.options.onMessagesRead) {
+            this.options.onMessagesRead(readNotification.data);
+          }
+          break;
+        }
 
         case "error": {
           const errorMsg = message as ErrorMessage;
@@ -670,6 +715,9 @@ export class MessagingWebSocket {
   setCallbacks(callbacks: Partial<MessagingWebSocketOptions>): void {
     if (callbacks.onMessageReceived) {
       this.options.onMessageReceived = callbacks.onMessageReceived;
+    }
+    if (callbacks.onMessagesRead) {
+      this.options.onMessagesRead = callbacks.onMessagesRead;
     }
     if (callbacks.onConnectionChange) {
       this.options.onConnectionChange = callbacks.onConnectionChange;
