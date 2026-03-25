@@ -1,3 +1,4 @@
+import BackButton from "@/components/BackButton";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
@@ -60,7 +61,7 @@ export default function RegisterCustomerScreen() {
     }
   };
 
-  const colors = {
+  const colours = {
     background: isDarkMode ? "#151718" : "#ffffff",
     card: isDarkMode ? "#1e2333" : "#f8f9fa",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -73,37 +74,37 @@ export default function RegisterCustomerScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={[styles.container, { backgroundColor: colors.background }]}
+      style={[styles.container, { backgroundColor: colours.background }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <Text style={[styles.title, { color: colours.text }]}>
             Register as Customer
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+          <Text style={[styles.subtitle, { color: colours.textMuted }]}>
             Create your account to start booking appointments
           </Text>
 
           <View
             style={[
               styles.form,
-              { backgroundColor: colors.card, borderColor: colors.border },
+              { backgroundColor: colours.card, borderColor: colours.border },
             ]}
           >
             <TextInput
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Full Name"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={name}
               onChangeText={setName}
             />
@@ -112,13 +113,13 @@ export default function RegisterCustomerScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Email"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -129,13 +130,13 @@ export default function RegisterCustomerScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Phone Number"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
@@ -145,13 +146,13 @@ export default function RegisterCustomerScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Password"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -161,20 +162,20 @@ export default function RegisterCustomerScreen() {
               style={[
                 styles.input,
                 {
-                  backgroundColor: colors.inputBg,
-                  color: colors.text,
-                  borderColor: colors.border,
+                  backgroundColor: colours.inputBg,
+                  color: colours.text,
+                  borderColor: colours.border,
                 },
               ]}
               placeholder="Confirm Password"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={colours.textMuted}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
             />
 
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: colors.accent }]}
+              style={[styles.button, { backgroundColor: colours.accent }]}
               onPress={handleRegister}
               disabled={loading}
             >
@@ -186,11 +187,7 @@ export default function RegisterCustomerScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={[styles.backLink, { color: colors.accent }]}>
-              ← Back
-            </Text>
-          </TouchableOpacity>
+          <BackButton onPress={() => router.back()} style={styles.backLink} />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -246,7 +243,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   backLink: {
-    fontSize: 16,
     marginTop: 24,
   },
 });

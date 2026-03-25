@@ -3,9 +3,10 @@
 // = Header for the chat/conversation screen           =
 // =====================================================
 
+import BackButton from "@/components/BackButton";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getExtendedColours } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Avatar } from "./Avatar";
 
@@ -38,8 +39,8 @@ export function ChatHeader({
   onNavigatePrevious,
   onNavigateNext,
 }: ChatHeaderProps) {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const { isDarkMode, colours: theme } = useTheme();
+  const extendedColours = getExtendedColours(isDarkMode);
   const isOnline = status?.toLowerCase() === "online";
 
   if (isSearching) {
@@ -49,7 +50,7 @@ export function ChatHeader({
           styles.container,
           {
             backgroundColor: theme.background,
-            borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+            borderBottomColor: extendedColours.borderAlt,
           },
         ]}
       >
@@ -57,7 +58,7 @@ export function ChatHeader({
         <View
           style={[
             styles.searchContainer,
-            { backgroundColor: colorScheme === "dark" ? "#2a2a2a" : "#f5f5f5" },
+            { backgroundColor: isDarkMode ? extendedColours.cardAlt : extendedColours.background },
           ]}
         >
           <IconSymbol
@@ -132,20 +133,14 @@ export function ChatHeader({
         styles.container,
         {
           backgroundColor: theme.background,
-          borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+          borderBottomColor: extendedColours.borderAlt,
         },
       ]}
     >
       {/* Left section - Back button & Avatar */}
       <View style={styles.leftSection}>
         {onBack && (
-          <Pressable
-            onPress={onBack}
-            style={styles.backButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <IconSymbol name="arrow.backward" size={24} color={theme.text} />
-          </Pressable>
+          <BackButton onPress={onBack} style={styles.backButton} />
         )}
 
         <Avatar uri={avatar} name={name} size="small" online={isOnline} />
@@ -212,7 +207,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 8,
-    padding: 4,
   },
   centerSection: {
     flex: 1,

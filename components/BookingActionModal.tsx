@@ -60,7 +60,7 @@ export default function BookingActionModal({
   // Success modal state
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const colors = {
+  const colours = {
     background: isDarkMode ? "#151718" : "#f5f5f5",
     card: isDarkMode ? "#1e2333" : "#ffffff",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
@@ -231,9 +231,9 @@ export default function BookingActionModal({
             styles.dateItem,
             {
               backgroundColor: isSelected
-                ? colors.accent + "20"
-                : colors.inputBg,
-              borderColor: isSelected ? colors.accent : colors.border,
+                ? colours.accent + "20"
+                : colours.inputBg,
+              borderColor: isSelected ? colours.accent : colours.border,
             },
           ]}
           onPress={() => handleDateExpand(item.date)}
@@ -245,7 +245,7 @@ export default function BookingActionModal({
               style={[
                 styles.dateText,
                 {
-                  color: item.hasAvailability ? colors.text : colors.textMuted,
+                  color: item.hasAvailability ? colours.text : colours.textMuted,
                 },
               ]}
             >
@@ -253,22 +253,22 @@ export default function BookingActionModal({
               {item.isToday && " (Today)"}
               {item.isTomorrow && " (Tomorrow)"}
             </Text>
-            <Text style={[styles.dayText, { color: colors.textMuted }]}>
+            <Text style={[styles.dayText, { color: colours.textMuted }]}>
               {item.dayOfWeek}
             </Text>
           </View>
           <View style={styles.dateItemRight}>
             {item.hasAvailability ? (
               <>
-                <Text style={[styles.slotCount, { color: colors.success }]}>
+                <Text style={[styles.slotCount, { color: colours.success }]}>
                   {item.availableCount} slots
                 </Text>
-                <Text style={[styles.expandIcon, { color: colors.textMuted }]}>
+                <Text style={[styles.expandIcon, { color: colours.textMuted }]}>
                   {isExpanded ? "v" : ">"}
                 </Text>
               </>
             ) : (
-              <Text style={[styles.noSlots, { color: colors.textMuted }]}>
+              <Text style={[styles.noSlots, { color: colours.textMuted }]}>
                 No slots
               </Text>
             )}
@@ -279,10 +279,10 @@ export default function BookingActionModal({
           <View
             style={[
               styles.slotsContainer,
-              { backgroundColor: colors.inputBg, borderColor: colors.border },
+              { backgroundColor: colours.inputBg, borderColor: colours.border },
             ]}
           >
-            <Text style={[styles.slotsLabel, { color: colors.textMuted }]}>
+            <Text style={[styles.slotsLabel, { color: colours.textMuted }]}>
               Available Times:
             </Text>
             <View style={styles.slotsGrid}>
@@ -298,11 +298,11 @@ export default function BookingActionModal({
                       styles.slotButton,
                       {
                         backgroundColor: isSlotSelected
-                          ? colors.accent
-                          : colors.card,
+                          ? colours.accent
+                          : colours.card,
                         borderColor: isSlotSelected
-                          ? colors.accent
-                          : colors.border,
+                          ? colours.accent
+                          : colours.border,
                       },
                     ]}
                     onPress={() => handleSlotSelect(item.date, slot)}
@@ -312,7 +312,7 @@ export default function BookingActionModal({
                       style={[
                         styles.slotText,
                         {
-                          color: isSlotSelected ? "#151718" : colors.text,
+                          color: isSlotSelected ? "#151718" : colours.text,
                         },
                       ]}
                     >
@@ -322,7 +322,7 @@ export default function BookingActionModal({
                       style={[
                         styles.slotDuration,
                         {
-                          color: isSlotSelected ? "#151718" : colors.textMuted,
+                          color: isSlotSelected ? "#151718" : colours.textMuted,
                         },
                       ]}
                     >
@@ -344,14 +344,14 @@ export default function BookingActionModal({
     return (
       <View style={styles.emptyState}>
         <Text style={styles.emptyIcon}>X</Text>
-        <Text style={[styles.emptyTitle, { color: colors.text }]}>
+        <Text style={[styles.emptyTitle, { color: colours.text }]}>
           No Available Slots
         </Text>
-        <Text style={[styles.emptyMessage, { color: colors.textMuted }]}>
+        <Text style={[styles.emptyMessage, { color: colours.textMuted }]}>
           No available slots found for the next 14 days.
         </Text>
         <TouchableOpacity
-          style={[styles.retryButton, { backgroundColor: colors.accent }]}
+          style={[styles.retryButton, { backgroundColor: colours.accent }]}
           onPress={loadScheduleData}
         >
           <Text style={styles.retryButtonText}>Refresh</Text>
@@ -363,14 +363,14 @@ export default function BookingActionModal({
   const renderErrorState = () => (
     <View style={styles.errorState}>
       <Text style={styles.errorIcon}>!</Text>
-      <Text style={[styles.errorTitle, { color: colors.error }]}>
+      <Text style={[styles.errorTitle, { color: colours.error }]}>
         Failed to Load
       </Text>
-      <Text style={[styles.errorMessage, { color: colors.textMuted }]}>
+      <Text style={[styles.errorMessage, { color: colours.textMuted }]}>
         {scheduleError}
       </Text>
       <TouchableOpacity
-        style={[styles.retryButton, { backgroundColor: colors.accent }]}
+        style={[styles.retryButton, { backgroundColor: colours.accent }]}
         onPress={loadScheduleData}
       >
         <Text style={styles.retryButtonText}>Retry</Text>
@@ -394,59 +394,59 @@ export default function BookingActionModal({
           <View
             style={[
               styles.modalContent,
-              { backgroundColor: colors.card, borderColor: colors.border },
+              { backgroundColor: colours.card, borderColor: colours.border },
             ]}
           >
             {!showReschedule ? (
               // Main Action View
               <>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                <Text style={[styles.modalTitle, { color: colours.text }]}>
                   Booking Details
                 </Text>
 
                 <View style={styles.bookingDetails}>
                   <Text
-                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                    style={[styles.detailLabel, { color: colours.textMuted }]}
                   >
                     Customer:
                   </Text>
-                  <Text style={[styles.detailValue, { color: colors.text }]}>
+                  <Text style={[styles.detailValue, { color: colours.text }]}>
                     {booking.customer_name}
                   </Text>
 
                   <Text
-                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                    style={[styles.detailLabel, { color: colours.textMuted }]}
                   >
                     Service:
                   </Text>
-                  <Text style={[styles.detailValue, { color: colors.text }]}>
+                  <Text style={[styles.detailValue, { color: colours.text }]}>
                     {booking.service_name}
                   </Text>
 
                   <Text
-                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                    style={[styles.detailLabel, { color: colours.textMuted }]}
                   >
                     Date:
                   </Text>
-                  <Text style={[styles.detailValue, { color: colors.text }]}>
+                  <Text style={[styles.detailValue, { color: colours.text }]}>
                     {new Date(booking.date).toLocaleDateString()}
                   </Text>
 
                   <Text
-                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                    style={[styles.detailLabel, { color: colours.textMuted }]}
                   >
                     Time:
                   </Text>
-                  <Text style={[styles.detailValue, { color: colors.text }]}>
+                  <Text style={[styles.detailValue, { color: colours.text }]}>
                     {booking.start_time} - {booking.end_time}
                   </Text>
 
                   <Text
-                    style={[styles.detailLabel, { color: colors.textMuted }]}
+                    style={[styles.detailLabel, { color: colours.textMuted }]}
                   >
                     Price:
                   </Text>
-                  <Text style={[styles.detailValue, { color: colors.accent }]}>
+                  <Text style={[styles.detailValue, { color: colours.accent }]}>
                     ${booking.cost}
                   </Text>
                 </View>
@@ -455,7 +455,7 @@ export default function BookingActionModal({
                   <TouchableOpacity
                     style={[
                       styles.actionButton,
-                      { backgroundColor: colors.error },
+                      { backgroundColor: colours.error },
                     ]}
                     onPress={handleDelete}
                   >
@@ -465,7 +465,7 @@ export default function BookingActionModal({
                   <TouchableOpacity
                     style={[
                       styles.actionButton,
-                      { backgroundColor: colors.accent },
+                      { backgroundColor: colours.accent },
                     ]}
                     onPress={handleShowReschedule}
                   >
@@ -478,12 +478,12 @@ export default function BookingActionModal({
                 <TouchableOpacity
                   style={[
                     styles.closeButton,
-                    { backgroundColor: colors.inputBg },
+                    { backgroundColor: colours.inputBg },
                   ]}
                   onPress={handleClose}
                 >
                   <Text
-                    style={[styles.closeButtonText, { color: colors.text }]}
+                    style={[styles.closeButtonText, { color: colours.text }]}
                   >
                     Close
                   </Text>
@@ -492,14 +492,14 @@ export default function BookingActionModal({
             ) : (
               // Reschedule View - Static Date List
               <>
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
+                <Text style={[styles.modalTitle, { color: colours.text }]}>
                   Reschedule Booking
                 </Text>
 
                 <Text
                   style={[
                     styles.currentBookingText,
-                    { color: colors.textMuted },
+                    { color: colours.textMuted },
                   ]}
                 >
                   Current: {booking.service_name} on{" "}
@@ -508,16 +508,16 @@ export default function BookingActionModal({
                 </Text>
 
                 <Text
-                  style={[styles.selectPrompt, { color: colors.textMuted }]}
+                  style={[styles.selectPrompt, { color: colours.textMuted }]}
                 >
                   Select a New Date & Time
                 </Text>
 
                 {loadingSchedule ? (
                   <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.accent} />
+                    <ActivityIndicator size="large" color={colours.accent} />
                     <Text
-                      style={[styles.loadingText, { color: colors.textMuted }]}
+                      style={[styles.loadingText, { color: colours.textMuted }]}
                     >
                       Loading available dates...
                     </Text>
@@ -541,10 +541,10 @@ export default function BookingActionModal({
                   <View
                     style={[
                       styles.selectedSummary,
-                      { backgroundColor: colors.accent + "20" },
+                      { backgroundColor: colours.accent + "20" },
                     ]}
                   >
-                    <Text style={[styles.summaryText, { color: colors.text }]}>
+                    <Text style={[styles.summaryText, { color: colours.text }]}>
                       Selected: {selectedDate} at {selectedSlot.start_time}
                     </Text>
                   </View>
@@ -554,12 +554,12 @@ export default function BookingActionModal({
                   <TouchableOpacity
                     style={[
                       styles.modalButton,
-                      { backgroundColor: colors.inputBg },
+                      { backgroundColor: colours.inputBg },
                     ]}
                     onPress={handleBack}
                   >
                     <Text
-                      style={[styles.modalButtonText, { color: colors.text }]}
+                      style={[styles.modalButtonText, { color: colours.text }]}
                     >
                       Back
                     </Text>
@@ -568,7 +568,7 @@ export default function BookingActionModal({
                   <TouchableOpacity
                     style={[
                       styles.modalButton,
-                      { backgroundColor: colors.accent },
+                      { backgroundColor: colours.accent },
                       { opacity: selectedSlot ? 1 : 0.5 },
                     ]}
                     onPress={handleConfirmReschedule}
