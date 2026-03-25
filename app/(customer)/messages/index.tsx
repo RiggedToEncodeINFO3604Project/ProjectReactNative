@@ -3,11 +3,11 @@
 // = Shows conversation list only                      =
 // =====================================================
 
+import BackButton from "@/components/BackButton";
 import { ConversationListItem } from "@/components/messaging/ConversationListItem";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTheme } from "@/context/ThemeContext";
 import { getConversations, messagingSocket } from "@/services/messagingApi";
 import { Conversation, ConversationPreview, Message } from "@/types/scheduling";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -48,8 +48,7 @@ function toConversationPreview(
 
 export default function MessagesScreen() {
   const { token, user } = useAuth();
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const { colours: theme, isDarkMode } = useTheme();
   const currentUserId = user?.id || "";
   const router = useRouter();
 
@@ -235,16 +234,11 @@ export default function MessagesScreen() {
           styles.header,
           {
             backgroundColor: theme.background,
-            borderBottomColor: colorScheme === "dark" ? "#333" : "#e9ecef",
+            borderBottomColor: isDarkMode ? "#333" : "#e9ecef",
           },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Text style={[styles.backText, { color: theme.tint }]}>← Back</Text>
-        </TouchableOpacity>
+        <BackButton onPress={() => router.back()} style={styles.backButton} />
         <Text style={[styles.headerTitle, { color: theme.text }]}>
           Messages
         </Text>
@@ -257,7 +251,7 @@ export default function MessagesScreen() {
       <View
         style={[
           styles.searchContainer,
-          { backgroundColor: colorScheme === "dark" ? "#2a2a2a" : "#f5f5f5" },
+          { backgroundColor: isDarkMode ? "#2a2a2a" : "#f5f5f5" },
         ]}
       >
         <IconSymbol
@@ -313,7 +307,7 @@ export default function MessagesScreen() {
               style={[
                 styles.separator,
                 {
-                  backgroundColor: colorScheme === "dark" ? "#333" : "#f0f0f0",
+                  backgroundColor: isDarkMode ? "#333" : "#f0f0f0",
                 },
               ]}
             />
@@ -327,8 +321,7 @@ export default function MessagesScreen() {
                     styles.separator,
                     styles.aiSupportSeparator,
                     {
-                      backgroundColor:
-                        colorScheme === "dark" ? "#444" : "#e0e0e0",
+                      backgroundColor: isDarkMode ? "#444" : "#e0e0e0",
                     },
                   ]}
                 />
@@ -345,8 +338,7 @@ export default function MessagesScreen() {
                   style={[
                     styles.aiSupportIcon,
                     {
-                      backgroundColor:
-                        colorScheme === "dark" ? "#1a3a4a" : "#e3f2fd",
+                      backgroundColor: isDarkMode ? "#1a3a4a" : "#e3f2fd",
                     },
                   ]}
                 >
@@ -390,10 +382,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     paddingRight: 12,
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: "500",
   },
   headerTitle: {
     fontSize: 24,

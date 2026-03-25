@@ -32,7 +32,7 @@ export function MessageCustomerButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const colors = {
+  const colours = {
     background: isDarkMode ? "#2a2f3e" : "#f0f0f0",
     text: isDarkMode ? "#ECEDEE" : "#11181C",
     accent: "#f0c85a",
@@ -72,8 +72,8 @@ export function MessageCustomerButton({
         styles.button,
         buttonSize,
         {
-          backgroundColor: colors.background,
-          borderColor: colors.border,
+          backgroundColor: colours.background,
+          borderColor: colours.border,
         },
         style,
       ]}
@@ -82,12 +82,12 @@ export function MessageCustomerButton({
       activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={colors.accent} />
+        <ActivityIndicator size="small" color={colours.accent} />
       ) : (
         <View style={styles.content}>
-          <Text style={[styles.icon, { color: colors.accent }]}>💬</Text>
+          <Text style={[styles.icon, { color: colours.accent }]}>💬</Text>
           {showLabel && (
-            <Text style={[textSize, { color: colors.text }]}>Message</Text>
+            <Text style={[textSize, { color: colours.text }]}>Message</Text>
           )}
         </View>
       )}
