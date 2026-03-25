@@ -209,13 +209,6 @@ def send_message(
     _, doc_ref = messages_ref.add(message_data)
     message_id = doc_ref.id
     
-    # Also write to conversation subcollection for Firebase real-time listening
-    try:
-        subcollection_ref = db.collection('conversations').document(conversation_id).collection('messages')
-        subcollection_ref.document(message_id).set(message_data)
-    except Exception as e:
-        print(f"Warning: Failed to write to conversation subcollection: {e}")
-    
     # Update conversation metadata with full last_message object
     last_message_obj = {
         'id': message_id,
@@ -315,68 +308,11 @@ def mark_conversation_as_read(conversation_id: str, user_role: str) -> bool:
         
         for doc in unread_docs:
             doc_ref = messages_ref.document(doc.id)
-            batch.update(doc_ref, {'read': True, 'status': 'read'})
-            print(f"[DEBUG] Marking message {doc.id} as read in main collection")
+            batch.update(doc_ref, {'read': True})
         
         batch.commit()
-        
-        # Also update the conversation subcollection (used by Firebase real-time subscription)
-        subcollection_ref = db.collection('conversations').document(conversation_id).collection('messages')
-        subcollection_query = subcollection_ref.where('sender_role', '==', sender_role_to_mark).where('read', '==', False)
-        
-        batch2 = db.batch()
-        for doc in subcollection_query.stream():
-            doc_ref = subcollection_ref.document(doc.id)
-            batch2.update(doc_ref, {'read': True, 'status': 'read'})
-            print(f"[DEBUG] Marking message {doc.id} as read in subcollection")
-        
-        batch2.commit()
         
         return True
     except Exception as e:
         print(f"Error marking conversation as read: {e}")
-        return False
-
-
-def mark_message_as_read(conversation_id: str, message_id: str, user_role: str) -> bool:
-    """
-    Mark a single message as read for the user.
-    
-    Args:
-        conversation_id: ID of the conversation
-        message_id: ID of the message to mark as read
-        user_role: Role of the user ("Customer" or "Provider")
-    
-    Returns:
-        True if successful, False otherwise
-    """
-    db = get_database()
-    
-    try:
-        # Determine sender role to check (the message should be from the other party)
-        sender_role_to_check = "Provider" if user_role == "Customer" else "Customer"
-        
-        # Update in main messages collection
-        main_msg_ref = db.collection('messages').document(message_id)
-        main_doc = main_msg_ref.get()
-        
-        if main_doc.exists:
-            main_data = main_doc.to_dict()
-            if main_data.get('sender_role') == sender_role_to_check and not main_data.get('read', False):
-                main_msg_ref.update({'read': True, 'status': 'read'})
-                print(f"[DEBUG] Marking message {message_id} as read in main collection")
-        
-        # Update in conversation subcollection
-        sub_msg_ref = db.collection('conversations').document(conversation_id).collection('messages').document(message_id)
-        sub_doc = sub_msg_ref.get()
-        
-        if sub_doc.exists:
-            sub_data = sub_doc.to_dict()
-            if sub_data.get('sender_role') == sender_role_to_check and not sub_data.get('read', False):
-                sub_msg_ref.update({'read': True, 'status': 'read'})
-                print(f"[DEBUG] Marking message {message_id} as read in subcollection")
-        
-        return True
-    except Exception as e:
-        print(f"Error marking message as read: {e}")
         return False

@@ -259,13 +259,6 @@ async def mark_conversation_read(
         
         if success:
             log.info(f"User {current_user.id} marked conversation {conversation_id} as read")
-            
-            # Broadcast message status update to all subscribers
-            await websocket_manager.broadcast_message_read(
-                conversation_id=conversation_id,
-                user_role=current_user.role
-            )
-            
             return {"success": True, "message": "Conversation marked as read"}
         else:
             raise HTTPException(
@@ -280,54 +273,4 @@ async def mark_conversation_read(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to mark conversation as read: {str(e)}"
-        )
-
-
-@router.post("/conversations/{conversation_id}/messages/{message_id}/read", response_model=dict)
-async def mark_message_read(
-    conversation_id: str,
-    message_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Mark a single message as read for the current user.
-    """
-    try:
-        # Verify user is in this conversation
-        if not verify_user_in_conversation(conversation_id, current_user.id, current_user.role):
-            raise HTTPException(
-                status_code=403,
-                detail="You are not a participant in this conversation"
-            )
-        
-        from backend.services.messaging_service import mark_message_as_read
-        success = mark_message_as_read(
-            conversation_id=conversation_id,
-            message_id=message_id,
-            user_role=current_user.role
-        )
-        
-        if success:
-            log.info(f"User {current_user.id} marked message {message_id} as read")
-            
-            # Broadcast message status update
-            await websocket_manager.broadcast_message_read(
-                conversation_id=conversation_id,
-                user_role=current_user.role
-            )
-            
-            return {"success": True, "message": "Message marked as read"}
-        else:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to mark message as read"
-            )
-    
-    except HTTPException:
-        raise
-    except Exception as e:
-        log.error(f"Error marking message as read: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to mark message as read: {str(e)}"
         )
