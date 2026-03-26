@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Dict, Any
 from models import (
     Service, ServiceCreate, AvailabilitySchedule, ClientRecord,
-    UserInDB, DayAvailability, RescheduleRequest
+    UserInDB, DayAvailability, RescheduleRequest, BusyTime
 )
 from auth import get_current_provider
 from firebase_db import get_database
@@ -229,6 +229,41 @@ async def get_availability(current_user: UserInDB = Depends(get_current_provider
     }
 
 
+@router.post("/calendar/busy-times", response_model=dict)
+# Set busy times for the provider (overwrites existing ones)
+async def set_busy_times(
+    busy_times: List[BusyTime],
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    db = get_database()
+    
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    # Delete existing busy times for this provider
+    existing_busy_times = db.collection("provider_busy_times").where("provider_id", "==", provider_id).get()
+    batch = db.batch()
+    for doc in existing_busy_times:
+        batch.delete(doc.reference)
+    batch.commit()
+    
+    # Add new busy times
+    for busy_time in busy_times:
+        busy_time_dict = {
+            "provider_id": provider_id,
+            "date": busy_time.date,
+            "start_time": busy_time.start_time,
+            "end_time": busy_time.end_time
+        }
+        db.collection("provider_busy_times").document().set(busy_time_dict)
+    
+    return {"message": "Busy times updated successfully"}
+
+
 @router.get("/bookings/pending", response_model=List[dict])
 # Get all pending bookings for the current provider
 async def get_pending_bookings(current_user: UserInDB = Depends(get_current_provider)):
@@ -309,7 +344,26 @@ async def accept_booking(
     if not service_data or service_data["provider_id"] != provider_doc.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
+    # Confirm the booking
     db.collection("client_records").document(booking_id).update({"status": "confirmed"})
+    
+    # Find and reject all other pending bookings that overlap with this time slot
+    provider_id = provider_doc.id
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
+    
+    if service_ids:
+        # Firestore "in" query supports max 10 values
+        for i in range(0, len(service_ids), 10):
+            batch_ids = service_ids[i:i+10]
+            # Find pending bookings for the same date, time, and service
+            overlapping_bookings = db.collection("client_records").where("service_id", "in", batch_ids).where("date", "==", booking_data["date"]).where("start_time", "==", booking_data["start_time"]).where("end_time", "==", booking_data["end_time"]).where("status", "==", "pending").get()
+            
+            batch = db.batch()
+            for doc in overlapping_bookings:
+                if doc.id != booking_id:  # Don't reject the one we just confirmed
+                    batch.update(doc.reference, {"status": "cancelled"})
+            batch.commit()
     
     return {"message": "Booking accepted"}
 
