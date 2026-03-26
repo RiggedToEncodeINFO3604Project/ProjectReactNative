@@ -100,6 +100,13 @@ export interface AvailabilitySchedule {
   schedule: DayAvailability[];
 }
 
+// Busy time types
+export interface BusyTime {
+  date: string; // Format: "YYYY-MM-DD"
+  start_time: string; // Format: "HH:MM"
+  end_time: string; // Format: "HH:MM"
+}
+
 // Booking types
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "completed";
 
