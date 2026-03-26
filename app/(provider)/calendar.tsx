@@ -1,5 +1,5 @@
 import { useTheme } from "@/context/ThemeContext";
-import { getConfirmedBookings } from "@/services/schedulingApi";
+import { getConfirmedBookings, syncBusyTimes } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
 import * as Calendar from "expo-calendar";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -94,7 +94,13 @@ export default function CalendarScreen() {
   const loadDeviceEvents = async () => {
     try {
       const { status } = await Calendar.requestCalendarPermissionsAsync();
-      if (status !== "granted") return [];
+      if (status !== "granted") {
+        Alert.alert(
+          "Calendar Permission Required",
+          "Calendar permission is needed to sync your personal events and block unavailable times. You can still use the app without it, but customers may book times that conflict with your personal schedule.",
+        );
+        return [];
+      }
 
       const calendars = await Calendar.getCalendarsAsync(
         Calendar.EntityTypes.EVENT,
@@ -111,6 +117,36 @@ export default function CalendarScreen() {
         endDate,
       );
       setDeviceEvents(fetched);
+
+      // Map events to busy times format and sync to backend
+      const busyTimes = fetched.map((event) => {
+        // Safely extract date and time components
+        const startDate = new Date(event.startDate);
+        const endDate = new Date(event.endDate);
+
+        // Format date as YYYY-MM-DD
+        const date = startDate.toISOString().split("T")[0];
+
+        // Format times as HH:MM
+        const start_time = startDate.toTimeString().slice(0, 5);
+        const end_time = endDate.toTimeString().slice(0, 5);
+
+        return {
+          date,
+          start_time,
+          end_time,
+        };
+      });
+
+      // Sync busy times to Firebase (overwrites existing ones)
+      try {
+        await syncBusyTimes(busyTimes);
+        console.log("Busy times synced successfully");
+      } catch (syncError) {
+        console.error("Failed to sync busy times:", syncError);
+        // Don't show alert to user, just log the error
+      }
+
       return fetched;
     } catch (error) {
       console.log("Device calendar error:", error);
