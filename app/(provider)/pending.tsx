@@ -21,6 +21,35 @@ import {
   View,
 } from "react-native";
 
+const formatTime = (time: string) => {
+  const [hourStr, minuteStr] = time.split(":");
+  const hour = parseInt(hourStr, 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${minuteStr} ${period}`;
+};
+
+//groups bookings first by day, then within each day by start_time slot
+const groupByDayThenTime = (bookings: BookingWithDetails[]) => {
+  const grouped: Record<string, Record<string, BookingWithDetails[]>> = {};
+  for (const booking of bookings) {
+    const day = booking.date.split("T")[0];
+    if (!grouped[day]) grouped[day] = {};
+    const slot = booking.start_time;
+    if (!grouped[day][slot]) grouped[day][slot] = [];
+    grouped[day][slot].push(booking);
+  }
+  return grouped;
+};
+
+const formatDayHeader = (dateKey: string) =>
+  new Date(`${dateKey}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
 export default function PendingBookingsScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
@@ -53,8 +82,6 @@ export default function PendingBookingsScreen() {
     }
   };
 
-  // ─── Calendar helpers ──────────────────────────────────────────────────────
-
   const getWritableCalendar = async () => {
     const { status } = await Calendar.requestCalendarPermissionsAsync();
     if (status !== "granted") return null;
@@ -71,9 +98,7 @@ export default function PendingBookingsScreen() {
     );
   };
 
-  // Safely parse a booking date + time into a JS Date
   const parseBookingDateTime = (date: string, time: string): Date => {
-    // date may be "2025-03-10" or "2025-03-10T00:00:00" — normalise to date-only
     const dateOnly = date.split("T")[0];
     const [hour, minute] = time.split(":").map(Number);
     const d = new Date(`${dateOnly}T00:00:00`);
@@ -97,7 +122,7 @@ export default function PendingBookingsScreen() {
     });
   };
 
-  // ─── Sync ALL confirmed bookings from Firebase → device calendar ───────────
+  // sync ALL confirmed bookings from Firebase → device calendar
 
   const syncAllConfirmedToCalendar = async () => {
     setSyncing(true);
@@ -117,7 +142,7 @@ export default function PendingBookingsScreen() {
         return;
       }
 
-      // Get existing device calendar events so we don't create duplicates
+      // get existing device calendar events so we don't create duplicates
       const startDate = new Date();
       startDate.setFullYear(startDate.getFullYear() - 1); // look back 1 year
       const endDate = new Date();
@@ -158,8 +183,6 @@ export default function PendingBookingsScreen() {
     }
   };
 
-  // ─── Accept handler ────────────────────────────────────────────────────────
-
   const handleAccept = async (bookingId: string) => {
     setProcessing(bookingId);
     try {
@@ -184,8 +207,6 @@ export default function PendingBookingsScreen() {
       setProcessing(null);
     }
   };
-
-  // ─── Reject handler ────────────────────────────────────────────────────────
 
   const handleReject = (bookingId: string) => {
     setBookingToReject(bookingId);
@@ -222,12 +243,12 @@ export default function PendingBookingsScreen() {
     accent: "#f0c85a",
     success: "#34C759",
     error: "#FF3B30",
+    overlap: isDarkMode ? "#2a1f0e" : "#fff8e7", // indication tint for time slots with >1 booking
   };
 
-  // ─── Render ────────────────────────────────────────────────────────────────
-
-  const renderBooking = ({ item }: { item: BookingWithDetails }) => (
+  const renderBooking = (item: BookingWithDetails) => (
     <View
+      key={item.booking_id}
       style={[
         styles.bookingCard,
         { backgroundColor: colors.card, borderColor: colors.border },
@@ -250,11 +271,7 @@ export default function PendingBookingsScreen() {
           📞 {item.customer_phone}
         </Text>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
-          📅{" "}
-          {new Date(item.date.split("T")[0] + "T12:00:00").toLocaleDateString()}
-        </Text>
-        <Text style={[styles.detailText, { color: colors.textMuted }]}>
-          🕐 {item.start_time} - {item.end_time}
+          🕐 {formatTime(item.start_time)} – {formatTime(item.end_time)}
         </Text>
       </View>
 
@@ -311,6 +328,10 @@ export default function PendingBookingsScreen() {
     </View>
   );
 
+  const groupedDays = Object.entries(groupByDayThenTime(bookings)).sort(
+    ([a], [b]) => a.localeCompare(b),
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
@@ -343,17 +364,59 @@ export default function PendingBookingsScreen() {
           color={colors.accent}
           style={styles.loader}
         />
+      ) : groupedDays.length === 0 ? (
+        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+          No pending bookings
+        </Text>
       ) : (
         <FlatList
-          data={bookings}
-          renderItem={renderBooking}
-          keyExtractor={(item) => item.booking_id}
+          data={groupedDays}
+          keyExtractor={([day]) => day}
           contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-              No pending bookings
-            </Text>
-          }
+          renderItem={({ item: [day, slots] }) => {
+            const sortedSlots = Object.entries(slots).sort(([a], [b]) =>
+              a.localeCompare(b),
+            );
+            return (
+              <View>
+                <Text style={[styles.dayHeader, { color: colors.text }]}>
+                  {formatDayHeader(day)}
+                </Text>
+
+                {sortedSlots.map(([slot, slotBookings]) => (
+                  <View key={slot}>
+                    <View
+                      style={[
+                        styles.timeSlotHeader,
+                        slotBookings.length > 1 && {
+                          backgroundColor: colors.overlap,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.timeSlotText, { color: colors.accent }]}
+                      >
+                        {formatTime(slot)}
+                      </Text>
+                      {/* overlap badge to warn provider that multiple bookings share this slot */}
+                      {slotBookings.length > 1 && (
+                        <Text
+                          style={[
+                            styles.overlapBadge,
+                            { color: colors.accent },
+                          ]}
+                        >
+                          {slotBookings.length} overlapping
+                        </Text>
+                      )}
+                    </View>
+
+                    {slotBookings.map(renderBooking)}
+                  </View>
+                ))}
+              </View>
+            );
+          }}
         />
       )}
 
@@ -388,6 +451,31 @@ const styles = StyleSheet.create({
   syncText: { fontSize: 14, fontWeight: "600" },
   title: { fontSize: 20, fontWeight: "bold" },
   listContainer: { padding: 15 },
+  dayHeader: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  // ─── NEW: time slot row (shown per unique start_time within a day) ─────────
+  timeSlotHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  timeSlotText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  // ─── NEW: shown next to the time when 2+ bookings share the same slot ──────
+  overlapBadge: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
   bookingCard: {
     padding: 15,
     borderRadius: 10,
