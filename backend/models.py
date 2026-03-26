@@ -159,6 +159,12 @@ class RescheduleRequest(BaseModel):
     end_time: str  # Format: "HH:MM"
 
 
+class BusyTime(BaseModel):
+    date: str  # Format: "YYYY-MM-DD"
+    start_time: str  # Format: "HH:MM"
+    end_time: str  # Format: "HH:MM"
+
+
 # ── Messaging ─────────────────────────────────────────────────────────
 
 class MessageType(str, Enum):
