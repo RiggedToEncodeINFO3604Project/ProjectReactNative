@@ -24,3 +24,20 @@ PROFANITY_LIST: List[str] = [
     "fake",
     "fraud"
 ]
+
+def contains_profanity(text: str) -> bool:
+    """
+    Check if text contains any profanity words (case-insensitive, partial matching).
+    """
+    if not text:
+        return False
+    
+    text_lower = text.lower()
+    
+    for word in PROFANITY_LIST:
+        # Use word boundary matching for partial words
+        pattern = r'\b' + re.escape(word) + r'\b'
+        if re.search(pattern, text_lower):
+            return True
+    
+    return False
