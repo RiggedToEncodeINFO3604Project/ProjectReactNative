@@ -94,3 +94,15 @@ def filter_profanity(text: str, replacement_char: str = "*") -> str:
     
     return result
 
+def filter_profanity_with_count(text: str) -> Tuple[str, int]:
+    """
+    Filter profanity and return the filtered text along with the count of violations.
+    """
+    matches = get_profanity_matches(text)
+    unique_violations = len(set(m[0] for m in matches))  # Count unique words, not occurrences
+    return filter_profanity(text), unique_violations
+
+
+# Convenience function for simple filtering
+def sanitize_message(content: str) -> str:
+    return filter_profanity(content)
