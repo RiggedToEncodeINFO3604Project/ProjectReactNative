@@ -59,3 +59,38 @@ def get_profanity_matches(text: str) -> List[Tuple[str, int, int]]:
             matches.append((word, match.start(), match.end()))
     
     return matches
+
+
+def filter_profanity(text: str, replacement_char: str = "*") -> str:
+    """
+    Filter profanity from text by replacing matched words with asterisks.
+    Only the middle characters are replaced, first and last character are kept. Might modify this behavior in the future.
+    """
+    if not text:
+        return text
+    
+    result = text
+    matches = get_profanity_matches(text)
+    
+    # Sort by position in reverse order to replace from end to start
+    # This prevents position shifts when replacing
+    matches.sort(key=lambda x: x[1], reverse=True)
+    
+    for word, start, end in matches:
+        original_word = result[start:end]
+        
+        if len(original_word) <= 2:
+            # For very short words, replace all characters
+            filtered = replacement_char * len(original_word)
+        else:
+            # Keep first and last character, replace middle
+            first_char = original_word[0]
+            last_char = original_word[-1]
+            middle_length = len(original_word) - 2
+            middle = replacement_char * middle_length
+            filtered = first_char + middle + last_char
+        
+        result = result[:start] + filtered + result[end:]
+    
+    return result
+
