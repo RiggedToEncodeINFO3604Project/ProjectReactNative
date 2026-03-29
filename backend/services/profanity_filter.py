@@ -41,3 +41,21 @@ def contains_profanity(text: str) -> bool:
             return True
     
     return False
+
+
+def get_profanity_matches(text: str) -> List[Tuple[str, int, int]]:
+    """
+    Get all profanity matches in the text with their positions.
+    """
+    if not text:
+        return []
+    
+    matches = []
+    text_lower = text.lower()
+    
+    for word in PROFANITY_LIST:
+        pattern = r'\b' + re.escape(word) + r'\b'
+        for match in re.finditer(pattern, text_lower):
+            matches.append((word, match.start(), match.end()))
+    
+    return matches
