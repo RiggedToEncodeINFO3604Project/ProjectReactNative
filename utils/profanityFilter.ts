@@ -28,3 +28,24 @@ const PROFANITY_LIST: string[] = [
 function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+/**
+ * Check if text contains any profanity words (case-insensitive, partial matching).
+ */
+export function containsProfanity(text: string): boolean {
+  if (!text) {
+    return false;
+  }
+
+  const textLower = text.toLowerCase();
+
+  for (const word of PROFANITY_LIST) {
+    // Use word boundary matching for partial words
+    const pattern = new RegExp(`\\b${escapeRegExp(word)}\\b`, "i");
+    if (pattern.test(textLower)) {
+      return true;
+    }
+  }
+
+  return false;
+}
