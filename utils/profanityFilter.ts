@@ -80,3 +80,44 @@ export function getProfanityMatches(
 
   return matches;
 }
+
+/**
+ * Filter profanity from text by replacing matched words with asterisks.
+ * Only the middle characters are replaced, first and last character are kept.
+ * Example: "badword" -> "b*d***d", "apple" -> "a**le"
+ */
+export function filterProfanity(
+  text: string,
+  replacementChar: string = "*",
+): string {
+  if (!text) {
+    return text;
+  }
+
+  let result = text;
+  const matches = getProfanityMatches(text);
+
+  // Sort by position in reverse order
+  matches.sort((a, b) => b.start - a.start);
+
+  for (const { start, end } of matches) {
+    const originalWord = result.slice(start, end);
+
+    let filtered: string;
+    if (originalWord.length <= 2) {
+      // For very short words, replace all characters
+      filtered = replacementChar.repeat(originalWord.length);
+    } else {
+      // Keep first and last character, replace middle
+      const firstChar = originalWord[0];
+      const lastChar = originalWord[originalWord.length - 1];
+      const middleLength = originalWord.length - 2;
+      const middle = replacementChar.repeat(middleLength);
+      filtered = firstChar + middle + lastChar;
+    }
+
+    result = result.slice(0, start) + filtered + result.slice(end);
+  }
+
+  return result;
+}
