@@ -49,3 +49,34 @@ export function containsProfanity(text: string): boolean {
 
   return false;
 }
+
+/**
+ * Get all profanity matches in the text with their positions.
+ */
+export function getProfanityMatches(
+  text: string,
+): Array<{ word: string; start: number; end: number }> {
+  if (!text) {
+    return [];
+  }
+
+  const matches: Array<{ word: string; start: number; end: number }> = [];
+  const textLower = text.toLowerCase();
+
+  for (const word of PROFANITY_LIST) {
+    /** Use global regex to find all occurrences of the word in the text.
+     * This will allow us to capture multiple instances of the same word.
+     */
+    const pattern = new RegExp(`\\b${escapeRegExp(word)}\\b`, "gi");
+    let match;
+    while ((match = pattern.exec(textLower)) !== null) {
+      matches.push({
+        word: word,
+        start: match.index,
+        end: match.index + match[0].length,
+      });
+    }
+  }
+
+  return matches;
+}
