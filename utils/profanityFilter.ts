@@ -121,3 +121,27 @@ export function filterProfanity(
 
   return result;
 }
+
+/**
+ * Filter profanity and return the filtered text along with the count of violations.
+ */
+export function filterProfanityWithCount(text: string): {
+  filteredText: string;
+  violationCount: number;
+} {
+  const matches = getProfanityMatches(text);
+  // Count unique words, not occurrences
+  const uniqueWords = new Set(matches.map((m) => m.word));
+  return {
+    filteredText: filterProfanity(text),
+    violationCount: uniqueWords.size,
+  };
+}
+
+/**
+ * Sanitize a message by filtering profanity.
+ * Main entry point for message filtering.
+ */
+export function sanitizeMessage(content: string): string {
+  return filterProfanity(content);
+}
