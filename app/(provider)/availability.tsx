@@ -1,10 +1,15 @@
 import BackButton from "@/components/BackButton";
 import { ExtendedColours, SharedColours, UIColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
-import { getAvailability, setAvailability } from "@/services/schedulingApi";
+import {
+  getAvailability,
+  getMyServices,
+  setAvailability,
+} from "@/services/schedulingApi";
 import {
   AvailabilityRecurrence,
   DayAvailability,
+  Service,
   TimeSlot,
 } from "@/types/scheduling";
 import { useRouter } from "expo-router";
@@ -61,6 +66,7 @@ export default function ManageAvailabilityScreen() {
   const todayString = formatDate(today);
 
   const [schedule, setSchedule] = useState<DayAvailability[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -76,6 +82,9 @@ export default function ManageAvailabilityScreen() {
   const [tempRecurrence, setTempRecurrence] =
     useState<AvailabilityRecurrence>("repeat_weekly");
   const [tempEndDate, setTempEndDate] = useState(todayString);
+  const [tempSelectedServiceIds, setTempSelectedServiceIds] = useState<
+    string[]
+  >([]);
 
   const getOneTimeOptionLabel = () => {
     if (!editingSlot) {
@@ -101,17 +110,37 @@ export default function ManageAvailabilityScreen() {
   ];
 
   useEffect(() => {
-    loadAvailability();
+    loadInitialData();
   }, []);
 
-  const loadAvailability = async () => {
+  const loadInitialData = async () => {
     try {
-      const result = await getAvailability();
-      setSchedule(result.schedule || []);
+      const [availabilityResult, servicesResult] = await Promise.all([
+        getAvailability(),
+        getMyServices(),
+      ]);
+      const normalizedServices = servicesResult || [];
+      const normalizedSchedule = (availabilityResult.schedule || []).map(
+        (day) => ({
+          ...day,
+          time_slots: day.time_slots.map((slot) => ({
+            ...slot,
+            service_ids:
+              slot.service_ids && slot.service_ids.length > 0
+                ? slot.service_ids
+                : normalizedServices.length === 1
+                  ? [normalizedServices[0].id]
+                  : [],
+          })),
+        }),
+      );
+
+      setServices(normalizedServices);
+      setSchedule(normalizedSchedule);
     } catch (error: any) {
       Alert.alert(
         "Error",
-        error.response?.data?.detail || "Failed to load availability",
+        error.response?.data?.detail || "Failed to load availability data",
       );
     } finally {
       setLoading(false);
@@ -130,6 +159,9 @@ export default function ManageAvailabilityScreen() {
     setTempDuration(30);
     setTempRecurrence("repeat_weekly");
     setTempEndDate(todayString);
+    setTempSelectedServiceIds(
+      services.length === 1 ? [services[0].id] : [],
+    );
     setEditModalVisible(true);
   };
 
@@ -164,6 +196,13 @@ export default function ManageAvailabilityScreen() {
         : ((slot.recurrence_type ?? "repeat_weekly") as AvailabilityRecurrence),
     );
     setTempEndDate(slot.end_date || todayString);
+    setTempSelectedServiceIds(
+      slot.service_ids && slot.service_ids.length > 0
+        ? slot.service_ids
+        : services.length === 1
+          ? [services[0].id]
+          : [],
+    );
     setEditModalVisible(true);
   };
 
@@ -246,6 +285,31 @@ export default function ManageAvailabilityScreen() {
     }
   };
 
+  const getSlotServiceSummary = (slot: TimeSlot) => {
+    const serviceIds = slot.service_ids || [];
+    if (serviceIds.length === 0) {
+      return services.length > 1 ? "All services" : "All service bookings";
+    }
+
+    const selectedServiceNames = services
+      .filter((service) => serviceIds.includes(service.id))
+      .map((service) => service.name);
+
+    if (selectedServiceNames.length === 0) {
+      return "Selected services";
+    }
+
+    return selectedServiceNames.join(", ");
+  };
+
+  const toggleServiceSelection = (serviceId: string) => {
+    setTempSelectedServiceIds((current) =>
+      current.includes(serviceId)
+        ? current.filter((id) => id !== serviceId)
+        : [...current, serviceId],
+    );
+  };
+
   const saveSlotEdit = () => {
     if (!editingSlot) return;
 
@@ -283,6 +347,21 @@ export default function ManageAvailabilityScreen() {
     const justTodayDate = formatDate(
       getNextOccurrenceForDay(today, editingSlot.dayIndex),
     );
+    const useAllServices = services.length > 1 && tempSelectedServiceIds.length === 0;
+    const selectedServiceIds =
+      services.length <= 1
+        ? services.map((service) => service.id)
+        : useAllServices
+          ? []
+          : tempSelectedServiceIds;
+
+    if (services.length > 1 && !useAllServices && selectedServiceIds.length === 0) {
+      Alert.alert(
+        "Select Services",
+        "Choose at least one service or use All.",
+      );
+      return;
+    }
 
     if (tempRecurrence === "specified_end_date" && !tempEndDate) {
       Alert.alert("End Date Required", "Please select an end date.");
@@ -320,6 +399,7 @@ export default function ManageAvailabilityScreen() {
       recurrence_type: tempRecurrence,
       start_date,
       end_date,
+      service_ids: selectedServiceIds,
     };
 
     if (isNewSlot) {
@@ -485,6 +565,14 @@ export default function ManageAvailabilityScreen() {
                       ]}
                     >
                       {getSlotRecurrenceSummary(slot)}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.slotRecurrenceText,
+                        { color: colours.textMuted },
+                      ]}
+                    >
+                      {getSlotServiceSummary(slot)}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -669,6 +757,85 @@ export default function ManageAvailabilityScreen() {
                   );
                 })}
               </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                Apply To Services
+              </Text>
+              <View style={styles.serviceOptions}>
+                {services.length > 1 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.serviceChip,
+                      {
+                        backgroundColor:
+                          tempSelectedServiceIds.length === 0
+                            ? `${colours.accent}20`
+                            : colours.inputBg,
+                        borderColor:
+                          tempSelectedServiceIds.length === 0
+                            ? colours.accent
+                            : colours.border,
+                      },
+                    ]}
+                    onPress={() => setTempSelectedServiceIds([])}
+                  >
+                    <Text
+                      style={[
+                        styles.serviceChipText,
+                        {
+                          color:
+                            tempSelectedServiceIds.length === 0
+                              ? colours.text
+                              : colours.textMuted,
+                        },
+                      ]}
+                    >
+                      All
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {services.map((service) => {
+                  const selected = tempSelectedServiceIds.includes(service.id);
+                  return (
+                    <TouchableOpacity
+                      key={service.id}
+                      style={[
+                        styles.serviceChip,
+                        {
+                          backgroundColor: selected
+                            ? `${colours.accent}20`
+                            : colours.inputBg,
+                          borderColor: selected
+                            ? colours.accent
+                            : colours.border,
+                        },
+                      ]}
+                      onPress={() => toggleServiceSelection(service.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.serviceChipText,
+                          {
+                            color: selected ? colours.text : colours.textMuted,
+                          },
+                        ]}
+                      >
+                        {service.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {services.length === 0 && (
+                <Text
+                  style={[styles.helperText, { color: colours.textMuted }]}
+                >
+                  Add services first to target availability by service.
+                </Text>
+              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -1017,6 +1184,25 @@ const styles = StyleSheet.create({
   recurrenceOptionText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  serviceOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  serviceChip: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  serviceChipText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 8,
   },
   radioOuter: {
     width: 18,
