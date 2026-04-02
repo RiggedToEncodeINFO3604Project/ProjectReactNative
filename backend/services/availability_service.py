@@ -46,6 +46,7 @@ def normalize_slot_recurrence(
     if recurrence_type == "just_this_week":
         recurrence_type = "just_today"
     normalized["recurrence_type"] = recurrence_type
+    normalized["service_ids"] = list(normalized.get("service_ids") or [])
 
     start_date = parse_iso_date(normalized.get("start_date"))
     end_date = parse_iso_date(normalized.get("end_date"))
@@ -100,3 +101,10 @@ def slot_applies_to_date(slot: Dict[str, Any], target_date: date_type) -> bool:
         return False
 
     return True
+
+
+def slot_applies_to_service(slot: Dict[str, Any], service_id: Optional[str]) -> bool:
+    service_ids = slot.get("service_ids") or []
+    if not service_id or len(service_ids) == 0:
+        return True
+    return service_id in service_ids

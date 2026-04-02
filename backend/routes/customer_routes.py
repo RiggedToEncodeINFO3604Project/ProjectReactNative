@@ -8,7 +8,7 @@ from auth import get_current_customer
 from firebase_db import get_database
 import uuid
 from datetime import datetime, timedelta
-from services.availability_service import slot_applies_to_date
+from services.availability_service import slot_applies_to_date, slot_applies_to_service
 
 router = APIRouter(prefix="/customer", tags=["customer"])
 
@@ -133,6 +133,7 @@ async def search_providers(
 async def get_provider_availability(
     provider_id: str,
     date: str,
+    service_id: Optional[str] = Query(None),
     current_user: UserInDB = Depends(get_current_customer)
 ):
     db = get_database()
@@ -160,6 +161,7 @@ async def get_provider_availability(
         applicable_slots = [
             slot for slot in day.get("time_slots", [])
             if slot_applies_to_date(slot, target_date.date())
+            and slot_applies_to_service(slot, service_id)
         ]
         break
 
@@ -242,6 +244,7 @@ async def get_provider_calendar(
     provider_id: str,
     year: int,
     month: int,
+    service_id: Optional[str] = Query(None),
     current_user: UserInDB = Depends(get_current_customer)
 ):
     db = get_database()
@@ -306,6 +309,7 @@ async def get_provider_calendar(
                 applicable_slots = [
                     slot for slot in day.get("time_slots", [])
                     if slot_applies_to_date(slot, current_date.date())
+                    and slot_applies_to_service(slot, service_id)
                 ]
                 break
 
@@ -402,6 +406,7 @@ async def create_booking(
         applicable_slots = [
             slot for slot in day.get("time_slots", [])
             if slot_applies_to_date(slot, booking_date.date())
+            and slot_applies_to_service(slot, booking_request.service_id)
         ]
         break
 

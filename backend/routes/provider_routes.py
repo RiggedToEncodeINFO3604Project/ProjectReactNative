@@ -9,7 +9,11 @@ from firebase_db import get_database
 from firebase_admin import firestore
 import uuid
 from datetime import datetime, date as date_type
-from services.availability_service import normalize_slot_recurrence, slot_applies_to_date
+from services.availability_service import (
+    normalize_slot_recurrence,
+    slot_applies_to_date,
+    slot_applies_to_service,
+)
 from services.tagging_service import calculate_auto_tags, get_provider_tagging_config, resolve_tag_priority
 
 router = APIRouter(prefix="/provider", tags=["provider"])
@@ -130,6 +134,8 @@ async def set_availability(
     
     provider_doc = provider_docs[0]
     provider_id = provider_doc.id
+    provider_service_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    provider_service_ids = {doc.id for doc in provider_service_docs}
     
     # Validate time slots and generate warnings for overflow
     warnings = []
@@ -151,6 +157,18 @@ async def set_availability(
                 )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc))
+
+            selected_service_ids = normalized_slot.get("service_ids") or []
+            invalid_service_ids = [
+                service_id
+                for service_id in selected_service_ids
+                if service_id not in provider_service_ids
+            ]
+            if invalid_service_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Availability contains invalid service selections",
+                )
 
             # Get session duration (default to 30 if not provided)
             session_duration = normalized_slot.get("session_duration") or 30
@@ -553,6 +571,7 @@ async def reschedule_booking(
         applicable_slots = [
             slot for slot in day.get("time_slots", [])
             if slot_applies_to_date(slot, new_date.date())
+            and slot_applies_to_service(slot, booking_data["service_id"])
         ]
         break
 
@@ -676,6 +695,7 @@ async def get_available_slots(
         applicable_slots = [
             slot for slot in day.get("time_slots", [])
             if slot_applies_to_date(slot, target_date.date())
+            and slot_applies_to_service(slot, booking_data["service_id"])
         ]
         break
 

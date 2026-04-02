@@ -90,6 +90,7 @@ class TimeSlot(BaseModel):
     recurrence_type: AvailabilityRecurrence = "repeat_weekly"
     start_date: Optional[str] = None  # Format: "YYYY-MM-DD"
     end_date: Optional[str] = None  # Format: "YYYY-MM-DD"
+    service_ids: List[str] = []  # Empty means all services
 
 
 class DayAvailability(BaseModel):
