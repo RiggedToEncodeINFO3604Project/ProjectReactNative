@@ -247,6 +247,7 @@ export default function PendingBookingsScreen() {
     accent: SharedColours.bookingStatus.pending,
     success: SharedColours.success,
     error: SharedColours.error,
+    overlap: extendedColours.warningBg,
   };
 
   const renderBooking = (item: BookingWithDetails) => (
@@ -273,7 +274,7 @@ export default function PendingBookingsScreen() {
         <Text style={[styles.detailText, { color: colours.textMuted }]}>
           📞 {item.customer_phone}
         </Text>
-        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+        <Text style={[styles.detailText, { color: colours.textMuted }]}>
           🕐 {formatTime(item.start_time)} – {formatTime(item.end_time)}
         </Text>
       </View>
@@ -364,7 +365,7 @@ export default function PendingBookingsScreen() {
           style={styles.loader}
         />
       ) : groupedDays.length === 0 ? (
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+        <Text style={[styles.emptyText, { color: colours.textMuted }]}>
           No pending bookings
         </Text>
       ) : (
@@ -378,7 +379,7 @@ export default function PendingBookingsScreen() {
             );
             return (
               <View>
-                <Text style={[styles.dayHeader, { color: colors.text }]}>
+                <Text style={[styles.dayHeader, { color: colours.text }]}>
                   {formatDayHeader(day)}
                 </Text>
 
@@ -388,12 +389,12 @@ export default function PendingBookingsScreen() {
                       style={[
                         styles.timeSlotHeader,
                         slotBookings.length > 1 && {
-                          backgroundColor: colors.overlap,
+                          backgroundColor: colours.overlap,
                         },
                       ]}
                     >
                       <Text
-                        style={[styles.timeSlotText, { color: colors.accent }]}
+                        style={[styles.timeSlotText, { color: colours.accent }]}
                       >
                         {formatTime(slot)}
                       </Text>
@@ -402,7 +403,7 @@ export default function PendingBookingsScreen() {
                         <Text
                           style={[
                             styles.overlapBadge,
-                            { color: colors.accent },
+                            { color: colours.accent },
                           ]}
                         >
                           {slotBookings.length} overlapping

@@ -147,7 +147,7 @@ export default function ConfirmedBookingsScreen() {
         <Text style={[styles.detailText, { color: colours.textMuted }]}>
           Customer: {item.customer_name}
         </Text>
-        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+        <Text style={[styles.detailText, { color: colours.textMuted }]}>
           Time: {formatTime(item.start_time)} – {formatTime(item.end_time)}
         </Text>
       </View>
@@ -211,7 +211,7 @@ export default function ConfirmedBookingsScreen() {
           style={styles.loader}
         />
       ) : groupedDays.length === 0 ? (
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+        <Text style={[styles.emptyText, { color: colours.textMuted }]}>
           No confirmed bookings
         </Text>
       ) : (
@@ -221,7 +221,7 @@ export default function ConfirmedBookingsScreen() {
           contentContainerStyle={styles.listContainer}
           renderItem={({ item: [day, dayBookings] }) => (
             <View>
-              <Text style={[styles.dayHeader, { color: colors.text }]}>
+              <Text style={[styles.dayHeader, { color: colours.text }]}>
                 {formatDayHeader(day)}
               </Text>
               {dayBookings.map(renderBooking)}
