@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from firebase_admin import firestore
 from firebase_db import get_database
+from services.profanity_filter import sanitize_message
 
 
 
@@ -190,13 +191,18 @@ def send_message(
     if not conv_data:
         raise ValueError("Conversation not found")
     
+    # Filter profanity from message content (non-blocking - sanitizes, doesn't reject)
+    print(f"[PROFANITY_FILTER] Original content: {content}")
+    filtered_content = sanitize_message(content)
+    print(f"[PROFANITY_FILTER] Filtered content: {filtered_content}")
+    
     # Create message
     created_at = datetime.utcnow()
     message_data = {
         'conversation_id': conversation_id,
         'sender_id': sender_id,
         'sender_role': sender_role,
-        'content': content,
+        'content': filtered_content,
         'message_type': message_type,
         'image_url': image_url,
         'thumbnail_url': None,  # Can be added later for image optimization
@@ -221,7 +227,7 @@ def send_message(
         'id': message_id,
         'sender_id': sender_id,
         'sender_role': sender_role,
-        'content': content,
+        'content': filtered_content,  # Use filtered content, not original
         'message_type': message_type,
         'image_url': image_url,
         'created_at': created_at,
@@ -241,7 +247,8 @@ def send_message(
     
     conv_ref.update(update_data)
     
-    return message_id
+    print(f"[PROFANITY_FILTER] Returning message_id: {message_id}, filtered_content: {filtered_content}")
+    return message_id, filtered_content
 
 
 def get_conversation_messages(

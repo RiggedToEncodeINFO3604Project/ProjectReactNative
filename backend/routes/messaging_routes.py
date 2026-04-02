@@ -180,7 +180,7 @@ async def send_message_endpoint(
                 detail="You are not a participant in this conversation"
             )
         
-        message_id = send_message(
+        message_id, filtered_content = send_message(
             conversation_id=conversation_id,
             sender_id=current_user.id,
             sender_role=current_user.role,
@@ -191,13 +191,13 @@ async def send_message_endpoint(
         
         log.info(f"User {current_user.id} sent message {message_id} in conversation {conversation_id}")
         
-        # Prepare message data for WebSocket broadcast
+        # Prepare message data for WebSocket broadcast - use filtered content
         message_data = {
             "_id": message_id,
             "conversation_id": conversation_id,
             "sender_id": current_user.id,
             "sender_role": current_user.role,
-            "content": request.content,
+            "content": filtered_content,
             "message_type": request.message_type,
             "image_url": request.image_url,
             "thumbnail_url": None,

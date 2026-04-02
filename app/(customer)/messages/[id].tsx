@@ -122,11 +122,11 @@ export default function ChatScreen() {
           }
 
           // Check if a temp message that matches (same sender, similar time)
+          // Note: We don't check content because the filtered content may differ
           const tempMessage = prev.find(
             (m) =>
               m.id.startsWith("temp-") &&
               m.sender_id === message.sender_id &&
-              m.content === message.content &&
               Math.abs(
                 new Date(m.created_at).getTime() -
                   new Date(message.created_at).getTime(),
@@ -134,7 +134,7 @@ export default function ChatScreen() {
           );
 
           if (tempMessage) {
-            // Replace temp message with real one
+            // Replace temp message with real one (contains filtered content)
             return prev.map((m) => (m.id === tempMessage.id ? message : m));
           }
           return [...prev, message];
@@ -174,13 +174,13 @@ export default function ChatScreen() {
 
           if (!existing) {
             // Check if we have a temp message that matches this real message
+            // Note: We don't check content because filtered content may differ
             const tempMatch = prev.find(
               (m) =>
                 m &&
                 m.id &&
                 m.id.startsWith("temp-") &&
                 m.sender_id === fm.sender_id &&
-                m.content === fm.content &&
                 Math.abs(
                   new Date(m.created_at).getTime() -
                     new Date(fm.created_at).getTime(),
@@ -293,17 +293,6 @@ export default function ChatScreen() {
     handleNewMessage,
     handleConnectionChange,
   ]);
-
-  // Subscribe to conversation (WebSocket)
-  useEffect(() => {
-    if (conversationId && messagingSocket.isConnected()) {
-      messagingSocket.subscribeToConversation(conversationId);
-
-      return () => {
-        messagingSocket.unsubscribeFromConversation(conversationId);
-      };
-    }
-  }, [conversationId]);
 
   // Subscribe to Firebase Firestore real-time updates
   useEffect(() => {
