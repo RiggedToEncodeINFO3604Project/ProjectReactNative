@@ -17,6 +17,41 @@ import {
   View,
 } from "react-native";
 
+// to convert the 24hr time string to 12hr format
+const formatTime = (time: string) => {
+  const [hourStr, minuteStr] = time.split(":");
+  const hour = parseInt(hourStr, 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${minuteStr} ${period}`;
+};
+
+// groups a flat bookings array the sorts chronologically by day
+const groupByDay = (bookings: BookingWithDetails[]) => {
+  const grouped: Record<string, BookingWithDetails[]> = {};
+  for (const booking of bookings) {
+    const day = booking.date.split("T")[0];
+    if (!grouped[day]) grouped[day] = [];
+    grouped[day].push(booking);
+  }
+  // Sort each day's bookings by start_time
+  for (const day of Object.keys(grouped)) {
+    grouped[day].sort((a, b) => a.start_time.localeCompare(b.start_time));
+  }
+  return grouped;
+};
+
+// formats the date into a more readable day header
+const formatDayHeader = (dateKey: string) =>
+  new Date(`${dateKey}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+// ──────────────────────────────────────────────────────────────────────────
+
 export default function MyBookingsScreen() {
   const { isDarkMode, colours: themeColours } = useTheme();
   const { logout } = useAuth();
@@ -132,8 +167,9 @@ export default function MyBookingsScreen() {
     accent: themeColours.accent,
   };
 
-  const renderBooking = ({ item }: { item: BookingWithDetails }) => (
+  const renderBooking = (item: BookingWithDetails) => (
     <View
+      key={item.booking_id}
       style={[
         styles.bookingCard,
         { backgroundColor: colours.card, borderColor: colours.border },
@@ -151,11 +187,9 @@ export default function MyBookingsScreen() {
         {item.provider_name}
       </Text>
       <View style={styles.bookingDetails}>
-        <Text style={[styles.detailText, { color: colours.textMuted }]}>
-          📅 {new Date(item.date).toLocaleDateString()}
-        </Text>
-        <Text style={[styles.detailText, { color: colours.textMuted }]}>
-          🕐 {item.start_time} - {item.end_time}
+        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+          {/* time displayed in 12hr format */}
+          🕐 {formatTime(item.start_time)} – {formatTime(item.end_time)}
         </Text>
         <Text style={[styles.detailText, { color: colours.accent }]}>
           ${item.cost}
@@ -177,6 +211,11 @@ export default function MyBookingsScreen() {
     </View>
   );
 
+  // building and sorting the list then rendering each day
+  const groupedDays = Object.entries(groupByDay(bookings)).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
@@ -196,17 +235,25 @@ export default function MyBookingsScreen() {
           color={colours.accent}
           style={styles.loader}
         />
+      ) : groupedDays.length === 0 ? (
+        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+          No bookings found
+        </Text>
       ) : (
+        // rendering each booking
         <FlatList
-          data={bookings}
-          renderItem={renderBooking}
-          keyExtractor={(item) => item.booking_id}
+          data={groupedDays}
+          keyExtractor={([day]) => day}
           contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: colours.textMuted }]}>
-              No bookings found
-            </Text>
-          }
+          renderItem={({ item: [day, dayBookings] }) => (
+            <View>
+              {/* Day header */}
+              <Text style={[styles.dayHeader, { color: colors.text }]}>
+                {formatDayHeader(day)}
+              </Text>
+              {dayBookings.map(renderBooking)}
+            </View>
+          )}
         />
       )}
 
@@ -261,6 +308,12 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 15,
+  },
+  dayHeader: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 10,
+    marginBottom: 8,
   },
   bookingCard: {
     padding: 15,

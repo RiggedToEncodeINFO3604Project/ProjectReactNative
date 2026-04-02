@@ -184,8 +184,12 @@ async def get_provider_availability(
                     booking_date = booking_date.replace(tzinfo=None)
                 # Filter by date range
                 if start_of_day <= booking_date < end_of_day:
-                    if booking_data["status"] in ["pending", "confirmed"]:
+                    if booking_data["status"] == "confirmed":  # Only confirmed bookings block availability
                         bookings.append(booking_data)
+    
+    # Get busy times for this provider on this date
+    busy_times_docs = db.collection("provider_busy_times").where("provider_id", "==", provider_id).where("date", "==", date).get()
+    busy_times = [doc.to_dict() for doc in busy_times_docs]
     
     # Generate sessions from time slots
     all_sessions = []
@@ -198,14 +202,27 @@ async def get_provider_availability(
         )
         all_sessions.extend(result["sessions"])
     
-    # Filter out booked sessions
+    # Filter out booked sessions and busy times
     available_slots = []
     for session in all_sessions:
         is_available = True
+        
+        # Check against bookings
         for booking in bookings:
             # Check if this session overlaps with any booking
             if (booking["start_time"] < session["end_time"] and 
                 booking["end_time"] > session["start_time"]):
+                is_available = False
+                break
+        
+        if not is_available:
+            continue
+        
+        # Check against busy times
+        for busy_time in busy_times:
+            # Check if this session overlaps with any busy time
+            if (busy_time["start_time"] < session["end_time"] and 
+                busy_time["end_time"] > session["start_time"]):
                 is_available = False
                 break
         

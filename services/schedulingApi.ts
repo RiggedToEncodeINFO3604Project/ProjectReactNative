@@ -9,6 +9,7 @@ import {
   AvailableSlotsResponse,
   BookingRequest,
   BookingWithDetails,
+  BusyTime,
   ConfirmedBooking,
   CustomerCreate,
   CustomerSnapshot,
@@ -352,6 +353,17 @@ export const getAvailability = async (): Promise<AvailabilitySchedule> => {
       })),
     })),
   };
+};
+
+// Sync busy times for the current provider
+export const syncBusyTimes = async (
+  busyTimes: BusyTime[],
+): Promise<MessageResponse> => {
+  const response = await api.post<MessageResponse>(
+    "/provider/calendar/busy-times",
+    busyTimes,
+  );
+  return response.data;
 };
 
 // Get pending bookings for the current provider

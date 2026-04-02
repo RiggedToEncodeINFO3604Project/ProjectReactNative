@@ -18,6 +18,36 @@ import {
   View,
 } from "react-native";
 
+const formatTime = (time: string) => {
+  const [hourStr, minuteStr] = time.split(":");
+  const hour = parseInt(hourStr, 10);
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${minuteStr} ${period}`;
+};
+
+const groupByDay = (bookings: BookingWithDetails[]) => {
+  const grouped: Record<string, BookingWithDetails[]> = {};
+  for (const booking of bookings) {
+    const day = booking.date.split("T")[0];
+    if (!grouped[day]) grouped[day] = [];
+    grouped[day].push(booking);
+  }
+
+  for (const day of Object.keys(grouped)) {
+    grouped[day].sort((a, b) => a.start_time.localeCompare(b.start_time));
+  }
+  return grouped;
+};
+
+const formatDayHeader = (dateKey: string) =>
+  new Date(`${dateKey}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
 export default function ConfirmedBookingsScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
@@ -94,8 +124,9 @@ export default function ConfirmedBookingsScreen() {
     success: SharedColours.success,
   };
 
-  const renderBooking = ({ item }: { item: BookingWithDetails }) => (
+  const renderBooking = (item: BookingWithDetails) => (
     <TouchableOpacity
+      key={item.booking_id}
       style={[
         styles.bookingCard,
         { backgroundColor: colours.card, borderColor: colours.border },
@@ -116,11 +147,8 @@ export default function ConfirmedBookingsScreen() {
         <Text style={[styles.detailText, { color: colours.textMuted }]}>
           Customer: {item.customer_name}
         </Text>
-        <Text style={[styles.detailText, { color: colours.textMuted }]}>
-          Date: {new Date(item.date).toLocaleDateString()}
-        </Text>
-        <Text style={[styles.detailText, { color: colours.textMuted }]}>
-          Time: {item.start_time} - {item.end_time}
+        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+          Time: {formatTime(item.start_time)} – {formatTime(item.end_time)}
         </Text>
       </View>
 
@@ -163,6 +191,10 @@ export default function ConfirmedBookingsScreen() {
     </TouchableOpacity>
   );
 
+  const groupedDays = Object.entries(groupByDay(bookings)).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
@@ -184,17 +216,23 @@ export default function ConfirmedBookingsScreen() {
           color={colours.accent}
           style={styles.loader}
         />
+      ) : groupedDays.length === 0 ? (
+        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+          No confirmed bookings
+        </Text>
       ) : (
         <FlatList
-          data={bookings}
-          renderItem={renderBooking}
-          keyExtractor={(item) => item.booking_id}
+          data={groupedDays}
+          keyExtractor={([day]) => day}
           contentContainerStyle={styles.listContainer}
-          ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: colours.textMuted }]}>
-              No confirmed bookings
-            </Text>
-          }
+          renderItem={({ item: [day, dayBookings] }) => (
+            <View>
+              <Text style={[styles.dayHeader, { color: colors.text }]}>
+                {formatDayHeader(day)}
+              </Text>
+              {dayBookings.map(renderBooking)}
+            </View>
+          )}
         />
       )}
 
@@ -229,6 +267,12 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 15,
+  },
+  dayHeader: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 10,
+    marginBottom: 8,
   },
   bookingCard: {
     padding: 15,
