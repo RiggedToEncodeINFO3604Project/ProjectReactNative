@@ -1,5 +1,7 @@
+import BackButton from "@/components/BackButton";
 import ConfirmModal from "@/components/ConfirmModal";
 import MessageCustomerButton from "@/components/MessageCustomerButton";
+import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import {
   acceptBooking,
@@ -234,16 +236,17 @@ export default function PendingBookingsScreen() {
 
   // ─── Theme ─────────────────────────────────────────────────────────────────
 
-  const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    success: "#34C759",
-    error: "#FF3B30",
-    overlap: isDarkMode ? "#2a1f0e" : "#fff8e7", // indication tint for time slots with >1 booking
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
+
+  const colours = {
+    background: extendedColours.background,
+    card: extendedColours.card,
+    text: extendedColours.text,
+    textMuted: extendedColours.textMuted,
+    border: extendedColours.border,
+    accent: SharedColours.bookingStatus.pending,
+    success: SharedColours.success,
+    error: SharedColours.error,
   };
 
   const renderBooking = (item: BookingWithDetails) => (
@@ -251,23 +254,23 @@ export default function PendingBookingsScreen() {
       key={item.booking_id}
       style={[
         styles.bookingCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        { backgroundColor: colours.card, borderColor: colours.border },
       ]}
     >
       <View style={styles.bookingHeader}>
-        <Text style={[styles.serviceName, { color: colors.text }]}>
+        <Text style={[styles.serviceName, { color: colours.text }]}>
           {item.service_name}
         </Text>
-        <Text style={[styles.cost, { color: colors.accent }]}>
+        <Text style={[styles.cost, { color: colours.accent }]}>
           ${item.cost}
         </Text>
       </View>
 
       <View style={styles.bookingDetails}>
-        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+        <Text style={[styles.detailText, { color: colours.textMuted }]}>
           👤 {item.customer_name}
         </Text>
-        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+        <Text style={[styles.detailText, { color: colours.textMuted }]}>
           📞 {item.customer_phone}
         </Text>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
@@ -284,7 +287,7 @@ export default function PendingBookingsScreen() {
           style={{ flex: 1 }}
         />
         <TouchableOpacity
-          style={[styles.snapshotButton, { backgroundColor: colors.accent }]}
+          style={[styles.snapshotButton, { backgroundColor: colours.accent }]}
           onPress={() => {
             console.log(
               "[Navigation] Navigating to snapshot for customer:",
@@ -294,7 +297,7 @@ export default function PendingBookingsScreen() {
           }}
         >
           <Text
-            style={[styles.snapshotButtonText, { color: colors.background }]}
+            style={[styles.snapshotButtonText, { color: colours.background }]}
           >
             📊 Snapshot
           </Text>
@@ -304,23 +307,23 @@ export default function PendingBookingsScreen() {
       {/* Row 2: Decision controls - Accept and Reject buttons (separate!) */}
       <View style={styles.actionButtons}>
         <TouchableOpacity
-          style={[styles.acceptButton, { backgroundColor: colors.success }]}
+          style={[styles.acceptButton, { backgroundColor: colours.success }]}
           onPress={() => handleAccept(item.booking_id)}
           disabled={processing === item.booking_id}
         >
           {processing === item.booking_id ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={SharedColours.white} size="small" />
           ) : (
             <Text style={styles.acceptButtonText}>Accept</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.rejectButton, { borderColor: colors.error }]}
+          style={[styles.rejectButton, { borderColor: colours.error }]}
           onPress={() => handleReject(item.booking_id)}
           disabled={processing === item.booking_id}
         >
-          <Text style={[styles.rejectButtonText, { color: colors.error }]}>
+          <Text style={[styles.rejectButtonText, { color: colours.error }]}>
             Reject
           </Text>
         </TouchableOpacity>
@@ -333,26 +336,22 @@ export default function PendingBookingsScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          { backgroundColor: colours.card, borderBottomColor: colours.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>
+        <BackButton onPress={() => router.back()} />
+        <Text style={[styles.title, { color: colours.text }]}>
           Pending Bookings
         </Text>
         <TouchableOpacity
           onPress={syncAllConfirmedToCalendar}
           disabled={syncing}
         >
-          <Text style={[styles.syncText, { color: colors.accent }]}>
+          <Text style={[styles.syncText, { color: colours.accent }]}>
             {syncing ? "Syncing..." : "Sync Cal"}
           </Text>
         </TouchableOpacity>
@@ -361,7 +360,7 @@ export default function PendingBookingsScreen() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color={colors.accent}
+          color={colours.accent}
           style={styles.loader}
         />
       ) : groupedDays.length === 0 ? (
@@ -447,7 +446,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
   },
-  backText: { fontSize: 16 },
   syncText: { fontSize: 14, fontWeight: "600" },
   title: { fontSize: 20, fontWeight: "bold" },
   listContainer: { padding: 15 },
@@ -516,7 +514,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  acceptButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  acceptButtonText: {
+    color: SharedColours.white,
+    fontSize: 16,
+    fontWeight: "600",
+  },
   rejectButton: {
     flex: 1,
     padding: 12,

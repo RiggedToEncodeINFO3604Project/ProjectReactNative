@@ -308,7 +308,12 @@ export interface AvailableSlot {
 export type MessageType = "text" | "image";
 
 // Message status union
-export type MessageStatus = "sent" | "delivered" | "read";
+export type MessageStatus =
+  | "sending"
+  | "sent"
+  | "delivered"
+  | "read"
+  | "failed";
 
 // Individual message interface
 export interface Message {

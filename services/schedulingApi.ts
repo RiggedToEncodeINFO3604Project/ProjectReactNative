@@ -27,8 +27,68 @@ import {
 } from "@/types/scheduling";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, { AxiosError, AxiosInstance } from "axios";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "";
+const DEFAULT_API_PORT = "8000";
+
+const normalizeApiUrl = (value?: string | null): string => {
+  return (value || "").trim().replace(/\/+$/, "");
+};
+
+const extractExpoHost = (): string | null => {
+  const expoConfigHost = (Constants.expoConfig as { hostUri?: string } | null)
+    ?.hostUri;
+  if (expoConfigHost) {
+    return expoConfigHost;
+  }
+
+  const manifest2Host = (
+    Constants as typeof Constants & {
+      manifest2?: {
+        extra?: {
+          expoGo?: {
+            debuggerHost?: string;
+          };
+        };
+      };
+    }
+  ).manifest2?.extra?.expoGo?.debuggerHost;
+
+  return manifest2Host || null;
+};
+
+const resolveApiUrl = (): string => {
+  const configuredUrl = normalizeApiUrl(process.env.EXPO_PUBLIC_API_URL);
+  const isLocalhostConfig =
+    !configuredUrl ||
+    configuredUrl.includes("localhost") ||
+    configuredUrl.includes("127.0.0.1");
+
+  if (!isLocalhostConfig) {
+    return configuredUrl;
+  }
+
+  if (Platform.OS === "android" && configuredUrl.includes("10.0.2.2")) {
+    return configuredUrl;
+  }
+
+  const expoHost = extractExpoHost();
+  const expoHostname = expoHost?.split(":")[0];
+
+  if (expoHostname) {
+    const protocol = configuredUrl.startsWith("https://") ? "https" : "http";
+    const resolvedUrl = `${protocol}://${expoHostname}:${DEFAULT_API_PORT}`;
+    console.log(
+      `[API] Resolved Expo device API URL from "${configuredUrl || "(empty)"}" to "${resolvedUrl}"`,
+    );
+    return resolvedUrl;
+  }
+
+  return configuredUrl;
+};
+
+const API_URL = resolveApiUrl();
 
 // Create axios instance
 const api: AxiosInstance = axios.create({

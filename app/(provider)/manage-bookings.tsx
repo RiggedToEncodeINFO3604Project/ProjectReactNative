@@ -1,3 +1,5 @@
+import BackButton from "@/components/BackButton";
+import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -19,29 +21,27 @@ export default function ManageBookingsScreen() {
     router.replace("/");
   };
 
-  const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
+
+  const colours = {
+    background: extendedColours.background,
+    card: extendedColours.card,
+    text: extendedColours.text,
+    textMuted: extendedColours.textMuted,
+    border: extendedColours.border,
+    accent: SharedColours.bookingStatus.pending,
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          { backgroundColor: colours.card, borderBottomColor: colours.border },
         ]}
       >
-        <TouchableOpacity onPress={handleBackPress}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>
+        <BackButton onPress={handleBackPress} />
+        <Text style={[styles.title, { color: colours.text }]}>
           Manage Bookings
         </Text>
         <View style={{ width: 50 }} />
@@ -51,15 +51,15 @@ export default function ManageBookingsScreen() {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            { backgroundColor: colours.card, borderColor: colours.border },
           ]}
           onPress={handleNavigateToPending}
         >
-          <Text style={[styles.optionIcon, { color: colors.accent }]}>📋</Text>
-          <Text style={[styles.optionTitle, { color: colors.text }]}>
+          <Text style={[styles.optionIcon, { color: colours.accent }]}>📋</Text>
+          <Text style={[styles.optionTitle, { color: colours.text }]}>
             View Pending Booking Requests
           </Text>
-          <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+          <Text style={[styles.optionDescription, { color: colours.textMuted }]}>
             Review, accept, or reject incoming booking requests
           </Text>
         </TouchableOpacity>
@@ -67,15 +67,15 @@ export default function ManageBookingsScreen() {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            { backgroundColor: colors.card, borderColor: colors.border },
+            { backgroundColor: colours.card, borderColor: colours.border },
           ]}
           onPress={handleNavigateToConfirmed}
         >
-          <Text style={[styles.optionIcon, { color: colors.accent }]}>✅</Text>
-          <Text style={[styles.optionTitle, { color: colors.text }]}>
+          <Text style={[styles.optionIcon, { color: colours.accent }]}>✅</Text>
+          <Text style={[styles.optionTitle, { color: colours.text }]}>
             View Confirmed Bookings
           </Text>
-          <Text style={[styles.optionDescription, { color: colors.textMuted }]}>
+          <Text style={[styles.optionDescription, { color: colours.textMuted }]}>
             View, reschedule, or delete confirmed bookings
           </Text>
         </TouchableOpacity>
@@ -94,9 +94,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-  },
-  backText: {
-    fontSize: 16,
   },
   title: {
     fontSize: 20,

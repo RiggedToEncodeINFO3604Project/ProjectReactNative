@@ -3,11 +3,23 @@
 // = Displays a single message bubble with tail        =
 // =====================================================
 
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import {
+  CustomerColours,
+  getExtendedColours,
+  getThemeColours,
+  ProviderColours,
+  SharedColours,
+} from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
 import { Message, MessageStatus } from "@/types/scheduling";
-import React from "react";
-import { Image, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface MessageBubbleProps {
   message: Message;
@@ -15,27 +27,37 @@ interface MessageBubbleProps {
   showStatus?: boolean;
   highlightQuery?: string;
   isHighlighted?: boolean;
+  onRetry?: (messageId: string) => void; // Callback for retry on failed messages
 }
 
 const CHECK_ICON = "✓";
 const DOUBLE_CHECK_ICON = "✓✓";
-const HIGHLIGHT_COLOR = "#ffeb3b"; // Yellow highlight
+const HIGHLIGHT_COLOR = SharedColours.highlight; // Yellow highlight
+const FAILED_ICON = "⚠️";
+const SENDING_ICON = "🕐";
 
 function formatTime(timestamp: string): string {
   const date = new Date(timestamp);
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function getStatusIcon(status?: MessageStatus): string {
+function getStatusIcon(status?: MessageStatus): {
+  icon: string;
+  showSpinner: boolean;
+} {
   switch (status) {
+    case "sending":
+      return { icon: SENDING_ICON, showSpinner: true };
     case "sent":
-      return CHECK_ICON;
+      return { icon: CHECK_ICON, showSpinner: false };
     case "delivered":
-      return DOUBLE_CHECK_ICON;
+      return { icon: DOUBLE_CHECK_ICON, showSpinner: false };
     case "read":
-      return DOUBLE_CHECK_ICON;
+      return { icon: DOUBLE_CHECK_ICON, showSpinner: false };
+    case "failed":
+      return { icon: FAILED_ICON, showSpinner: false };
     default:
-      return "";
+      return { icon: "", showSpinner: false };
   }
 }
 
@@ -46,6 +68,10 @@ function getStatusColor(
   switch (status) {
     case "read":
       return tintColor; // Use theme tint for read
+    case "failed":
+      return "#FF4444"; // Red for failed
+    case "sending":
+      return "#FFA500"; // Orange for sending
     default:
       return "rgba(255,255,255,0.7)"; // White/gray for others
   }
@@ -67,9 +93,11 @@ function HighlightedText({
     return <Text style={style}>{text}</Text>;
   }
 
-  const parts = text.split(
-    new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"),
-  );
+  const escapeRegExp = (str: string) => {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  };
+
+  const parts = text.split(new RegExp(`(${escapeRegExp(highlight)})`, "gi"));
 
   return (
     <Text style={style}>
@@ -93,12 +121,30 @@ export function MessageBubble({
   showStatus = true,
   highlightQuery = "",
   isHighlighted = false,
+  onRetry,
 }: MessageBubbleProps) {
-  const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? "light"];
+  const { isDarkMode, userType, colours: theme } = useTheme();
+  const extendedColours = getExtendedColours(isDarkMode);
+  const userTypeTheme = getThemeColours(userType, isDarkMode);
   const isImage = message.message_type === "image";
-  const statusIcon = getStatusIcon(message.status);
+  const { icon: statusIcon, showSpinner } = getStatusIcon(message.status);
   const statusColor = getStatusColor(message.status, theme.tint);
+  const isFailed = message.status === "failed";
+  const isSending = message.status === "sending";
+
+  const handleRetry = () => {
+    if (onRetry && isFailed) {
+      onRetry(message.id);
+    }
+  };
+
+  // Get user's primary color based on userType
+  const userPrimaryColor =
+    userType === "provider"
+      ? ProviderColours.light.primary // Provider: #01d0a8 (teal)
+      : CustomerColours.light.primary; // Customer: #1e4e8c (blue)
+  const otherBubbleColor = "#f0c85a"; // Yellow for other person in both modes
+  const bubbleColor = isCurrentUser ? userPrimaryColor : otherBubbleColor;
 
   return (
     <View
@@ -111,48 +157,25 @@ export function MessageBubble({
       <View
         style={[
           styles.bubble,
-          isCurrentUser
-            ? [
-                styles.sentBubble,
-                {
-                  backgroundColor:
-                    colorScheme === "dark" ? "#0a7ea4" : theme.tint,
-                },
-              ]
-            : [
-                styles.receivedBubble,
-                {
-                  backgroundColor:
-                    colorScheme === "dark" ? "#2a2a2a" : "#e9ecef",
-                },
-              ],
+          isCurrentUser ? styles.sentBubble : styles.receivedBubble,
+          {
+            backgroundColor: bubbleColor,
+          },
           isImage && styles.imageBubble,
           isHighlighted && styles.highlightedBubble,
+          isFailed && styles.failedBubble,
         ]}
       >
         {/* Tail for WhatsApp-style bubbles */}
         <View
           style={[
             styles.tail,
-            isCurrentUser
-              ? [
-                  styles.sentTail,
-                  {
-                    borderLeftColor:
-                      colorScheme === "dark" ? "#0a7ea4" : theme.tint,
-                    borderBottomColor:
-                      colorScheme === "dark" ? "#0a7ea4" : theme.tint,
-                  },
-                ]
-              : [
-                  styles.receivedTail,
-                  {
-                    borderRightColor:
-                      colorScheme === "dark" ? "#2a2a2a" : "#e9ecef",
-                    borderBottomColor:
-                      colorScheme === "dark" ? "#2a2a2a" : "#e9ecef",
-                  },
-                ],
+            isCurrentUser ? styles.sentTail : styles.receivedTail,
+            {
+              borderLeftColor: bubbleColor,
+              borderBottomColor: bubbleColor,
+              borderRightColor: bubbleColor,
+            },
             isHighlighted &&
               (isCurrentUser
                 ? styles.highlightedSentTail
@@ -168,7 +191,8 @@ export function MessageBubble({
             highlight={highlightQuery}
             style={[
               styles.content,
-              isCurrentUser ? { color: "#fff" } : { color: theme.text },
+              // Use white text for primary color bubbles, black for yellow bubbles
+              { color: bubbleColor === otherBubbleColor ? "#000" : "#fff" },
             ]}
             highlightStyle={styles.highlightText}
           />
@@ -179,15 +203,49 @@ export function MessageBubble({
           <Text
             style={[
               styles.timestamp,
-              isCurrentUser ? styles.sentTimestamp : { color: theme.icon },
+              // Use darker color for yellow bubble, lighter for primary color bubble
+              {
+                color:
+                  bubbleColor === otherBubbleColor
+                    ? "rgba(0,0,0,0.6)"
+                    : isCurrentUser
+                      ? "rgba(255,255,255,0.7)"
+                      : theme.icon,
+              },
             ]}
           >
             {formatTime(message.created_at)}
           </Text>
           {isCurrentUser && showStatus && (
-            <Text style={[styles.statusIcon, { color: statusColor }]}>
-              {statusIcon}
-            </Text>
+            <View style={styles.statusContainer}>
+              {showSpinner ? (
+                <ActivityIndicator
+                  size="small"
+                  color={statusColor}
+                  style={styles.spinner}
+                />
+              ) : (
+                <>
+                  {isFailed && onRetry ? (
+                    <TouchableOpacity
+                      onPress={handleRetry}
+                      style={styles.retryButton}
+                    >
+                      <Text style={[styles.statusIcon, { color: statusColor }]}>
+                        {statusIcon}
+                      </Text>
+                      <Text style={[styles.retryText, { color: statusColor }]}>
+                        Tap to retry
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={[styles.statusIcon, { color: statusColor }]}>
+                      {statusIcon}
+                    </Text>
+                  )}
+                </>
+              )}
+            </View>
           )}
         </View>
       </View>
@@ -227,6 +285,10 @@ const styles = StyleSheet.create({
   highlightedBubble: {
     borderWidth: 2,
     borderColor: HIGHLIGHT_COLOR,
+  },
+  failedBubble: {
+    borderWidth: 1,
+    borderColor: "#FF4444",
   },
   imageBubble: {
     paddingHorizontal: 4,
@@ -295,10 +357,25 @@ const styles = StyleSheet.create({
   sentTimestamp: {
     color: "rgba(255,255,255,0.7)",
   },
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   statusIcon: {
     fontSize: 12,
     fontWeight: "bold",
     letterSpacing: -1,
+  },
+  spinner: {
+    marginRight: 2,
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  retryText: {
+    fontSize: 10,
+    marginLeft: 2,
   },
 });
 

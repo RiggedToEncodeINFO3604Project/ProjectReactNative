@@ -1,5 +1,7 @@
+import BackButton from "@/components/BackButton";
 import BookingActionModal from "@/components/BookingActionModal";
 import MessageCustomerButton from "@/components/MessageCustomerButton";
+import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { deleteBooking, getConfirmedBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
@@ -110,14 +112,16 @@ export default function ConfirmedBookingsScreen() {
     router.push("/manage-bookings");
   };
 
-  const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    success: "#34C759",
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
+
+  const colours = {
+    background: extendedColours.background,
+    card: extendedColours.card,
+    text: extendedColours.text,
+    textMuted: extendedColours.textMuted,
+    border: extendedColours.border,
+    accent: SharedColours.bookingStatus.pending,
+    success: SharedColours.success,
   };
 
   const renderBooking = (item: BookingWithDetails) => (
@@ -125,22 +129,22 @@ export default function ConfirmedBookingsScreen() {
       key={item.booking_id}
       style={[
         styles.bookingCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        { backgroundColor: colours.card, borderColor: colours.border },
       ]}
       onPress={() => handleBookingPress(item)}
       disabled={processing === item.booking_id}
     >
       <View style={styles.bookingHeader}>
-        <Text style={[styles.serviceName, { color: colors.text }]}>
+        <Text style={[styles.serviceName, { color: colours.text }]}>
           {item.service_name}
         </Text>
-        <Text style={[styles.price, { color: colors.accent }]}>
+        <Text style={[styles.price, { color: colours.accent }]}>
           ${item.cost}
         </Text>
       </View>
 
       <View style={styles.bookingDetails}>
-        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+        <Text style={[styles.detailText, { color: colours.textMuted }]}>
           Customer: {item.customer_name}
         </Text>
         <Text style={[styles.detailText, { color: colors.textMuted }]}>
@@ -149,7 +153,7 @@ export default function ConfirmedBookingsScreen() {
       </View>
 
       <View style={styles.statusContainer}>
-        <View style={[styles.statusBadge, { backgroundColor: colors.success }]}>
+        <View style={[styles.statusBadge, { backgroundColor: colours.success }]}>
           <Text style={styles.statusText}>Confirmed</Text>
         </View>
         <View style={styles.actionRow}>
@@ -162,7 +166,7 @@ export default function ConfirmedBookingsScreen() {
           <TouchableOpacity
             style={[
               styles.snapshotButton,
-              { backgroundColor: colors.card, borderColor: colors.border },
+              { backgroundColor: colours.card, borderColor: colours.border },
             ]}
             onPress={() => {
               console.log(
@@ -173,15 +177,15 @@ export default function ConfirmedBookingsScreen() {
             }}
             activeOpacity={0.7}
           >
-            <Ionicons name="person-circle" size={18} color={colors.accent} />
+            <Ionicons name="person-circle" size={18} color={colours.accent} />
           </TouchableOpacity>
           {processing === item.booking_id && (
-            <ActivityIndicator size="small" color={colors.accent} />
+            <ActivityIndicator size="small" color={colours.accent} />
           )}
         </View>
       </View>
 
-      <Text style={[styles.tapHint, { color: colors.textMuted }]}>
+      <Text style={[styles.tapHint, { color: colours.textMuted }]}>
         Tap for actions
       </Text>
     </TouchableOpacity>
@@ -192,19 +196,15 @@ export default function ConfirmedBookingsScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       <View
         style={[
           styles.header,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
+          { backgroundColor: colours.card, borderBottomColor: colours.border },
         ]}
       >
-        <TouchableOpacity onPress={handleBackPress}>
-          <Text style={[styles.backText, { color: colors.accent }]}>
-            {"<"} Back
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>
+        <BackButton onPress={handleBackPress} />
+        <Text style={[styles.title, { color: colours.text }]}>
           Confirmed Bookings
         </Text>
         <View style={{ width: 50 }} />
@@ -213,7 +213,7 @@ export default function ConfirmedBookingsScreen() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color={colors.accent}
+          color={colours.accent}
           style={styles.loader}
         />
       ) : groupedDays.length === 0 ? (
@@ -260,9 +260,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-  },
-  backText: {
-    fontSize: 16,
   },
   title: {
     fontSize: 20,
@@ -331,7 +328,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusText: {
-    color: "#fff",
+    color: SharedColours.white,
     fontSize: 12,
     fontWeight: "600",
   },
