@@ -8,6 +8,7 @@ from auth import get_current_customer
 from firebase_db import get_database
 import uuid
 from datetime import datetime, timedelta
+from services.availability_service import slot_applies_to_date
 
 router = APIRouter(prefix="/customer", tags=["customer"])
 
@@ -152,14 +153,17 @@ async def get_provider_availability(
     availability_doc = availability_docs[0]
     availability = availability_doc.to_dict()
     
-    # Find the day's schedule
-    day_schedule = None
+    applicable_slots = []
     for day in availability["schedule"]:
-        if day["day_of_week"] == day_of_week:
-            day_schedule = day
-            break
-    
-    if not day_schedule:
+        if day["day_of_week"] != day_of_week:
+            continue
+        applicable_slots = [
+            slot for slot in day.get("time_slots", [])
+            if slot_applies_to_date(slot, target_date.date())
+        ]
+        break
+
+    if not applicable_slots:
         return {"available_slots": []}
     
     # Get existing bookings for this date
@@ -193,7 +197,7 @@ async def get_provider_availability(
     
     # Generate sessions from time slots
     all_sessions = []
-    for slot in day_schedule["time_slots"]:
+    for slot in applicable_slots:
         session_duration = slot.get("session_duration", 30)  # Default 30 minutes
         result = generate_sessions(
             slot["start_time"],
@@ -294,21 +298,24 @@ async def get_provider_calendar(
         date_str = current_date.strftime("%Y-%m-%d")
         day_of_week = current_date.weekday()
         
-        # Find day schedule
-        day_schedule = None
+        applicable_slots = []
         if availability:
             for day in availability["schedule"]:
-                if day["day_of_week"] == day_of_week:
-                    day_schedule = day
-                    break
-        
-        if not availability or not day_schedule or not day_schedule["time_slots"]:
+                if day["day_of_week"] != day_of_week:
+                    continue
+                applicable_slots = [
+                    slot for slot in day.get("time_slots", [])
+                    if slot_applies_to_date(slot, current_date.date())
+                ]
+                break
+
+        if not availability or not applicable_slots:
             status = "unavailable"
             available_percentage = 0.0
         else:
             # Calculate total available sessions
             total_sessions = 0
-            for slot in day_schedule["time_slots"]:
+            for slot in applicable_slots:
                 session_duration = slot.get("session_duration", 30)
                 result_gen = generate_sessions(
                     slot["start_time"],
@@ -388,27 +395,33 @@ async def create_booking(
     
     availability = availability_docs[0].to_dict()
     
+    applicable_slots = []
+    for day in availability["schedule"]:
+        if day["day_of_week"] != day_of_week:
+            continue
+        applicable_slots = [
+            slot for slot in day.get("time_slots", [])
+            if slot_applies_to_date(slot, booking_date.date())
+        ]
+        break
+
     # Generate all valid sessions for this day and verify the requested time matches one
     is_valid_slot = False
-    for day in availability["schedule"]:
-        if day["day_of_week"] == day_of_week:
-            for slot in day["time_slots"]:
-                session_duration = slot.get("session_duration", 30)
-                result = generate_sessions(
-                    slot["start_time"],
-                    slot["end_time"],
-                    session_duration
-                )
-                # Check if the requested booking matches any generated session
-                for session in result["sessions"]:
-                    if (booking_request.start_time == session["start_time"] and 
-                        booking_request.end_time == session["end_time"]):
-                        is_valid_slot = True
-                        break
-                if is_valid_slot:
-                    break
-            if is_valid_slot:
+    for slot in applicable_slots:
+        session_duration = slot.get("session_duration", 30)
+        result = generate_sessions(
+            slot["start_time"],
+            slot["end_time"],
+            session_duration
+        )
+        # Check if the requested booking matches any generated session
+        for session in result["sessions"]:
+            if (booking_request.start_time == session["start_time"] and 
+                booking_request.end_time == session["end_time"]):
+                is_valid_slot = True
                 break
+        if is_valid_slot:
+            break
     
     if not is_valid_slot:
         raise HTTPException(status_code=400, detail="Requested time slot is not available. Please select a valid session time.")
