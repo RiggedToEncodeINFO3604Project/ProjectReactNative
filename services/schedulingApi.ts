@@ -503,5 +503,47 @@ export const getCustomerSnapshot = async (
   }
 };
 
+// Auto-tagging API endpoints
+export interface TaggingConfig {
+  frequency_thresholds?: { returning: number; regular: number; loyal: number };
+  spending_thresholds?: {
+    regular_spender: number;
+    high_value: number;
+    premium: number;
+  };
+  recency_thresholds?: { active_days: number; at_risk_days: number };
+  tag_colors?: Record<string, string>;
+  tag_priority?: "auto_first" | "manual_first" | "merge";
+  enable_phases?: {
+    phase1: boolean;
+    phase2: boolean;
+    phase3: boolean;
+    phase4: boolean;
+  };
+  enabled?: boolean;
+}
+
+export const getTaggingRules = async (): Promise<TaggingConfig> => {
+  const url = `/provider/tags/rules`;
+  const response = await api.get<TaggingConfig>(url);
+  return response.data;
+};
+
+export const updateTaggingRules = async (
+  rules: Partial<TaggingConfig>,
+): Promise<any> => {
+  const url = `/provider/tags/rules`;
+  const response = await api.put<any>(url, rules);
+  return response.data;
+};
+
+export const refreshCustomerAutoTags = async (
+  customerId: string,
+): Promise<any[]> => {
+  const url = `/provider/customer/${customerId}/tags/auto-refresh`;
+  const response = await api.post<any[]>(url);
+  return response.data;
+};
+
 // Export the axios instance for custom requests
 export default api;

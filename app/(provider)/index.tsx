@@ -4,11 +4,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function ProviderHomeScreen() {
@@ -51,6 +51,13 @@ export default function ProviderHomeScreen() {
       description: "See all your scheduled appointments",
       route: "calendar",
       icon: "calendar-outline" as const,
+    },
+    {
+      title: "Auto-Tagging Settings",
+      description:
+        "Configure automatic customer tagging and behavioral insights",
+      route: "manage-tagging",
+      icon: "pricetag-outline" as const,
     },
     {
       title: "Messages",
