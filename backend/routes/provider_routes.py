@@ -9,9 +9,7 @@ from firebase_db import get_database
 from firebase_admin import firestore
 import uuid
 from datetime import datetime, date as date_type
-import logging
-
-logger = logging.getLogger(__name__)
+from services.tagging_service import calculate_auto_tags, get_provider_tagging_config, resolve_tag_priority
 
 router = APIRouter(prefix="/provider", tags=["provider"])
 
@@ -705,42 +703,31 @@ async def get_available_slots(
     }
 
 
-# customer snapshot
+# customer snapshot - with integrated auto-tagging
 @router.get("/customer/{customer_id}/snapshot", response_model=dict)
 # snapshot view, will provide a quick list of information on a specific customer given that they have booked with you previously
+# auto-tags are calculated and merged with manual tags by default
 async def get_customer_snapshot(
     customer_id: str,
     current_user: UserInDB = Depends(get_current_provider)
 ):
     db = get_database()
-    
-    logger.info(f"Fetching snapshot for customer: {customer_id}")
 
     # make sure provider exists
     provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
     if not provider_docs or len(provider_docs) == 0:
-        logger.error(f"Provider profile not found for user: {current_user.id}")
         raise HTTPException(status_code=404, detail="Provider profile not found")
 
     provider_doc = provider_docs[0]
     provider = provider_doc.to_dict()
     provider["_id"] = provider_doc.id
-    logger.info(f"Provider found: {provider['_id']}")
 
     # get customer using their id
     customer_doc = db.collection("customers").document(customer_id).get()
     if not customer_doc.exists:
-        logger.error(f"Customer not found: {customer_id}")
         raise HTTPException(status_code=404, detail="Customer not found")
     customer = customer_doc.to_dict()
     customer["_id"] = customer_doc.id
-    
-    # DEBUG: Log all customer data fields
-    logger.info(f"[DEBUG] Customer found: {customer_id}")
-    logger.info(f"[DEBUG] Customer data keys: {list(customer.keys())}")
-    logger.info(f"[DEBUG] Customer name field: {customer.get('name')}")
-    logger.info(f"[DEBUG] Customer customer_name field: {customer.get('customer_name')}")
-    logger.info(f"[DEBUG] Full customer data: {customer}")
 
     # get email from customer/user table
     user_id = customer.get("user_id")
@@ -750,15 +737,10 @@ async def get_customer_snapshot(
         if user_doc.exists:
             user = user_doc.to_dict()
             customer_email = user.get("email", "Not available")
-            logger.info(f"User email found for customer {customer_id}: {customer_email}")
-        else:
-            logger.warning(f"User document not found for user_id: {user_id}")
-    else:
-        logger.warning(f"No user_id found for customer: {customer_id}")
 
     # get the services that the provider offers
     services_docs = db.collection("services").where("provider_id", "==", provider["_id"]).get()
-    services = [s.to_dict() for s in services_docs]
+    # services = [s.to_dict() for s in services_docs] # just incase i wanna use the dict version for whatever, i don't think it's really all that necessary
     service_ids = [doc.id for doc in services_docs]
 
     # get all prev bookings for this one customer
@@ -846,23 +828,116 @@ async def get_customer_snapshot(
     
     #  using placeholder for test purposes - revisit later
     payment_preference = "Not specified"
-    
-    # Ensure customer name has a fallback
-    customer_name = customer.get("name") or customer.get("customer_name") or "Unknown Customer"
-    customer_phone = customer.get("phone") or customer.get("customer_phone") or "Not available"
-    
-    logger.info(f"Returning snapshot for customer {customer_id}: name={customer_name}, visits={total_visits}, spent={total_spent}")
-    
+    # calculate auto-tags and merge
+    config = get_provider_tagging_config(db, provider["_id"])
+    try:
+        auto_tags = calculate_auto_tags(db, provider["_id"], customer_id, bookings, config)
+    except Exception:
+        auto_tags = []
+
+    # merge manual tags with auto-tags using priority rules
+    priority_mode = config.get("tag_priority", "manual_first")
+    merged_tags = resolve_tag_priority(tags, auto_tags, priority_mode)
+
     return {
         "customer_id": customer_id,
-        "customer_name": customer_name,
-        "customer_email": customer_email or "Not available",
-        "customer_phone": customer_phone,
+        "customer_name": customer.get("name"),
+        "customer_email": customer_email,
+        "customer_phone": customer.get("phone"),
         "total_visits": total_visits,
         "last_service_date": last_service_date,
         "last_service_name": last_service_name,
         "payment_preference": payment_preference,
         "total_spent": total_spent,
-        "tags": tags,
+        "tags": merged_tags,
+        "auto_tags": auto_tags,
         "notes": notes
     }
+
+
+@router.get("/tags/rules", response_model=dict)
+async def get_tagging_rules(current_user: UserInDB = Depends(get_current_provider)):
+    # gets the current auto-tag thresholds for the provider accessing it
+    db = get_database()
+
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+
+    config = get_provider_tagging_config(db, provider_id)
+    return config
+
+
+@router.put("/tags/rules", response_model=dict)
+async def update_tagging_rules(
+    rules: dict,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    """Update the auto-tagging thresholds for this provider.
+    
+    the format is like this - i know im gonna come back in a week and forget ~1/04/26 i did forget, good thing i wrote it out:
+    {
+        "frequency_thresholds": {"returning": 2, "regular": 5, "loyal": 10},
+        "spending_thresholds": {"regular_spender": 100, "high_value": 500, "premium": 1000},
+        "recency_thresholds": {"active_days": 30, "at_risk_days": 180},
+        "enabled": true
+    }
+    """
+    db = get_database()
+
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+
+    # Merge with existing config to preserve unspecified fields
+    existing_config = get_provider_tagging_config(db, provider_id)
+    config = {**existing_config, **rules}
+
+    db.collection("provider_tagging_rules").document(provider_id).set(config)
+
+    return {"success": True, "config": config}
+
+
+@router.post("/customer/{customer_id}/tags/auto-refresh", response_model=list)
+async def refresh_customer_auto_tags(
+    customer_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    # Recalc auto-tags for a given customer, manual tags aren't covered in this but im gonna return them for the sake of convenience - also i log everything and i feel like it'll clutter log if i don't
+    db = get_database()
+
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    provider_doc = provider_docs[0]
+    provider = provider_doc.to_dict()
+    provider["_id"] = provider_doc.id
+
+    customer_doc = db.collection("customers").document(customer_id).get()
+    if not customer_doc.exists:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    # Get provider services
+    services_docs = db.collection("services").where("provider_id", "==", provider["_id"]).get()
+    service_ids = [doc.id for doc in services_docs]
+
+    bookings = []
+    if service_ids:
+        bookings_query = db.collection("client_records")
+        bookings_query = bookings_query.where("customer_id", "==", customer_id)
+        bookings_query = bookings_query.where("service_id", "in", service_ids)
+        bookings_query = bookings_query.where("status", "in", ["confirmed", "completed"]).order_by("date", direction=firestore.Query.DESCENDING)
+        bookings_docs = bookings_query.get()
+        bookings = [b.to_dict() for b in bookings_docs]
+
+    config = get_provider_tagging_config(db, provider["_id"])
+    auto_tags = calculate_auto_tags(db, provider["_id"], customer_id, bookings, config)
+
+    return auto_tags

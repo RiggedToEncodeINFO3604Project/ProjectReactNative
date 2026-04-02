@@ -168,13 +168,7 @@ export default function ConfirmedBookingsScreen() {
               styles.snapshotButton,
               { backgroundColor: colours.card, borderColor: colours.border },
             ]}
-            onPress={() => {
-              console.log(
-                "[Navigation] Navigating to snapshot for customer:",
-                item.customer_id,
-              );
-              router.push(`/snapshot/${item.customer_id}`);
-            }}
+            onPress={() => router.push(`/snapshot/${item.customer_id}`)}
             activeOpacity={0.7}
           >
             <Ionicons name="person-circle" size={18} color={colours.accent} />
