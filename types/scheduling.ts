@@ -97,6 +97,7 @@ export interface TimeSlot {
   recurrence_type?: AvailabilityRecurrence;
   start_date?: string | null;
   end_date?: string | null;
+  service_ids?: string[];
 }
 
 export interface DayAvailability {

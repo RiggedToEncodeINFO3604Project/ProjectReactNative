@@ -241,9 +241,13 @@ export const searchProviders = async (
 export const getProviderAvailability = async (
   providerId: string,
   date: string,
+  serviceId?: string | null,
 ): Promise<AvailableSlotsResponse> => {
   const response = await api.get<AvailableSlotsResponse>(
     `/customer/providers/${providerId}/availability/${date}`,
+    {
+      params: serviceId ? { service_id: serviceId } : undefined,
+    },
   );
   return response.data;
 };
@@ -253,9 +257,13 @@ export const getProviderCalendar = async (
   providerId: string,
   year: number,
   month: number,
+  serviceId?: string | null,
 ): Promise<DayBookingStatus[]> => {
   const response = await api.get<DayBookingStatus[]>(
     `/customer/providers/${providerId}/calendar/${year}/${month}`,
+    {
+      params: serviceId ? { service_id: serviceId } : undefined,
+    },
   );
   return response.data;
 };
@@ -341,6 +349,7 @@ export const getAvailability = async (): Promise<AvailabilitySchedule> => {
         recurrence_type?: string;
         start_date?: string | null;
         end_date?: string | null;
+        service_ids?: string[];
       }[];
     }[];
   }>("/provider/availability");
@@ -359,6 +368,7 @@ export const getAvailability = async (): Promise<AvailabilitySchedule> => {
             : (slot.recurrence_type ?? "repeat_weekly"),
         start_date: slot.start_date ?? null,
         end_date: slot.end_date ?? null,
+        service_ids: slot.service_ids ?? [],
       })),
     })),
   };
