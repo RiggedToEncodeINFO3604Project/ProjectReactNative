@@ -84,10 +84,20 @@ export interface ServiceCreate {
 }
 
 // Availability types
+export type AvailabilityRecurrence =
+  | "repeat_weekly"
+  | "just_today"
+  | "just_this_month"
+  | "specified_end_date";
+
 export interface TimeSlot {
   start_time: string; // Format: "HH:MM"
   end_time: string; // Format: "HH:MM"
   session_duration: number; // Duration in minutes
+  recurrence_type?: AvailabilityRecurrence;
+  start_date?: string | null;
+  end_date?: string | null;
+  service_ids?: string[];
 }
 
 export interface DayAvailability {

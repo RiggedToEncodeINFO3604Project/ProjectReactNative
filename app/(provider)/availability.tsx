@@ -1,10 +1,15 @@
 import BackButton from "@/components/BackButton";
 import { ExtendedColours, SharedColours, UIColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
-import { getAvailability, setAvailability } from "@/services/schedulingApi";
 import {
-  AvailabilityResponse,
+  getAvailability,
+  getMyServices,
+  setAvailability,
+} from "@/services/schedulingApi";
+import {
+  AvailabilityRecurrence,
   DayAvailability,
+  Service,
   TimeSlot,
 } from "@/types/scheduling";
 import { useRouter } from "expo-router";
@@ -20,6 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Calendar } from "react-native-calendars";
 
 const DAYS = [
   "Monday",
@@ -32,15 +38,39 @@ const DAYS = [
 ];
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120];
+const formatDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getNextOccurrenceForDay = (today: Date, dayIndex: number) => {
+  const todayDayIndex = (today.getDay() + 6) % 7;
+  const occurrence = new Date(today);
+  occurrence.setHours(0, 0, 0, 0);
+
+  let daysAhead = dayIndex - todayDayIndex;
+  if (daysAhead < 0) {
+    daysAhead += 7;
+  }
+
+  occurrence.setDate(today.getDate() + daysAhead);
+  return occurrence;
+};
 
 export default function ManageAvailabilityScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
+  const today = new Date();
+  const todayString = formatDate(today);
 
   const [schedule, setSchedule] = useState<DayAvailability[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [editingSlot, setEditingSlot] = useState<{
     dayIndex: number;
@@ -49,19 +79,68 @@ export default function ManageAvailabilityScreen() {
   const [tempStartTime, setTempStartTime] = useState("09:00");
   const [tempEndTime, setTempEndTime] = useState("17:00");
   const [tempDuration, setTempDuration] = useState(30);
+  const [tempRecurrence, setTempRecurrence] =
+    useState<AvailabilityRecurrence>("repeat_weekly");
+  const [tempEndDate, setTempEndDate] = useState(todayString);
+  const [tempSelectedServiceIds, setTempSelectedServiceIds] = useState<
+    string[]
+  >([]);
+
+  const getOneTimeOptionLabel = () => {
+    if (!editingSlot) {
+      return "Just Today";
+    }
+
+    const todayDayIndex = (today.getDay() + 6) % 7;
+    if (editingSlot.dayIndex === todayDayIndex) {
+      return "Just Today";
+    }
+
+    return `Just the next ${DAYS[editingSlot.dayIndex]}`;
+  };
+
+  const recurrenceOptions = [
+    { value: "repeat_weekly" as const, label: "Repeat Weekly" },
+    {
+      value: "just_today" as const,
+      label: getOneTimeOptionLabel(),
+    },
+    { value: "just_this_month" as const, label: "Just This Month" },
+    { value: "specified_end_date" as const, label: "Specified End Date" },
+  ];
 
   useEffect(() => {
-    loadAvailability();
+    loadInitialData();
   }, []);
 
-  const loadAvailability = async () => {
+  const loadInitialData = async () => {
     try {
-      const result = await getAvailability();
-      setSchedule(result.schedule || []);
+      const [availabilityResult, servicesResult] = await Promise.all([
+        getAvailability(),
+        getMyServices(),
+      ]);
+      const normalizedServices = servicesResult || [];
+      const normalizedSchedule = (availabilityResult.schedule || []).map(
+        (day) => ({
+          ...day,
+          time_slots: day.time_slots.map((slot) => ({
+            ...slot,
+            service_ids:
+              slot.service_ids && slot.service_ids.length > 0
+                ? slot.service_ids
+                : normalizedServices.length === 1
+                  ? [normalizedServices[0].id]
+                  : [],
+          })),
+        }),
+      );
+
+      setServices(normalizedServices);
+      setSchedule(normalizedSchedule);
     } catch (error: any) {
       Alert.alert(
         "Error",
-        error.response?.data?.detail || "Failed to load availability",
+        error.response?.data?.detail || "Failed to load availability data",
       );
     } finally {
       setLoading(false);
@@ -78,6 +157,11 @@ export default function ManageAvailabilityScreen() {
     setTempStartTime("09:00");
     setTempEndTime("17:00");
     setTempDuration(30);
+    setTempRecurrence("repeat_weekly");
+    setTempEndDate(todayString);
+    setTempSelectedServiceIds(
+      services.length === 1 ? [services[0].id] : [],
+    );
     setEditModalVisible(true);
   };
 
@@ -101,11 +185,37 @@ export default function ManageAvailabilityScreen() {
     slotIndex: number,
     slot: TimeSlot,
   ) => {
+    const slotRecurrence = String(slot.recurrence_type || "repeat_weekly");
     setEditingSlot({ dayIndex, slotIndex }); // slotIndex is a number for existing slots
     setTempStartTime(slot.start_time);
     setTempEndTime(slot.end_time);
     setTempDuration(slot.session_duration || 30);
+    setTempRecurrence(
+      slotRecurrence === "just_this_week"
+        ? "just_today"
+        : ((slot.recurrence_type ?? "repeat_weekly") as AvailabilityRecurrence),
+    );
+    setTempEndDate(slot.end_date || todayString);
+    setTempSelectedServiceIds(
+      slot.service_ids && slot.service_ids.length > 0
+        ? slot.service_ids
+        : services.length === 1
+          ? [services[0].id]
+          : [],
+    );
     setEditModalVisible(true);
+  };
+
+  const getEffectiveStartDate = (existingSlot?: TimeSlot) => {
+    if (
+      existingSlot &&
+      existingSlot.recurrence_type === tempRecurrence &&
+      existingSlot.start_date
+    ) {
+      return existingSlot.start_date;
+    }
+
+    return todayString;
   };
 
   const generateSessionsPreview = (
@@ -160,6 +270,46 @@ export default function ManageAvailabilityScreen() {
     };
   };
 
+  const getSlotRecurrenceSummary = (slot: TimeSlot) => {
+    switch (slot.recurrence_type || "repeat_weekly") {
+      case "just_today":
+        return "Just today";
+      case "just_this_month":
+        return `This month only${slot.start_date ? ` from ${slot.start_date}` : ""}`;
+      case "specified_end_date":
+        return slot.end_date
+          ? `Until ${slot.end_date}`
+          : "Specified end date";
+      default:
+        return "Repeats weekly";
+    }
+  };
+
+  const getSlotServiceSummary = (slot: TimeSlot) => {
+    const serviceIds = slot.service_ids || [];
+    if (serviceIds.length === 0) {
+      return services.length > 1 ? "All services" : "All service bookings";
+    }
+
+    const selectedServiceNames = services
+      .filter((service) => serviceIds.includes(service.id))
+      .map((service) => service.name);
+
+    if (selectedServiceNames.length === 0) {
+      return "Selected services";
+    }
+
+    return selectedServiceNames.join(", ");
+  };
+
+  const toggleServiceSelection = (serviceId: string) => {
+    setTempSelectedServiceIds((current) =>
+      current.includes(serviceId)
+        ? current.filter((id) => id !== serviceId)
+        : [...current, serviceId],
+    );
+  };
+
   const saveSlotEdit = () => {
     if (!editingSlot) return;
 
@@ -189,11 +339,67 @@ export default function ManageAvailabilityScreen() {
     const daySchedule = newSchedule.find(
       (d) => d.day_of_week === editingSlot.dayIndex,
     );
+    const existingSlot =
+      !isNewSlot && daySchedule && editingSlot.slotIndex !== null
+        ? daySchedule.time_slots[editingSlot.slotIndex]
+        : undefined;
+    const effectiveStartDate = getEffectiveStartDate(existingSlot);
+    const justTodayDate = formatDate(
+      getNextOccurrenceForDay(today, editingSlot.dayIndex),
+    );
+    const useAllServices = services.length > 1 && tempSelectedServiceIds.length === 0;
+    const selectedServiceIds =
+      services.length <= 1
+        ? services.map((service) => service.id)
+        : useAllServices
+          ? []
+          : tempSelectedServiceIds;
+
+    if (services.length > 1 && !useAllServices && selectedServiceIds.length === 0) {
+      Alert.alert(
+        "Select Services",
+        "Choose at least one service or use All.",
+      );
+      return;
+    }
+
+    if (tempRecurrence === "specified_end_date" && !tempEndDate) {
+      Alert.alert("End Date Required", "Please select an end date.");
+      return;
+    }
+
+    if (
+      tempRecurrence === "specified_end_date" &&
+      tempEndDate < effectiveStartDate
+    ) {
+      Alert.alert(
+        "Invalid End Date",
+        "End date cannot be earlier than the start date.",
+      );
+      return;
+    }
+
+    let start_date: string | null = null;
+    let end_date: string | null = null;
+
+    if (tempRecurrence === "just_today") {
+      start_date = justTodayDate;
+      end_date = justTodayDate;
+    } else if (tempRecurrence !== "repeat_weekly") {
+      start_date = effectiveStartDate;
+      if (tempRecurrence === "specified_end_date") {
+        end_date = tempEndDate;
+      }
+    }
 
     const newSlot: TimeSlot = {
       start_time: tempStartTime,
       end_time: tempEndTime,
       session_duration: tempDuration,
+      recurrence_type: tempRecurrence,
+      start_date,
+      end_date,
+      service_ids: selectedServiceIds,
     };
 
     if (isNewSlot) {
@@ -224,7 +430,7 @@ export default function ManageAvailabilityScreen() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const result: AvailabilityResponse = await setAvailability({
+      await setAvailability({
         providerId: "",
         schedule,
       });
@@ -351,6 +557,22 @@ export default function ManageAvailabilityScreen() {
                       ]}
                     >
                       {slot.session_duration || 30} min sessions
+                    </Text>
+                    <Text
+                      style={[
+                        styles.slotRecurrenceText,
+                        { color: colours.textMuted },
+                      ]}
+                    >
+                      {getSlotRecurrenceSummary(slot)}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.slotRecurrenceText,
+                        { color: colours.textMuted },
+                      ]}
+                    >
+                      {getSlotServiceSummary(slot)}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -481,6 +703,176 @@ export default function ManageAvailabilityScreen() {
               </View>
             </View>
 
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                Recurrence
+              </Text>
+              <View style={styles.recurrenceOptions}>
+                {recurrenceOptions.map((option) => {
+                  const selected = tempRecurrence === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.recurrenceOption,
+                        {
+                          backgroundColor: selected
+                            ? `${colours.accent}20`
+                            : colours.inputBg,
+                          borderColor: selected
+                            ? colours.accent
+                            : colours.border,
+                        },
+                      ]}
+                      onPress={() => setTempRecurrence(option.value)}
+                    >
+                      <View
+                        style={[
+                          styles.radioOuter,
+                          {
+                            borderColor: selected
+                              ? colours.accent
+                              : colours.textMuted,
+                          },
+                        ]}
+                      >
+                        {selected && (
+                          <View
+                            style={[
+                              styles.radioInner,
+                              { backgroundColor: colours.accent },
+                            ]}
+                          />
+                        )}
+                      </View>
+                      <Text
+                        style={[
+                          styles.recurrenceOptionText,
+                          { color: colours.text },
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                Apply To Services
+              </Text>
+              <View style={styles.serviceOptions}>
+                {services.length > 1 && (
+                  <TouchableOpacity
+                    style={[
+                      styles.serviceChip,
+                      {
+                        backgroundColor:
+                          tempSelectedServiceIds.length === 0
+                            ? `${colours.accent}20`
+                            : colours.inputBg,
+                        borderColor:
+                          tempSelectedServiceIds.length === 0
+                            ? colours.accent
+                            : colours.border,
+                      },
+                    ]}
+                    onPress={() => setTempSelectedServiceIds([])}
+                  >
+                    <Text
+                      style={[
+                        styles.serviceChipText,
+                        {
+                          color:
+                            tempSelectedServiceIds.length === 0
+                              ? colours.text
+                              : colours.textMuted,
+                        },
+                      ]}
+                    >
+                      All
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {services.map((service) => {
+                  const selected = tempSelectedServiceIds.includes(service.id);
+                  return (
+                    <TouchableOpacity
+                      key={service.id}
+                      style={[
+                        styles.serviceChip,
+                        {
+                          backgroundColor: selected
+                            ? `${colours.accent}20`
+                            : colours.inputBg,
+                          borderColor: selected
+                            ? colours.accent
+                            : colours.border,
+                        },
+                      ]}
+                      onPress={() => toggleServiceSelection(service.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.serviceChipText,
+                          {
+                            color: selected ? colours.text : colours.textMuted,
+                          },
+                        ]}
+                      >
+                        {service.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {services.length === 0 && (
+                <Text
+                  style={[styles.helperText, { color: colours.textMuted }]}
+                >
+                  Add services first to target availability by service.
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                End Date
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.dateSelector,
+                  {
+                    backgroundColor:
+                      tempRecurrence === "specified_end_date"
+                        ? colours.inputBg
+                        : `${colours.inputBg}99`,
+                    borderColor: colours.border,
+                    opacity: tempRecurrence === "specified_end_date" ? 1 : 0.55,
+                  },
+                ]}
+                disabled={tempRecurrence !== "specified_end_date"}
+                onPress={() => setDatePickerVisible(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateSelectorText,
+                    {
+                      color:
+                        tempRecurrence === "specified_end_date"
+                          ? colours.text
+                          : colours.textMuted,
+                    },
+                  ]}
+                >
+                  {tempEndDate || "Select end date"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Live Preview */}
             {preview && (
               <View
@@ -534,7 +926,10 @@ export default function ManageAvailabilityScreen() {
                   styles.modalButton,
                   { backgroundColor: colours.inputBg },
                 ]}
-                onPress={() => setEditModalVisible(false)}
+                onPress={() => {
+                  setEditModalVisible(false);
+                  setDatePickerVisible(false);
+                }}
               >
                 <Text style={[styles.modalButtonText, { color: colours.text }]}>
                   Cancel
@@ -547,6 +942,56 @@ export default function ManageAvailabilityScreen() {
                 <Text style={styles.modalButtonText}>Save</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={datePickerVisible}
+        onRequestClose={() => setDatePickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.calendarModalContent,
+              { backgroundColor: colours.card, borderColor: colours.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: colours.text }]}>
+              Select End Date
+            </Text>
+            <Calendar
+              minDate={todayString}
+              markedDates={{
+                [tempEndDate]: {
+                  selected: true,
+                  selectedColor: colours.accent,
+                },
+              }}
+              onDayPress={(day) => {
+                setTempEndDate(day.dateString);
+                setDatePickerVisible(false);
+              }}
+              theme={{
+                calendarBackground: colours.card,
+                dayTextColor: colours.text,
+                monthTextColor: colours.text,
+                textDisabledColor: colours.textMuted,
+                todayTextColor: colours.accent,
+                arrowColor: colours.accent,
+                selectedDayTextColor: "#151718",
+              }}
+            />
+            <TouchableOpacity
+              style={[styles.modalButton, { backgroundColor: colours.inputBg }]}
+              onPress={() => setDatePickerVisible(false)}
+            >
+              <Text style={[styles.modalButtonText, { color: colours.text }]}>
+                Close
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -632,6 +1077,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  slotRecurrenceText: {
+    fontSize: 12,
+    marginTop: 2,
+  },
   removeButton: {
     padding: 8,
     borderRadius: 5,
@@ -676,7 +1125,14 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: "90%",
+    maxHeight: "92%",
     padding: 20,
+    borderRadius: 15,
+    borderWidth: 1,
+  },
+  calendarModalContent: {
+    width: "92%",
+    padding: 16,
     borderRadius: 15,
     borderWidth: 1,
   },
@@ -713,6 +1169,64 @@ const styles = StyleSheet.create({
   durationButtonText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  recurrenceOptions: {
+    gap: 8,
+  },
+  recurrenceOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  recurrenceOptionText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  serviceOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  serviceChip: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  serviceChipText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 8,
+  },
+  radioOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  radioInner: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dateSelector: {
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  dateSelectorText: {
+    fontSize: 15,
+    textAlign: "center",
   },
   modalButtons: {
     flexDirection: "row",

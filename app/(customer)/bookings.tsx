@@ -187,7 +187,7 @@ export default function MyBookingsScreen() {
         {item.provider_name}
       </Text>
       <View style={styles.bookingDetails}>
-        <Text style={[styles.detailText, { color: colors.textMuted }]}>
+        <Text style={[styles.detailText, { color: colours.textMuted }]}>
           {/* time displayed in 12hr format */}
           🕐 {formatTime(item.start_time)} – {formatTime(item.end_time)}
         </Text>
@@ -236,7 +236,7 @@ export default function MyBookingsScreen() {
           style={styles.loader}
         />
       ) : groupedDays.length === 0 ? (
-        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+        <Text style={[styles.emptyText, { color: colours.textMuted }]}>
           No bookings found
         </Text>
       ) : (
@@ -248,7 +248,7 @@ export default function MyBookingsScreen() {
           renderItem={({ item: [day, dayBookings] }) => (
             <View>
               {/* Day header */}
-              <Text style={[styles.dayHeader, { color: colors.text }]}>
+              <Text style={[styles.dayHeader, { color: colours.text }]}>
                 {formatDayHeader(day)}
               </Text>
               {dayBookings.map(renderBooking)}

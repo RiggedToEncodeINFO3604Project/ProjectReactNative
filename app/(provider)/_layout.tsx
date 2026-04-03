@@ -14,8 +14,11 @@ export default function ProviderLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="manage-bookings" />
+      <Stack.Screen name="manage-sa" />
       <Stack.Screen name="services" />
       <Stack.Screen name="availability" />
+      <Stack.Screen name="calendar" />
       <Stack.Screen name="pending" />
       <Stack.Screen name="confirmed" />
       <Stack.Screen name="messages/index" />

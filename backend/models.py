@@ -75,10 +75,22 @@ class Provider(ProviderBase):
         populate_by_name = True
 
 
+AvailabilityRecurrence = Literal[
+    "repeat_weekly",
+    "just_today",
+    "just_this_month",
+    "specified_end_date",
+]
+
+
 class TimeSlot(BaseModel):
     start_time: str  # Format: "HH:MM"
     end_time: str    # Format: "HH:MM"
     session_duration: int = 30  # Duration in minutes, default 30
+    recurrence_type: AvailabilityRecurrence = "repeat_weekly"
+    start_date: Optional[str] = None  # Format: "YYYY-MM-DD"
+    end_date: Optional[str] = None  # Format: "YYYY-MM-DD"
+    service_ids: List[str] = []  # Empty means all services
 
 
 class DayAvailability(BaseModel):

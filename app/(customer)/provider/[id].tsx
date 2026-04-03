@@ -89,7 +89,7 @@ export default function ProviderDetailsScreen() {
     if (id) {
       loadCalendar();
     }
-  }, [id, currentMonth]);
+  }, [id, currentMonth, selectedService]);
 
   useEffect(() => {
     if (selectedDate && selectedService) {
@@ -104,6 +104,7 @@ export default function ProviderDetailsScreen() {
         id,
         currentMonth.getFullYear(),
         currentMonth.getMonth() + 1,
+        selectedService?.id,
       );
       setCalendarData(data);
     } catch (error: any) {
@@ -115,7 +116,11 @@ export default function ProviderDetailsScreen() {
 
   const loadAvailability = async () => {
     try {
-      const data = await getProviderAvailability(id, selectedDate!);
+      const data = await getProviderAvailability(
+        id,
+        selectedDate!,
+        selectedService?.id,
+      );
       setAvailableSlots(data.available_slots);
     } catch (error: any) {
       Alert.alert("Error", "Failed to load availability");

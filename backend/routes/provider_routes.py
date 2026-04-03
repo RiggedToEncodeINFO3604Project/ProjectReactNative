@@ -9,6 +9,11 @@ from firebase_db import get_database
 from firebase_admin import firestore
 import uuid
 from datetime import datetime, date as date_type
+from services.availability_service import (
+    normalize_slot_recurrence,
+    slot_applies_to_date,
+    slot_applies_to_service,
+)
 from services.tagging_service import calculate_auto_tags, get_provider_tagging_config, resolve_tag_priority
 
 router = APIRouter(prefix="/provider", tags=["provider"])
@@ -129,31 +134,61 @@ async def set_availability(
     
     provider_doc = provider_docs[0]
     provider_id = provider_doc.id
+    provider_service_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    provider_service_ids = {doc.id for doc in provider_service_docs}
     
     # Validate time slots and generate warnings for overflow
     warnings = []
     summary = {'total_slots_created': 0, 'total_remainder_minutes': 0}
+    normalized_schedule = []
+    today = datetime.now().date()
     
     for day in availability.schedule:
+        normalized_day = {
+            "day_of_week": day.day_of_week,
+            "time_slots": []
+        }
         for slot in day.time_slots:
+            try:
+                normalized_slot = normalize_slot_recurrence(
+                    slot.dict(),
+                    day.day_of_week,
+                    today
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc))
+
+            selected_service_ids = normalized_slot.get("service_ids") or []
+            invalid_service_ids = [
+                service_id
+                for service_id in selected_service_ids
+                if service_id not in provider_service_ids
+            ]
+            if invalid_service_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Availability contains invalid service selections",
+                )
+
             # Get session duration (default to 30 if not provided)
-            session_duration = getattr(slot, 'session_duration', None) or 30
+            session_duration = normalized_slot.get("session_duration") or 30
             
             # Generate sessions to check for overflow
             result = generate_sessions(
-                slot.start_time,
-                slot.end_time,
+                normalized_slot["start_time"],
+                normalized_slot["end_time"],
                 session_duration
             )
             
             summary['total_slots_created'] += result['sessions_created']
+            normalized_day["time_slots"].append(normalized_slot)
             
             # Check for remainder (overflow time that couldn't fit a full session)
             if result['remainder_minutes'] > 0:
                 summary['total_remainder_minutes'] += result['remainder_minutes']
                 
                 # Calculate the unused time range
-                start_parts = slot.start_time.split(':')
+                start_parts = normalized_slot["start_time"].split(':')
                 start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
                 unused_start = start_minutes + (result['sessions_created'] * session_duration)
                 unused_end = unused_start + result['remainder_minutes']
@@ -163,7 +198,7 @@ async def set_availability(
                 
                 warnings.append({
                     'day': DAYS[day.day_of_week],
-                    'slot': f'{slot.start_time}-{slot.end_time}',
+                    'slot': f'{normalized_slot["start_time"]}-{normalized_slot["end_time"]}',
                     'session_duration': session_duration,
                     'remainder_minutes': result['remainder_minutes'],
                     'unused_time_range': f'{unused_start_time}-{unused_end_time}',
@@ -174,6 +209,7 @@ async def set_availability(
                         f'Reduce session duration to fit more sessions in the available window'
                     ]
                 })
+        normalized_schedule.append(normalized_day)
     
     # Delete existing availability
     existing_availability = db.collection("availability").where("provider_id", "==", provider_id).get()
@@ -186,7 +222,7 @@ async def set_availability(
     availability_id = str(uuid.uuid4())
     availability_dict = {
         "provider_id": provider_id,
-        "schedule": [day.dict() for day in availability.schedule]
+        "schedule": normalized_schedule
     }
     
     db.collection("availability").document(availability_id).set(availability_dict)
@@ -528,22 +564,37 @@ async def reschedule_booking(
     
     availability = availability_docs[0].to_dict()
     
-    # Find the schedule for the requested day
-    day_schedule = None
+    applicable_slots = []
     for day in availability.get("schedule", []):
-        if day.get("day_of_week") == day_of_week:
-            day_schedule = day
-            break
-    
-    if not day_schedule or not day_schedule.get("time_slots"):
+        if day.get("day_of_week") != day_of_week:
+            continue
+        applicable_slots = [
+            slot for slot in day.get("time_slots", [])
+            if slot_applies_to_date(slot, new_date.date())
+            and slot_applies_to_service(slot, booking_data["service_id"])
+        ]
+        break
+
+    if not applicable_slots:
         raise HTTPException(status_code=400, detail="No availability for the requested day")
     
     # Check if the requested time slot is within availability
     slot_available = False
-    for slot in day_schedule.get("time_slots", []):
-        if (slot.get("start_time") <= reschedule_data.start_time and 
-            slot.get("end_time") >= reschedule_data.end_time):
-            slot_available = True
+    for slot in applicable_slots:
+        session_duration = slot.get("session_duration", 30)
+        result = generate_sessions(
+            slot.get("start_time"),
+            slot.get("end_time"),
+            session_duration,
+        )
+        for session in result.get("sessions", []):
+            if (
+                session["start_time"] == reschedule_data.start_time
+                and session["end_time"] == reschedule_data.end_time
+            ):
+                slot_available = True
+                break
+        if slot_available:
             break
     
     if not slot_available:
@@ -637,14 +688,18 @@ async def get_available_slots(
     
     availability = availability_docs[0].to_dict()
     
-    # Find the schedule for the requested day
-    day_schedule = None
+    applicable_slots = []
     for day in availability.get("schedule", []):
-        if day.get("day_of_week") == day_of_week:
-            day_schedule = day
-            break
-    
-    if not day_schedule or not day_schedule.get("time_slots"):
+        if day.get("day_of_week") != day_of_week:
+            continue
+        applicable_slots = [
+            slot for slot in day.get("time_slots", [])
+            if slot_applies_to_date(slot, target_date.date())
+            and slot_applies_to_service(slot, booking_data["service_id"])
+        ]
+        break
+
+    if not applicable_slots:
         return {"date": date, "day_of_week": DAYS[day_of_week], "available_slots": [], "booked_slots": [], "message": "No availability for this day"}
     
     # Get all provider's service IDs
@@ -670,7 +725,7 @@ async def get_available_slots(
     
     # Generate available slots from availability schedule
     available_slots = []
-    for slot in day_schedule.get("time_slots", []):
+    for slot in applicable_slots:
         session_duration = slot.get("session_duration", 30)
         start_time = slot.get("start_time")
         end_time = slot.get("end_time")
