@@ -4,7 +4,41 @@
 // =======================================================
 
 import { Conversation, Message, SendMessageRequest } from "@/types/scheduling";
+import Constants from "expo-constants";
 import api from "./schedulingApi";
+
+const normalizeUrl = (value?: string | null): string =>
+  (value || "").trim().replace(/\/+$/, "");
+
+const extractExpoHost = (): string | null => {
+  const expoConfigHost = (Constants.expoConfig as { hostUri?: string } | null)
+    ?.hostUri;
+  if (expoConfigHost) {
+    return expoConfigHost;
+  }
+
+  const manifest2Host = (
+    Constants as typeof Constants & {
+      manifest2?: {
+        extra?: {
+          expoGo?: {
+            debuggerHost?: string;
+          };
+        };
+      };
+    }
+  ).manifest2?.extra?.expoGo?.debuggerHost;
+
+  if (manifest2Host) {
+    return manifest2Host;
+  }
+
+  if (typeof window !== "undefined" && window.location.host) {
+    return window.location.host;
+  }
+
+  return null;
+};
 
 // ======================================================================
 // = WebSocket Message Type Interfaces                                  =
@@ -311,11 +345,29 @@ export class MessagingWebSocket {
    * Ensures secure WebSocket (wss://) for HTTPS pages
    */
   private getWebSocketUrl(): string {
-    const apiUrl = process.env.EXPO_PUBLIC_API_URL || "";
+    const apiUrl = normalizeUrl(process.env.EXPO_PUBLIC_API_URL);
     console.log("[MessagingWebSocket] EXPO_PUBLIC_API_URL:", apiUrl);
 
     // Remove trailing slash if present to avoid double slashes
-    const normalizedUrl = apiUrl.replace(/\/$/, "");
+    let normalizedUrl = apiUrl;
+    const isLocalhostConfig =
+      !normalizedUrl ||
+      normalizedUrl.includes("localhost") ||
+      normalizedUrl.includes("127.0.0.1");
+
+    if (typeof window !== "undefined") {
+      if (isLocalhostConfig) {
+        normalizedUrl = window.location.origin;
+      }
+    } else if (isLocalhostConfig) {
+      const expoHost = extractExpoHost();
+      if (expoHost) {
+        normalizedUrl = normalizedUrl.replace(
+          /(localhost|127\.0\.0\.1)(:\d+)?/,
+          expoHost,
+        );
+      }
+    }
 
     if (normalizedUrl.startsWith("https://")) {
       const wsUrl = normalizedUrl.replace("https://", "wss://") + "/ws";

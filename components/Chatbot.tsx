@@ -103,6 +103,46 @@ const SCROLL_DELAY = 100;
 
 // Utility functions
 const generateId = () => Math.random().toString(36).substr(2, 9);
+const normalizeUrl = (value?: string | null) =>
+  (value || "").trim().replace(/\/+$/, "");
+
+const extractExpoHost = (): string | null => {
+  const expoConfigHost = (Constants.expoConfig as { hostUri?: string } | null)
+    ?.hostUri;
+  if (expoConfigHost) {
+    return expoConfigHost;
+  }
+
+  const manifest2Host = (
+    Constants as typeof Constants & {
+      manifest2?: {
+        extra?: {
+          expoGo?: {
+            debuggerHost?: string;
+          };
+        };
+      };
+    }
+  ).manifest2?.extra?.expoGo?.debuggerHost;
+
+  return manifest2Host || null;
+};
+
+const rewriteLocalhostToExpoHost = (url: string): string => {
+  if (
+    !url ||
+    (!url.includes("localhost") && !url.includes("127.0.0.1"))
+  ) {
+    return url;
+  }
+
+  const expoHostname = extractExpoHost()?.split(":")[0];
+  if (!expoHostname) {
+    return url;
+  }
+
+  return url.replace(/(localhost|127\.0\.0\.1)/, expoHostname);
+};
 
 // Optimized text parsing for UI rendering
 const parseTextParts = (text: string): TextPart[] => {
@@ -148,10 +188,18 @@ const parseTextParts = (text: string): TextPart[] => {
 // API service - calls backend API endpoint securely
 // Uses relative path when served by Express proxy, or full URL for direct access
 const API_URL = (() => {
-  const configuredBaseUrl = (process.env.EXPO_PUBLIC_API_URL || "").replace(
-    /\/+$/,
-    "",
-  );
+  const configuredBaseUrl = normalizeUrl(process.env.EXPO_PUBLIC_API_URL);
+  const isLocalhostConfig =
+    !configuredBaseUrl ||
+    configuredBaseUrl.includes("localhost") ||
+    configuredBaseUrl.includes("127.0.0.1");
+
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    if (isLocalhostConfig) {
+      return `${window.location.origin}/api/chat`;
+    }
+    return `${configuredBaseUrl.replace(/\/api\/chat$/, "")}/api/chat`;
+  }
 
   if (configuredBaseUrl) {
     const normalizedBaseUrl = configuredBaseUrl.replace(/\/api\/chat$/, "");
@@ -159,7 +207,7 @@ const API_URL = (() => {
       ? normalizedBaseUrl.replace(/:8000$/, ":8081")
       : normalizedBaseUrl;
 
-    return `${chatBaseUrl}/api/chat`;
+    return `${rewriteLocalhostToExpoHost(chatBaseUrl)}/api/chat`;
   }
 
   if (typeof window !== "undefined") {

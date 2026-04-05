@@ -33,6 +33,10 @@ allowed_origins = [
     ).split(",")
     if origin.strip()
 ]
+allowed_origin_regex = os.getenv(
+    "ALLOWED_ORIGIN_REGEX",
+    r"^https?://(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$",
+)
 
 app = FastAPI(
     title="Skedulelt RAG API",
@@ -43,6 +47,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins if allowed_origins != ["*"] else ["*"],
+    allow_origin_regex=None if allowed_origins == ["*"] else allowed_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Accept", "Authorization"],
@@ -196,6 +201,7 @@ async def startup_event():
     log.info("Skedulelt RAG API Server Starting")
     log.info("Model: %s", MODEL)
     log.info("CORS Origins: %s", allowed_origins)
+    log.info("CORS Origin Regex: %s", allowed_origin_regex)
     log.info("========================================")
 
 

@@ -9,6 +9,19 @@ from websocket_manager import websocket_manager, Connection
 
 log = logging.getLogger("skedulelt.main")
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:8081,http://localhost:19000,http://localhost:19006,http://localhost:8000",
+    ).split(",")
+    if origin.strip()
+]
+allowed_origin_regex = os.getenv(
+    "ALLOWED_ORIGIN_REGEX",
+    r"^https?://(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$",
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,7 +37,8 @@ app = FastAPI(title="Scheduling Service API", lifespan=lifespan)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins if allowed_origins != ["*"] else ["*"],
+    allow_origin_regex=None if allowed_origins == ["*"] else allowed_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
