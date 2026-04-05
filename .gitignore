@@ -56,6 +56,10 @@ backend/routes/__pycache__/
 backend/**/*.pyc
 backend/*.pyc
 backend/*.db
+RAG-Server/venv/
+RAG-Server/.env
 RAG-Server/__pycache__/
+RAG-Server/**/__pycache__/
 RAG-Server/**/*.pyc
+RAG-Server/*.pyc
 
