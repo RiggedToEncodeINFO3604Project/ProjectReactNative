@@ -716,9 +716,11 @@ export default function Chatbot() {
             ]}
           >
             {isUser ? (
-              <Text style={[styles.avatarText, { color: colours.accentContrast }]}>
-                You
-              </Text>
+              <IconSymbol
+                size={16}
+                name="person.fill"
+                color={colours.accentContrast}
+              />
             ) : (
               <IconSymbol size={16} name="sparkles" color={colours.accent} />
             )}
@@ -1004,25 +1006,14 @@ export default function Chatbot() {
               style={[
                 styles.sendButtonInner,
                 {
-                  transform:
-                    Platform.OS === "web"
-                      ? [
-                          { scale: !inputText.trim() || isTyping ? 0.95 : 1 },
-                          { scaleX: 1 },
-                          { translateX: 3.5 },
-                          { translateY: -2 },
-                        ]
-                      : [
-                          { scale: !inputText.trim() || isTyping ? 0.95 : 1 },
-                          { scaleX: 1 },
-                          { scaleY: 1.2 },
-                          { translateX: 3.5 },
-                        ],
+                  transform: [
+                    { scale: !inputText.trim() || isTyping ? 0.95 : 1 },
+                  ],
                 },
               ]}
             >
               <IconSymbol
-                size={35}
+                size={26}
                 name="paperplane.fill"
                 color={colours.accentContrast}
               />
@@ -1205,10 +1196,6 @@ const styles = StyleSheet.create({
   },
   avatarUser: {
     borderWidth: 1,
-  },
-  avatarText: {
-    fontSize: 10,
-    fontWeight: "700",
   },
   bubble: {
     maxWidth: "82%",
