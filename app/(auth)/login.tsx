@@ -63,7 +63,21 @@ export default function LoginScreen() {
   };
 
   const handleOpenRagServer = async () => {
-    const url = "https://rag-server-bf1a.onrender.com/";
+    const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL || "").replace(
+      /\/+$/,
+      "",
+    );
+    const normalizedBaseUrl = apiBaseUrl.replace(/\/api\/chat$/, "");
+    const rootUrl = normalizedBaseUrl.endsWith(":8000")
+      ? normalizedBaseUrl.replace(/:8000$/, ":8081")
+      : normalizedBaseUrl;
+    const url =
+      rootUrl
+        ? `${rootUrl}/api/rag/health`
+        :
+      (typeof window !== "undefined"
+        ? `${window.location.origin}/api/rag/health`
+        : "http://localhost:8081/api/rag/health");
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);

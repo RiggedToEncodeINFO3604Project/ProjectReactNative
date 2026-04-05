@@ -38,7 +38,8 @@ RUN npm install
 
 # Copy Python requirements and install
 COPY backend/requirements.txt ./backend/requirements.txt
-RUN pip3 install --no-cache-dir --break-system-packages -r backend/requirements.txt
+COPY RAG-Server/requirements.txt ./RAG-Server/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r backend/requirements.txt -r RAG-Server/requirements.txt
 
 # Copy all source code
 COPY . .
@@ -55,7 +56,7 @@ EXPOSE 8081
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health && curl -f http://localhost:${PORT:-8081}/ || exit 1
+    CMD curl -f http://localhost:8000/health && curl -f http://localhost:8001/api/health && curl -f http://localhost:${PORT:-8081}/health || exit 1
 
 # Run both servers
 CMD ["/app/start.sh"]

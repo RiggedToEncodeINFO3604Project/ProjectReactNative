@@ -147,9 +147,27 @@ const parseTextParts = (text: string): TextPart[] => {
 
 // API service - calls backend API endpoint securely
 // Uses relative path when served by Express proxy, or full URL for direct access
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (typeof window !== "undefined" ? window.location.origin : "") + "/api/chat";
+const API_URL = (() => {
+  const configuredBaseUrl = (process.env.EXPO_PUBLIC_API_URL || "").replace(
+    /\/+$/,
+    "",
+  );
+
+  if (configuredBaseUrl) {
+    const normalizedBaseUrl = configuredBaseUrl.replace(/\/api\/chat$/, "");
+    const chatBaseUrl = normalizedBaseUrl.endsWith(":8000")
+      ? normalizedBaseUrl.replace(/:8000$/, ":8081")
+      : normalizedBaseUrl;
+
+    return `${chatBaseUrl}/api/chat`;
+  }
+
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/api/chat`;
+  }
+
+  return "/api/chat";
+})();
 
 const sendToApi = async (
   text: string,

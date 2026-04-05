@@ -1,5 +1,25 @@
 #!/bin/bash
 
+set -e
+
+echo "========================================"
+echo "Starting RAG server on port 8001..."
+echo "========================================"
+
+cd /app/RAG-Server
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8001 &
+RAG_PID=$!
+echo "RAG server started with PID $RAG_PID"
+
+echo "Waiting for RAG server to be ready..."
+for i in {1..30}; do
+    if curl -s http://localhost:8001/api/health > /dev/null 2>&1; then
+        echo "RAG server is ready!"
+        break
+    fi
+    sleep 1
+done
+
 echo "========================================"
 echo "Starting FastAPI backend on port 8000..."
 echo "========================================"
@@ -7,13 +27,12 @@ echo "========================================"
 cd /app/backend
 python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
-echo "FastAPI started with PID $BACKEND_PID"
+echo "FastAPI backend started with PID $BACKEND_PID"
 
-# Wait for FastAPI to be ready
-echo "Waiting for FastAPI to be ready..."
+echo "Waiting for FastAPI backend to be ready..."
 for i in {1..30}; do
     if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-        echo "FastAPI is ready!"
+        echo "FastAPI backend is ready!"
         break
     fi
     sleep 1

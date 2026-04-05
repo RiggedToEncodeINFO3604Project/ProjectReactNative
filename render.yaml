@@ -22,15 +22,11 @@ services:
       - key: SECRET_KEY
         generateValue: true
 
-      # Gemini API (for chatbot)
+      # Gemini API (used by the local RAG server in this same container)
       - key: GEMINI_API_KEY
         sync: false
       - key: EXPO_PUBLIC_GEMINI_API_KEY
         sync: false
-
-      # External RAG server for chatbot
-      - key: FASTAPI_HOST
-        value: rag-server-bf1a.onrender.com
 
       # Node environment
       - key: NODE_ENV
