@@ -133,6 +133,21 @@ const rewriteLocalhostToExpoHost = (url: string): string => {
   return url.replace(/(localhost|127\.0\.0\.1)/, expoHostname);
 };
 
+const extractPort = (value: string): string => {
+  const match = value.match(/:(\d+)(?:\/|$)/);
+  return match?.[1] || "8081";
+};
+
+const isPrivateOrLocalHost = (hostname: string): boolean => {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+  );
+};
+
 const parseTextParts = (text: string): TextPart[] => {
   const parts: TextPart[] = [];
   let currentIndex = 0;
@@ -182,6 +197,13 @@ const API_URL = (() => {
 
   if (Platform.OS === "web" && typeof window !== "undefined") {
     if (isLocalhostConfig) {
+      if (configuredBaseUrl) {
+        const configuredPort = extractPort(configuredBaseUrl);
+        const currentHostname = window.location.hostname;
+        if (isPrivateOrLocalHost(currentHostname)) {
+          return `${window.location.protocol}//${currentHostname}:${configuredPort}/api/chat`;
+        }
+      }
       return `${window.location.origin}/api/chat`;
     }
     return `${configuredBaseUrl.replace(/\/api\/chat$/, "")}/api/chat`;
@@ -189,11 +211,7 @@ const API_URL = (() => {
 
   if (configuredBaseUrl) {
     const normalizedBaseUrl = configuredBaseUrl.replace(/\/api\/chat$/, "");
-    const chatBaseUrl = normalizedBaseUrl.endsWith(":8000")
-      ? normalizedBaseUrl.replace(/:8000$/, ":8081")
-      : normalizedBaseUrl;
-
-    return `${rewriteLocalhostToExpoHost(chatBaseUrl)}/api/chat`;
+    return `${rewriteLocalhostToExpoHost(normalizedBaseUrl)}/api/chat`;
   }
 
   if (typeof window !== "undefined") {

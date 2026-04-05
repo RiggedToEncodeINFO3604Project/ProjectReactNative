@@ -10,6 +10,21 @@ import api from "./schedulingApi";
 const normalizeUrl = (value?: string | null): string =>
   (value || "").trim().replace(/\/+$/, "");
 
+const extractPort = (value: string): string => {
+  const match = value.match(/:(\d+)(?:\/|$)/);
+  return match?.[1] || "8081";
+};
+
+const isPrivateOrLocalHost = (hostname: string): boolean => {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+  );
+};
+
 const extractExpoHost = (): string | null => {
   const expoConfigHost = (Constants.expoConfig as { hostUri?: string } | null)
     ?.hostUri;
@@ -357,7 +372,17 @@ export class MessagingWebSocket {
 
     if (typeof window !== "undefined") {
       if (isLocalhostConfig) {
-        normalizedUrl = window.location.origin;
+        if (normalizedUrl) {
+          const configuredPort = extractPort(normalizedUrl);
+          const currentHostname = window.location.hostname;
+          if (isPrivateOrLocalHost(currentHostname)) {
+            normalizedUrl = `${window.location.protocol}//${currentHostname}:${configuredPort}`;
+          } else {
+            normalizedUrl = window.location.origin;
+          }
+        } else {
+          normalizedUrl = window.location.origin;
+        }
       }
     } else if (isLocalhostConfig) {
       const expoHost = extractExpoHost();

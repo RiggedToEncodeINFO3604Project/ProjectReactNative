@@ -68,14 +68,9 @@ export default function LoginScreen() {
       "",
     );
     const normalizedBaseUrl = apiBaseUrl.replace(/\/api\/chat$/, "");
-    const rootUrl = normalizedBaseUrl.endsWith(":8000")
-      ? normalizedBaseUrl.replace(/:8000$/, ":8081")
-      : normalizedBaseUrl;
-    const url =
-      rootUrl
-        ? `${rootUrl}/api/rag/health`
-        :
-      (typeof window !== "undefined"
+    const url = normalizedBaseUrl
+      ? `${normalizedBaseUrl}/api/rag/health`
+      : (typeof window !== "undefined"
         ? `${window.location.origin}/api/rag/health`
         : "http://localhost:8081/api/rag/health");
     const supported = await Linking.canOpenURL(url);

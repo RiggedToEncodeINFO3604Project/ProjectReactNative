@@ -39,6 +39,16 @@ const extractPort = (value: string): string => {
   return match?.[1] || "8000";
 };
 
+const isPrivateOrLocalHost = (hostname: string): boolean => {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+  );
+};
+
 const extractExpoHost = (): string | null => {
   const expoConfigHost = (Constants.expoConfig as { hostUri?: string } | null)
     ?.hostUri;
@@ -69,10 +79,15 @@ const resolveApiUrl = (): string => {
     configuredUrl.includes("127.0.0.1");
 
   if (Platform.OS === "web" && typeof window !== "undefined") {
-    if (isLocalhostConfig) {
+    if (isLocalhostConfig && configuredUrl) {
+      const configuredPort = extractPort(configuredUrl);
+      const currentHostname = window.location.hostname;
+      if (isPrivateOrLocalHost(currentHostname)) {
+        return `${window.location.protocol}//${currentHostname}:${configuredPort}`;
+      }
       return window.location.origin;
     }
-    return configuredUrl;
+    return configuredUrl || window.location.origin;
   }
 
   if (!isLocalhostConfig) {
