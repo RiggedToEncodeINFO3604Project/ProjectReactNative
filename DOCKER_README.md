@@ -1,6 +1,6 @@
 # Docker Deployment
 
-This project uses a **combined Docker deployment** that runs both the frontend (Express) and backend (FastAPI) in a single container.
+This project uses a **combined Docker deployment** that runs the frontend (Express), backend (FastAPI), and isolated RAG server (FastAPI) in a single container.
 
 ## Architecture
 
@@ -39,7 +39,7 @@ This project uses a **combined Docker deployment** that runs both the frontend (
 
 ```bash
 # Build the combined image
-docker build -f Dockerfile.combined -t expo-scheduling .
+docker build -f Dockerfile -t expo-scheduling .
 
 # Run with environment variables
 docker run -p 8081:8081 \
@@ -81,7 +81,6 @@ docker-compose down
 | `DATABASE_NAME`              | MongoDB database name      | `scheduling_db`                |
 | `GEMINI_API_KEY`             | Gemini API key for chatbot | -                              |
 | `EXPO_PUBLIC_GEMINI_API_KEY` | Client-side Gemini key     | -                              |
-| `FASTAPI_HOST`               | External RAG server host   | `rag-server-bf1a.onrender.com` |
 | `PORT`                       | Express server port        | `8081`                         |
 
 ## Render Deployment
@@ -100,7 +99,7 @@ git push
 2. Create a new Web Service or update existing
 3. Connect your GitHub repository
 4. Select **Docker** runtime
-5. Set Dockerfile path to `Dockerfile.combined`
+5. Set Dockerfile path to `Dockerfile`
 
 ### 3. Set Environment Variables in Render Dashboard
 
@@ -160,7 +159,7 @@ mongodb+srv://<username>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=ma
 
 | File                        | Purpose                                 |
 | --------------------------- | --------------------------------------- |
-| `Dockerfile.combined`       | Combined Node.js + Python Docker image  |
+| `Dockerfile`               | Combined Node.js + Python image         |
 | `server.js`                 | Express server with API proxy routes    |
 | `render.yaml`               | Render configuration for single service |
 | `services/schedulingApi.ts` | Uses relative URLs for API calls        |

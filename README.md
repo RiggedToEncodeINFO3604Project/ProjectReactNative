@@ -66,6 +66,11 @@ A full-stack scheduling service built with React Native Expo (frontend) and Fast
 │   │   └── pending.tsx
 │   └── (tabs)/                  # Main app tabs
 ├── backend/                      # FastAPI backend
+├── RAG-Server/                   # Isolated RAG chatbot server
+│   ├── main.py                   # RAG API entry point
+│   ├── gemini_client.py          # Gemini integration
+│   ├── knowledge_base.py         # Support knowledge base
+│   └── requirements.txt          # RAG Python dependencies
 │   ├── main.py                  # App entry point
 │   ├── config.py                # Configuration
 │   ├── database.py              # MongoDB connection
