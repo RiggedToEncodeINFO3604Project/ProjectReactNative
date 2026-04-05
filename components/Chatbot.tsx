@@ -1,4 +1,7 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ExtendedColours, SharedColours } from "@/constants/theme";
+import { useTheme } from "@/context/ThemeContext";
+import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import React, {
   useCallback,
@@ -21,25 +24,6 @@ import {
   View,
 } from "react-native";
 
-import { useTheme } from "@/context/ThemeContext";
-import Constants from "expo-constants";
-
-// Get API key from environment (supports both .env and app.json extra)
-const getApiKey = (): string => {
-  if (typeof process !== "undefined" && process.env) {
-    const envKey =
-      (process.env as Record<string, string>).EXPO_PUBLIC_GEMINI_API_KEY ||
-      (process.env as Record<string, string>).GEMINI_API_KEY;
-    if (envKey) return envKey;
-  }
-
-  const extraKey = Constants.expoConfig?.extra?.GEMINI_API_KEY;
-  if (extraKey) return extraKey;
-
-  return "";
-};
-
-// Types
 interface Message {
   id: string;
   role: "user" | "bot";
@@ -49,21 +33,27 @@ interface Message {
 
 interface QuickAction {
   label: string;
-  icon: string;
+  icon: React.ComponentProps<typeof IconSymbol>["name"];
   query: string;
 }
 
 interface Colours {
   bgDeep: string;
   bgCard: string;
+  bgCardAlt: string;
   bgInput: string;
   accent: string;
   accentDim: string;
+  accentSoft: string;
+  accentContrast: string;
   textPrimary: string;
   textMuted: string;
   textDim: string;
   border: string;
+  borderStrong: string;
   bubbleBot: string;
+  bubbleUser: string;
+  success: string;
 }
 
 interface TextPart {
@@ -75,23 +65,26 @@ interface TextPart {
 const QUICK_ACTIONS: QuickAction[] = [
   {
     label: "Book appointment",
-    icon: "📅",
+    icon: "calendar",
     query: "How do I book an appointment?",
   },
-  { label: "Payment security", icon: "🔒", query: "Is my credit card safe?" },
+  {
+    label: "Payment security",
+    icon: "lock.shield.fill",
+    query: "Is my credit card safe?",
+  },
   {
     label: "Cancel appointment",
-    icon: "✂️",
+    icon: "xmark.circle.fill",
     query: "How do I cancel my haircut?",
   },
   {
     label: "Grow my business",
-    icon: "📈",
+    icon: "chart.line.uptrend.xyaxis",
     query: "How can I grow my business on Skedulelt?",
   },
 ];
 
-// Constants
 const ANIMATION_CONFIG = {
   jumpDuration: 200,
   totalCycle: 600,
@@ -101,7 +94,6 @@ const ANIMATION_CONFIG = {
 const MAX_MESSAGE_LENGTH = 1000;
 const SCROLL_DELAY = 100;
 
-// Utility functions
 const generateId = () => Math.random().toString(36).substr(2, 9);
 const normalizeUrl = (value?: string | null) =>
   (value || "").trim().replace(/\/+$/, "");
@@ -129,10 +121,7 @@ const extractExpoHost = (): string | null => {
 };
 
 const rewriteLocalhostToExpoHost = (url: string): string => {
-  if (
-    !url ||
-    (!url.includes("localhost") && !url.includes("127.0.0.1"))
-  ) {
+  if (!url || (!url.includes("localhost") && !url.includes("127.0.0.1"))) {
     return url;
   }
 
@@ -144,7 +133,6 @@ const rewriteLocalhostToExpoHost = (url: string): string => {
   return url.replace(/(localhost|127\.0\.0\.1)/, expoHostname);
 };
 
-// Optimized text parsing for UI rendering
 const parseTextParts = (text: string): TextPart[] => {
   const parts: TextPart[] = [];
   let currentIndex = 0;
@@ -185,8 +173,6 @@ const parseTextParts = (text: string): TextPart[] => {
   return parts;
 };
 
-// API service - calls backend API endpoint securely
-// Uses relative path when served by Express proxy, or full URL for direct access
 const API_URL = (() => {
   const configuredBaseUrl = normalizeUrl(process.env.EXPO_PUBLIC_API_URL);
   const isLocalhostConfig =
@@ -222,7 +208,6 @@ const sendToApi = async (
   history: Message[],
 ): Promise<{ answer: string; matchedSections: string[] }> => {
   const response = await fetch(API_URL, {
-    // To be replaced with actual API endpoint
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -245,7 +230,6 @@ const sendToApi = async (
   };
 };
 
-// Memoized components
 const InlineText = React.memo(
   ({
     part,
@@ -256,7 +240,7 @@ const InlineText = React.memo(
     colours: Colours;
     isUser: boolean;
   }) => {
-    const textColor = isUser ? colours.bgDeep : colours.textPrimary;
+    const textColor = isUser ? colours.accentContrast : colours.textPrimary;
 
     const handleLinkPress = useCallback(() => {
       if (part.url) {
@@ -291,7 +275,7 @@ const InlineText = React.memo(
             style={[
               styles.messageText,
               styles.linkText,
-              { color: colours.accent },
+              { color: isUser ? colours.accentContrast : colours.accent },
             ]}
             onPress={handleLinkPress}
           >
@@ -307,6 +291,7 @@ const InlineText = React.memo(
     }
   },
 );
+InlineText.displayName = "InlineText";
 
 const RichTextLine = React.memo(
   ({
@@ -319,26 +304,29 @@ const RichTextLine = React.memo(
     isUser: boolean;
   }) => {
     const trimmedLine = line.trim();
-
-    if (!trimmedLine) {
-      return <View style={styles.blankLine} />;
-    }
-
     const numberedMatch = trimmedLine.match(/^(\d+)[.)]\s+(.*)/);
-    const bulletMatch = trimmedLine.match(/^([-*•])\s+(.*)/);
-
+    const bulletMatch = trimmedLine.match(/^([-*\u2022])\s+(.*)/);
     const parts = useMemo(
       () =>
         parseTextParts(numberedMatch?.[2] || bulletMatch?.[2] || trimmedLine),
       [numberedMatch, bulletMatch, trimmedLine],
     );
 
+    if (!trimmedLine) {
+      return <View style={styles.blankLine} />;
+    }
+
     if (numberedMatch || bulletMatch) {
       const prefix = numberedMatch ? numberedMatch[1] + "." : bulletMatch![1];
 
       return (
         <View style={styles.listItem}>
-          <Text style={[styles.listPrefix, { color: colours.accent }]}>
+          <Text
+            style={[
+              styles.listPrefix,
+              { color: isUser ? colours.accentContrast : colours.accent },
+            ]}
+          >
             {prefix}
           </Text>
           <View style={styles.listContent}>
@@ -364,6 +352,7 @@ const RichTextLine = React.memo(
     );
   },
 );
+RichTextLine.displayName = "RichTextLine";
 
 const MessageBubble = React.memo(
   ({ message, colours }: { message: Message; colours: Colours }) => {
@@ -376,15 +365,15 @@ const MessageBubble = React.memo(
           styles.bubble,
           isUser ? styles.bubbleUser : styles.bubbleBot,
           {
-            backgroundColor: isUser ? colours.accent : colours.bubbleBot,
-            borderColor: colours.border,
-            borderTopLeftRadius: isUser ? 14 : 4,
-            borderTopRightRadius: isUser ? 4 : 14,
+            backgroundColor: isUser ? colours.bubbleUser : colours.bubbleBot,
+            borderColor: isUser ? colours.bubbleUser : colours.border,
+            borderTopLeftRadius: isUser ? 18 : 6,
+            borderTopRightRadius: isUser ? 6 : 18,
           },
         ]}
       >
         {isUser ? (
-          <Text style={[styles.messageText, { color: colours.bgDeep }]}>
+          <Text style={[styles.messageText, { color: colours.accentContrast }]}>
             {message.text}
           </Text>
         ) : (
@@ -408,7 +397,7 @@ const MessageBubble = React.memo(
                   styles.sectionBadgeText,
                   {
                     color: colours.accentDim,
-                    backgroundColor: `${colours.accent}20`,
+                    backgroundColor: colours.accentSoft,
                     borderColor: `${colours.accent}30`,
                   },
                 ]}
@@ -422,6 +411,7 @@ const MessageBubble = React.memo(
     );
   },
 );
+MessageBubble.displayName = "MessageBubble";
 
 const TypingIndicator = React.memo(
   ({
@@ -457,10 +447,13 @@ const TypingIndicator = React.memo(
           style={[
             styles.avatar,
             styles.avatarBot,
-            { backgroundColor: colours.accent, borderColor: colours.accent },
+            {
+              backgroundColor: colours.accentSoft,
+              borderColor: colours.accent,
+            },
           ]}
         >
-          <Text style={[styles.avatarText, { color: colours.bgDeep }]}>S</Text>
+          <IconSymbol size={16} name="sparkles" color={colours.accent} />
         </View>
         <View
           style={[
@@ -479,39 +472,35 @@ const TypingIndicator = React.memo(
     );
   },
 );
+TypingIndicator.displayName = "TypingIndicator";
 
 export default function Chatbot() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours, userType } = useTheme();
 
-  const COLORS = useMemo<Colours>(
-    () =>
-      isDarkMode
-        ? {
-            bgDeep: "#0c0e12",
-            bgCard: "#141820",
-            bgInput: "#1a1f2e",
-            accent: "#f0c85a",
-            accentDim: "#c9a43a",
-            textPrimary: "#eef0f4",
-            textMuted: "#6b7280",
-            textDim: "#4a5060",
-            border: "#2a2f3e",
-            bubbleBot: "#1e2333",
-          }
-        : {
-            bgDeep: "#ffffff",
-            bgCard: "#f8f9fa",
-            bgInput: "#e9ecef",
-            accent: "#f0c85a",
-            accentDim: "#d4a84b",
-            textPrimary: "#11181C",
-            textMuted: "#6b7280",
-            textDim: "#9ca3af",
-            border: "#dee2e6",
-            bubbleBot: "#f1f3f4",
-          },
-    [isDarkMode],
-  );
+  const colours = useMemo<Colours>(() => {
+    const extended = ExtendedColours[isDarkMode ? "dark" : "light"];
+
+    return {
+      bgDeep: extended.background,
+      bgCard: extended.card,
+      bgCardAlt: extended.cardAlt,
+      bgInput: extended.inputBg,
+      accent: themeColours.primary,
+      accentDim: isDarkMode ? "#d8ba63" : themeColours.primary,
+      accentSoft: isDarkMode
+        ? `${themeColours.primary}22`
+        : `${themeColours.primary}14`,
+      accentContrast: isDarkMode ? "#0c0e12" : SharedColours.white,
+      textPrimary: extended.text,
+      textMuted: extended.textMuted,
+      textDim: extended.textSecondary,
+      border: extended.border,
+      borderStrong: extended.borderAlt,
+      bubbleBot: extended.cardAlt,
+      bubbleUser: themeColours.primary,
+      success: SharedColours.success,
+    };
+  }, [isDarkMode, themeColours.primary]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
@@ -635,7 +624,7 @@ export default function Chatbot() {
           {
             id: generateId(),
             role: "bot",
-            text: `⚠️ Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            text: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
           },
         ]);
       } finally {
@@ -645,13 +634,13 @@ export default function Chatbot() {
       }
     },
     [
+      hideWelcome,
       inputText,
       isTyping,
       messages,
       scrollToBottom,
       startTypingAnimation,
       stopTypingAnimation,
-      hideWelcome,
     ],
   );
 
@@ -669,7 +658,7 @@ export default function Chatbot() {
     welcomeOpacity.setValue(1);
     stopTypingAnimation();
     setIsTyping(false);
-  }, [welcomeOpacity, stopTypingAnimation]);
+  }, [stopTypingAnimation, welcomeOpacity]);
 
   useEffect(() => {
     return () => {
@@ -685,7 +674,7 @@ export default function Chatbot() {
         return (
           <TypingIndicator
             key={message.id}
-            colours={COLORS}
+            colours={colours}
             anim1={typingAnim1}
             anim2={typingAnim2}
             anim3={typingAnim3}
@@ -703,20 +692,24 @@ export default function Chatbot() {
               styles.avatar,
               isUser ? styles.avatarUser : styles.avatarBot,
               {
-                backgroundColor: COLORS.accent,
-                borderColor: COLORS.accent,
+                backgroundColor: isUser ? colours.bubbleUser : colours.accentSoft,
+                borderColor: isUser ? colours.bubbleUser : colours.accent,
               },
             ]}
           >
-            <Text style={[styles.avatarText, { color: COLORS.bgDeep }]}>
-              {isUser ? "U" : "S"}
-            </Text>
+            {isUser ? (
+              <Text style={[styles.avatarText, { color: colours.accentContrast }]}>
+                You
+              </Text>
+            ) : (
+              <IconSymbol size={16} name="sparkles" color={colours.accent} />
+            )}
           </View>
-          <MessageBubble message={message} colours={COLORS} />
+          <MessageBubble message={message} colours={colours} />
         </View>
       );
     },
-    [COLORS, typingAnim1, typingAnim2, typingAnim3],
+    [colours, typingAnim1, typingAnim2, typingAnim3],
   );
 
   const sendButtonScale = useMemo(
@@ -729,17 +722,27 @@ export default function Chatbot() {
     [newChatHovered, newChatPressed],
   );
 
+  const assistantSubtitle = useMemo(
+    () =>
+      userType === "provider"
+        ? "Help with bookings, customers, availability, and policies"
+        : "Help with bookings, payments, providers, and policies",
+    [userType],
+  );
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={[styles.container, { backgroundColor: COLORS.bgDeep }]}
+      style={[styles.container, { backgroundColor: colours.bgDeep }]}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
-      {/* Header */}
       <View
         style={[
           styles.header,
-          { backgroundColor: COLORS.bgCard, borderBottomColor: COLORS.border },
+          {
+            backgroundColor: colours.bgCard,
+            borderBottomColor: colours.border,
+          },
         ]}
       >
         <View style={styles.headerLeft}>
@@ -747,20 +750,31 @@ export default function Chatbot() {
             style={[
               styles.logoCircle,
               {
-                backgroundColor: COLORS.accent,
-                shadowColor: COLORS.accent,
+                backgroundColor: colours.accentSoft,
+                borderColor: colours.accent,
+                shadowColor: colours.accent,
               },
             ]}
           >
-            <Text style={[styles.logoText, { color: COLORS.bgDeep }]}>S</Text>
+            <IconSymbol size={22} name="sparkles" color={colours.accent} />
           </View>
           <View style={styles.headerTitles}>
-            <Text style={[styles.headerTitle, { color: COLORS.textPrimary }]}>
+            <Text style={[styles.headerTitle, { color: colours.textPrimary }]}>
               Skedulelt Support Assistant
             </Text>
+            <Text
+              style={[styles.headerSubtitle, { color: colours.textMuted }]}
+            >
+              {assistantSubtitle}
+            </Text>
             <View style={styles.statusContainer}>
-              <View style={styles.statusDot} />
-              <Text style={[styles.statusText, { color: COLORS.textMuted }]}>
+              <View
+                style={[
+                  styles.statusDot,
+                  { backgroundColor: colours.success },
+                ]}
+              />
+              <Text style={[styles.statusText, { color: colours.textMuted }]}>
                 Powered by Gemma 3
               </Text>
             </View>
@@ -770,7 +784,8 @@ export default function Chatbot() {
           style={[
             styles.clearButton,
             {
-              borderColor: COLORS.border,
+              backgroundColor: colours.bgCardAlt,
+              borderColor: colours.borderStrong,
               transform: [{ scale: newChatScale }],
             },
           ]}
@@ -785,24 +800,47 @@ export default function Chatbot() {
             onMouseLeave: () => setNewChatHovered(false),
           })}
         >
-          <Text style={[styles.clearButtonText, { color: COLORS.textMuted }]}>
-            ↺ New Chat
+          <Text style={[styles.clearButtonText, { color: colours.textPrimary }]}>
+            New Chat
           </Text>
         </Pressable>
       </View>
 
-      {/* Welcome Screen */}
       {!hasStarted && (
         <Animated.View
           style={[styles.welcomeContainer, { opacity: welcomeOpacity }]}
         >
-          <Text style={[styles.welcomeTitle, { color: COLORS.textPrimary }]}>
-            Hey there 👋
-          </Text>
-          <Text style={[styles.welcomeSubtitle, { color: COLORS.textMuted }]}>
-            I'm the Skedulelt support assistant. Ask me anything about booking,
-            payments, or policies in Trinidad & Tobago.
-          </Text>
+          <View
+            style={[
+              styles.heroCard,
+              {
+                backgroundColor: colours.bgCard,
+                borderColor: colours.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.heroBadge,
+                {
+                  backgroundColor: colours.accentSoft,
+                  borderColor: colours.border,
+                },
+              ]}
+            >
+              <IconSymbol size={16} name="message.fill" color={colours.accent} />
+              <Text style={[styles.heroBadgeText, { color: colours.accentDim }]}>
+                Instant support
+              </Text>
+            </View>
+            <Text style={[styles.welcomeTitle, { color: colours.textPrimary }]}>
+              How can I help today?
+            </Text>
+            <Text style={[styles.welcomeSubtitle, { color: colours.textMuted }]}>
+              Ask anything about bookings, payments, cancellations, or platform
+              policies in Trinidad and Tobago.
+            </Text>
+          </View>
           <View style={styles.chipsContainer}>
             {QUICK_ACTIONS.map((action, index) => {
               const isPressed = chipPressedStates[index];
@@ -815,14 +853,15 @@ export default function Chatbot() {
                   : isPressed
                     ? 0.95
                     : 1;
+
               return (
                 <Pressable
                   key={index}
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: COLORS.bgInput,
-                      borderColor: COLORS.border,
+                      backgroundColor: colours.bgCard,
+                      borderColor: colours.border,
                       transform: [{ scale }],
                     },
                   ]}
@@ -853,8 +892,15 @@ export default function Chatbot() {
                       })),
                   })}
                 >
-                  <Text style={styles.chipIcon}>{action.icon}</Text>
-                  <Text style={[styles.chipText, { color: COLORS.textMuted }]}>
+                  <View
+                    style={[
+                      styles.chipIconWrap,
+                      { backgroundColor: colours.accentSoft },
+                    ]}
+                  >
+                    <IconSymbol size={16} name={action.icon} color={colours.accent} />
+                  </View>
+                  <Text style={[styles.chipText, { color: colours.textPrimary }]}>
                     {action.label}
                   </Text>
                 </Pressable>
@@ -864,7 +910,6 @@ export default function Chatbot() {
         </Animated.View>
       )}
 
-      {/* Messages */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.messagesContainer}
@@ -875,18 +920,20 @@ export default function Chatbot() {
         {messages.map(renderMessage)}
         {messages.length === 0 && hasStarted && (
           <View style={styles.emptyState}>
-            <Text style={[styles.emptyStateText, { color: COLORS.textMuted }]}>
+            <Text style={[styles.emptyStateText, { color: colours.textMuted }]}>
               Start a conversation...
             </Text>
           </View>
         )}
       </ScrollView>
 
-      {/* Input Bar */}
       <View
         style={[
           styles.inputBar,
-          { backgroundColor: COLORS.bgCard, borderTopColor: COLORS.border },
+          {
+            backgroundColor: colours.bgCard,
+            borderTopColor: colours.border,
+          },
         ]}
       >
         <View style={styles.inputRow}>
@@ -894,13 +941,13 @@ export default function Chatbot() {
             style={[
               styles.textInput,
               {
-                backgroundColor: COLORS.bgInput,
-                borderColor: COLORS.border,
-                color: COLORS.textPrimary,
+                backgroundColor: colours.bgInput,
+                borderColor: colours.borderStrong,
+                color: colours.textPrimary,
               },
             ]}
-            placeholder="Type your question…"
-            placeholderTextColor={COLORS.textDim}
+            placeholder="Type your question..."
+            placeholderTextColor={colours.textDim}
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={() => handleSendMessage()}
@@ -913,15 +960,15 @@ export default function Chatbot() {
             style={[
               styles.sendButton,
               {
-                backgroundColor: COLORS.accent,
-                shadowColor: COLORS.accent,
+                backgroundColor: colours.bubbleUser,
+                shadowColor: colours.accent,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.3,
                 shadowRadius: 4,
                 elevation: 3,
+                transform: [{ scale: sendButtonScale }],
               },
               (!inputText.trim() || isTyping) && styles.sendButtonDisabled,
-              { transform: [{ scale: sendButtonScale }] },
             ]}
             onPress={() => handleSendMessage()}
             disabled={!inputText.trim() || isTyping}
@@ -959,7 +1006,7 @@ export default function Chatbot() {
               <IconSymbol
                 size={35}
                 name="paperplane.fill"
-                color={COLORS.bgDeep}
+                color={colours.accentContrast}
               />
             </Animated.View>
           </Pressable>
@@ -978,40 +1025,39 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
   },
   headerLeft: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
+    alignItems: "flex-start",
+    flex: 1,
+    gap: 12,
   },
   logoCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    elevation: 5,
-  },
-  logoText: {
-    fontFamily: "serif",
-    fontSize: 20,
-    fontWeight: "400",
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 3,
   },
   headerTitles: {
     flexShrink: 1,
-    gap: 2,
+    gap: 3,
   },
   headerTitle: {
-    fontFamily: "serif",
-    fontSize: 16,
-    fontWeight: "400",
-    letterSpacing: -0.3,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   statusContainer: {
     flexDirection: "row",
@@ -1022,73 +1068,92 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#34d399",
   },
   statusText: {
     fontSize: 12,
-    fontWeight: "300",
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
+    fontWeight: "500",
   },
   clearButton: {
-    backgroundColor: "transparent",
     borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginLeft: 8,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginLeft: 12,
   },
   clearButtonText: {
     fontSize: 12,
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
+    fontWeight: "600",
   },
   welcomeContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
+    paddingHorizontal: 16,
+    paddingTop: 20,
     paddingBottom: 16,
+  },
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 20,
     alignItems: "center",
   },
+  heroBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginBottom: 14,
+  },
+  heroBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
   welcomeTitle: {
-    fontFamily: "serif",
-    fontSize: 24,
-    fontWeight: "400",
-    marginBottom: 6,
+    fontSize: 28,
+    fontWeight: "700",
+    marginBottom: 8,
+    textAlign: "center",
   },
   welcomeSubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     textAlign: "center",
     maxWidth: 440,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   chipsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
     marginTop: 18,
   },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 10,
     borderWidth: 1,
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  chipIcon: {
-    fontSize: 13,
+  chipIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   chipText: {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: "600",
   },
   messagesContainer: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
   },
   messagesContent: {
-    paddingVertical: 16,
+    paddingVertical: 18,
     gap: 16,
   },
   emptyState: {
@@ -1111,32 +1176,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarBot: {
     borderWidth: 1,
   },
-  avatarUser: {},
+  avatarUser: {
+    borderWidth: 1,
+  },
   avatarText: {
-    fontSize: 13,
-    fontWeight: "500",
+    fontSize: 10,
+    fontWeight: "700",
   },
   bubble: {
     maxWidth: "82%",
     paddingHorizontal: 16,
-    paddingVertical: 11,
-    borderRadius: 14,
+    paddingVertical: 12,
+    borderRadius: 18,
   },
   bubbleBot: {
     borderWidth: 1,
-    borderTopLeftRadius: 4,
+    borderTopLeftRadius: 6,
   },
   bubbleUser: {
-    borderTopRightRadius: 4,
+    borderTopRightRadius: 6,
   },
   typingBubble: {
     paddingHorizontal: 18,
@@ -1154,8 +1221,8 @@ const styles = StyleSheet.create({
     borderRadius: 3.5,
   },
   messageText: {
-    fontSize: 14,
-    lineHeight: 23,
+    fontSize: 15,
+    lineHeight: 22,
   },
   blankLine: {
     height: 4,
@@ -1173,7 +1240,7 @@ const styles = StyleSheet.create({
   listPrefix: {
     width: 20,
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   listContent: {
     flex: 1,
@@ -1182,7 +1249,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   boldText: {
-    fontWeight: "600",
+    fontWeight: "700",
   },
   italicText: {
     fontStyle: "italic",
@@ -1193,20 +1260,20 @@ const styles = StyleSheet.create({
   sectionsBadge: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 4,
-    marginTop: 8,
+    gap: 6,
+    marginTop: 10,
   },
   sectionBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
     borderWidth: 1,
-    letterSpacing: 0.3,
+    fontWeight: "600",
   },
   inputBar: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingTop: 14,
     borderTopWidth: 1,
     paddingBottom: Platform.OS === "ios" ? 24 : 16,
   },
@@ -1218,18 +1285,18 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 14,
-    fontSize: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    minHeight: 48,
+    borderRadius: 16,
+    fontSize: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    minHeight: 52,
     maxHeight: 140,
     lineHeight: 21,
   },
   sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1237,9 +1304,9 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   sendButtonInner: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
   },
