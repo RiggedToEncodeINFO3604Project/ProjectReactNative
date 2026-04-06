@@ -1,13 +1,30 @@
 import os
 import logging
+import json
+from urllib import request as urllib_request
+from urllib.error import HTTPError, URLError
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException
 from contextlib import asynccontextmanager
 from firebase_db import initialize_firebase, close_firebase
 from routes import auth_routes, provider_routes, customer_routes, messaging_routes
 from websocket_manager import websocket_manager, Connection
 
 log = logging.getLogger("skedulelt.main")
+
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:8081,http://localhost:19000,http://localhost:19006,http://localhost:8000",
+    ).split(",")
+    if origin.strip()
+]
+allowed_origin_regex = os.getenv(
+    "ALLOWED_ORIGIN_REGEX",
+    r"^https?://(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$",
+)
 
 
 @asynccontextmanager
@@ -24,7 +41,8 @@ app = FastAPI(title="Scheduling Service API", lifespan=lifespan)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins if allowed_origins != ["*"] else ["*"],
+    allow_origin_regex=None if allowed_origins == ["*"] else allowed_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,6 +53,54 @@ app.include_router(auth_routes.router)
 app.include_router(provider_routes.router)
 app.include_router(customer_routes.router)
 app.include_router(messaging_routes.router, prefix="/api/messaging", tags=["messaging"])
+
+
+@app.post("/api/chat")
+async def proxy_rag_chat(payload: dict):
+    rag_port = int(os.environ.get("RAG_PORT", 8001))
+    rag_url = f"http://localhost:{rag_port}/api/chat"
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib_request.Request(
+        rag_url,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib_request.urlopen(req, timeout=60) as response:
+            content = response.read().decode("utf-8")
+            return json.loads(content)
+    except HTTPError as exc:
+        error_text = exc.read().decode("utf-8", errors="replace")
+        raise HTTPException(status_code=exc.code, detail=error_text)
+    except URLError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"RAG server unavailable: {exc.reason}",
+        )
+
+
+@app.get("/api/rag/health")
+async def proxy_rag_health():
+    rag_port = int(os.environ.get("RAG_PORT", 8001))
+    rag_url = f"http://localhost:{rag_port}/api/health"
+
+    try:
+        with urllib_request.urlopen(rag_url, timeout=15) as response:
+            content = response.read().decode("utf-8")
+            return json.loads(content)
+    except HTTPError as exc:
+        error_text = exc.read().decode("utf-8", errors="replace")
+        raise HTTPException(status_code=exc.code, detail=error_text)
+    except URLError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"RAG server unavailable: {exc.reason}",
+        )
 
 
 @app.get("/")

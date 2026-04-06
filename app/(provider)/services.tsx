@@ -18,7 +18,7 @@ import {
 } from "react-native";
 
 export default function ManageServicesScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
 
   const [services, setServices] = useState<Service[]>([]);
@@ -84,7 +84,7 @@ export default function ManageServicesScreen() {
     text: extendedColours.text,
     textMuted: extendedColours.textMuted,
     border: extendedColours.border,
-    accent: SharedColours.bookingStatus.pending,
+    accent: themeColours.primary,
     inputBg: extendedColours.inputBg,
   };
 

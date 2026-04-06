@@ -1,4 +1,9 @@
 import BackButton from "@/components/BackButton";
+import {
+  ExtendedColours,
+  SharedColours,
+  getScreenPalette,
+} from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { getConfirmedBookings, syncBusyTimes } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
@@ -24,15 +29,12 @@ const CALENDAR_HEIGHT = width * 0.95;
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { isDarkMode } = useTheme();
-  const colours = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-  };
+  const { isDarkMode, colours: themeColours } = useTheme();
+  const colours = getScreenPalette(isDarkMode, {
+    backgroundTone: "alt",
+    accent: themeColours.primary,
+  });
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
 
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [deviceEvents, setDeviceEvents] = useState<any[]>([]);
@@ -50,17 +52,8 @@ export default function CalendarScreen() {
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(null);
 
   const calendarTheme = {
-    backgroundColor: "#f5d06e",
-    calendarBackground: "#f5d06e",
-    textSectionTitleColor: "#000",
-    dayTextColor: "#000",
-    todayTextColor: "#8B0000",
-    selectedDayBackgroundColor: "#6366F1",
-    selectedDayTextColor: "#fff",
-    arrowColor: "#000",
-    monthTextColor: "#000",
+    ...SharedColours.calendar,
     textMonthFontWeight: "bold",
-    textDisabledColor: "#888",
   };
 
   useFocusEffect(
@@ -159,12 +152,18 @@ export default function CalendarScreen() {
     const marks: Record<string, { marked: boolean; dotColor: string }> = {};
     bookings.forEach((booking) => {
       const dateKey = booking.date.split("T")[0];
-      marks[dateKey] = { marked: true, dotColor: "#8B0000" };
+      marks[dateKey] = {
+        marked: true,
+        dotColor: SharedColours.calendar.dotColor,
+      };
     });
     deviceEvents.forEach((event) => {
       const dateKey = event.startDate.split("T")[0];
       if (!marks[dateKey]) {
-        marks[dateKey] = { marked: true, dotColor: "#8B0000" };
+        marks[dateKey] = {
+          marked: true,
+          dotColor: SharedColours.calendar.dotColor,
+        };
       }
     });
     setMarkedDates(marks);
@@ -184,31 +183,20 @@ export default function CalendarScreen() {
       <View
         style={[
           styles.eventItem,
-          { backgroundColor: isDarkMode ? "#333" : "#f0f0f0" },
+          { backgroundColor: extendedColours.searchInputBg },
         ]}
       >
-        <Text
-          style={[styles.eventTitle, { color: isDarkMode ? "#fff" : "#000" }]}
-        >
+        <Text style={[styles.eventTitle, { color: colours.text }]}>
           {item.service_name}
         </Text>
-        <Text
-          style={[styles.eventDate, { color: isDarkMode ? "#ccc" : "#666" }]}
-        >
+        <Text style={[styles.eventDate, { color: colours.textMuted }]}>
           {dateDisplay}
         </Text>
-        <Text
-          style={[styles.eventTime, { color: isDarkMode ? "#ccc" : "#888" }]}
-        >
+        <Text style={[styles.eventTime, { color: colours.textMuted }]}>
           {item.start_time} – {item.end_time}
         </Text>
         {item.customer_name ? (
-          <Text
-            style={[
-              styles.eventCustomer,
-              { color: isDarkMode ? "#ccc" : "#555" },
-            ]}
-          >
+          <Text style={[styles.eventCustomer, { color: colours.textSecondary }]}>
             👤 {item.customer_name}
           </Text>
         ) : null}
@@ -218,17 +206,14 @@ export default function CalendarScreen() {
 
   return (
     <View
-      style={[
-        styles.container,
-        { backgroundColor: isDarkMode ? "#151718" : "#f5f5f5" },
-      ]}
+      style={[styles.container, { backgroundColor: colours.background }]}
     >
       {/* Header with back button */}
       <View
         style={[
           styles.header,
           {
-            backgroundColor: isDarkMode ? "#1e2333" : "#fff",
+            backgroundColor: colours.card,
             borderBottomColor: colours.border,
           },
         ]}
@@ -242,24 +227,17 @@ export default function CalendarScreen() {
           style={[
             styles.modalOverlay,
             {
-              backgroundColor: isDarkMode
-                ? "rgba(0,0,0,0.7)"
-                : "rgba(0,0,0,0.3)",
+              backgroundColor: colours.overlay,
             },
           ]}
         >
           <View
             style={[
               styles.modalContent,
-              { backgroundColor: isDarkMode ? "#1e2333" : "#fff" },
+              { backgroundColor: colours.card },
             ]}
           >
-            <Text
-              style={[
-                styles.modalTitle,
-                { color: isDarkMode ? "#fff" : "#000" },
-              ]}
-            >
+            <Text style={[styles.modalTitle, { color: colours.text }]}>
               {selectedDateStr}
             </Text>
 
@@ -290,18 +268,15 @@ export default function CalendarScreen() {
                         key={i}
                         style={[
                           styles.eventItem,
-                          { backgroundColor: isDarkMode ? "#444" : "#f0f0f0" },
+                          { backgroundColor: extendedColours.inputBg },
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.eventTitle,
-                            { color: isDarkMode ? "#fff" : "#000" },
-                          ]}
-                        >
+                        <Text style={[styles.eventTitle, { color: colours.text }]}>
                           Unavailable
                         </Text>
-                        <Text style={[styles.eventTime, { color: "#fff" }]}>
+                        <Text
+                          style={[styles.eventTime, { color: colours.textMuted }]}
+                        >
                           {start} – {end}
                         </Text>
                       </View>
@@ -325,18 +300,15 @@ export default function CalendarScreen() {
                       key={b.booking_id}
                       style={[
                         styles.eventItem,
-                        { backgroundColor: isDarkMode ? "#444" : "#f0f0f0" },
+                        { backgroundColor: extendedColours.inputBg },
                       ]}
                     >
-                      <Text
-                        style={[
-                          styles.eventTitle,
-                          { color: isDarkMode ? "#fff" : "#000" },
-                        ]}
-                      >
+                      <Text style={[styles.eventTitle, { color: colours.text }]}>
                         {b.service_name}
                       </Text>
-                      <Text style={[styles.eventTime, { color: "#fff" }]}>
+                      <Text
+                        style={[styles.eventTime, { color: colours.textMuted }]}
+                      >
                         {b.start_time} – {b.end_time}
                       </Text>
                     </View>
@@ -350,7 +322,7 @@ export default function CalendarScreen() {
                 <Text
                   style={[
                     styles.modalEmpty,
-                    { color: isDarkMode ? "#9BA1A6" : "#6b7280" },
+                    { color: colours.textMuted },
                   ]}
                 >
                   No events or bookings
@@ -367,11 +339,7 @@ export default function CalendarScreen() {
       </Modal>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color="#50cebb"
-          style={{ marginTop: 50 }}
-        />
+        <ActivityIndicator size="large" color={colours.accent} style={{ marginTop: 50 }} />
       ) : (
         <FlatList
           data={bookings}
@@ -382,7 +350,7 @@ export default function CalendarScreen() {
               <Text
                 style={[
                   styles.title,
-                  { color: isDarkMode ? "#fff" : "#000" },
+                  { color: colours.text },
                   { alignContent: "center", textAlign: "center" },
                 ]}
               >
@@ -426,7 +394,7 @@ export default function CalendarScreen() {
           }
           ListEmptyComponent={
             <Text
-              style={[styles.empty, { color: isDarkMode ? "#9BA1A6" : "#999" }]}
+              style={[styles.empty, { color: colours.textMuted }]}
             >
               No upcoming bookings
             </Text>

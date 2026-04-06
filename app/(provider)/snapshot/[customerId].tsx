@@ -1,5 +1,6 @@
 // AI'd display components - will remove deprecated components and manually review and rewrite all display elements before final sprint
 import CustomerSnapshotView from "@/components/CustomerSnapshotView";
+import { getScreenPalette } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { getCustomerSnapshot } from "@/services/schedulingApi";
 import { CustomerSnapshot } from "@/types/scheduling";
@@ -16,7 +17,7 @@ import {
 } from "react-native";
 
 export default function CustomerSnapshotScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
 
