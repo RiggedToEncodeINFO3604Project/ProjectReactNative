@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from typing import List, Dict, Any
 from models import (
     Service, ServiceCreate, AvailabilitySchedule, ClientRecord,
@@ -8,7 +8,7 @@ from auth import get_current_provider
 from firebase_db import get_database
 from firebase_admin import firestore
 import uuid
-from datetime import datetime, date as date_type
+from datetime import datetime, timezone, date as date_type
 from services.availability_service import (
     normalize_slot_recurrence,
     slot_applies_to_date,
@@ -996,3 +996,245 @@ async def refresh_customer_auto_tags(
     auto_tags = calculate_auto_tags(db, provider["_id"], customer_id, bookings, config)
 
     return auto_tags
+
+
+
+# Tag Management
+#----------------------------------------------------------------------
+@router.post("/customer/{customer_id}/tags", response_model=dict)
+async def create_customer_tag(
+    customer_id: str,
+    tag_data: dict = Body(...),
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    """Create a manual tag for a customer.
+    
+    Expected payload:
+    {
+        "tag": "Tag Name",
+        "color": "#FF0000"
+    }
+    """
+    db = get_database()
+    
+    # Verify that the provider exists
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    # Verify that the customer exists
+    customer_doc = db.collection("customers").document(customer_id).get()
+    if not customer_doc.exists:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    tag_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    # If its a pydantic model it should be converted to a dict
+    tag_dict_data = tag_data.dict() if hasattr(tag_data, 'dict') else tag_data.model_dump() if hasattr(tag_data, 'model_dump') else tag_data
+    tag_dict = {
+        "customer_id": customer_id,
+        "provider_id": provider_id,
+        "tag": tag_dict_data.get("tag", "Untitled"),
+        "color": tag_dict_data.get("color", "#42bbeb"),
+        "created_at": now
+    }
+    
+    db.collection("customer_tags").document(tag_id).set(tag_dict)
+    
+    return {
+        "id": tag_id,
+        "tag": tag_dict["tag"],
+        "color": tag_dict["color"],
+        "created_at": now.isoformat()
+    }
+
+
+@router.put("/tags/{tag_id}", response_model=dict)
+async def update_customer_tag(
+    tag_id: str,
+    tag_data: dict = Body(...),
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    """Update an existing tag's text and/or color."""
+    db = get_database()
+    
+    # Verify that the provider exists
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_id = provider_docs[0].id
+    
+    # Verify that the tag exists and belongs to this provider
+    tag_doc = db.collection("customer_tags").document(tag_id).get()
+    if not tag_doc.exists:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    
+    tag_obj = tag_doc.to_dict()
+    if tag_obj.get("provider_id") != provider_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this tag")
+    
+    update_dict = {}
+    if "tag" in tag_data:
+        update_dict["tag"] = tag_data["tag"]
+    if "color" in tag_data:
+        update_dict["color"] = tag_data["color"]
+    
+    db.collection("customer_tags").document(tag_id).update(update_dict)
+    
+    return {
+        "id": tag_id,
+        "tag": update_dict.get("tag", tag_obj.get("tag")),
+        "color": update_dict.get("color", tag_obj.get("color")),
+        "message": "Tag updated successfully"
+    }
+
+
+@router.delete("/tags/{tag_id}", response_model=dict)
+async def delete_customer_tag(
+    tag_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    """Delete a tag."""
+    db = get_database()
+    
+    # Verify that the provider exists
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_id = provider_docs[0].id
+    
+    # Verify that the tag exists and belongs to this provider
+    tag_doc = db.collection("customer_tags").document(tag_id).get()
+    if not tag_doc.exists:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    
+    tag_obj = tag_doc.to_dict()
+    if tag_obj.get("provider_id") != provider_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this tag")
+    
+    db.collection("customer_tags").document(tag_id).delete()
+    
+    return {"message": "Tag deleted successfully", "tag_id": tag_id}
+
+
+# Notes Management
+#---------------------------------------------------------------------
+@router.post("/customer/{customer_id}/notes", response_model=dict)
+async def create_customer_note(
+    customer_id: str,
+    note_data: dict = Body(...),
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    """Create a new note for a customer.
+    
+    Expected payload:
+    {
+        "note": "Note content here"
+    }
+    """
+    db = get_database()
+    
+    # Verify that the provider exists
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    
+    # Verify that the customer exists
+    customer_doc = db.collection("customers").document(customer_id).get()
+    if not customer_doc.exists:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    note_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    note_dict = {
+        "customer_id": customer_id,
+        "provider_id": provider_id,
+        "note": note_data.get("note", ""),
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    db.collection("customer_notes").document(note_id).set(note_dict)
+    
+    return {
+        "id": note_id,
+        "note": note_dict["note"],
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    }
+
+
+@router.put("/notes/{note_id}", response_model=dict)
+async def update_customer_note(
+    note_id: str,
+    note_data: dict = Body(...),
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    """Update an existing note's content."""
+    db = get_database()
+    
+    # Verify that the provider exists
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_id = provider_docs[0].id
+    
+    # Verify that the note exists and belongs to this provider
+    note_doc = db.collection("customer_notes").document(note_id).get()
+    if not note_doc.exists:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    note_obj = note_doc.to_dict()
+    if note_obj.get("provider_id") != provider_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this note")
+    
+    now = datetime.now(timezone.utc)
+    db.collection("customer_notes").document(note_id).update({
+        "note": note_data.get("note", note_obj.get("note")),
+        "updated_at": now
+    })
+    
+    return {
+        "id": note_id,
+        "note": note_data.get("note", note_obj.get("note")),
+        "updated_at": now.isoformat(),
+        "message": "Note updated successfully"
+    }
+
+
+@router.delete("/notes/{note_id}", response_model=dict)
+async def delete_customer_note(
+    note_id: str,
+    current_user: UserInDB = Depends(get_current_provider)
+):
+    """Delete a note."""
+    db = get_database()
+    
+    # Verify that the provider exists
+    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
+    if not provider_docs or len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+    
+    provider_id = provider_docs[0].id
+    
+    # Verify that thenote exists and belongs to this provider
+    note_doc = db.collection("customer_notes").document(note_id).get()
+    if not note_doc.exists:
+        raise HTTPException(status_code=404, detail="Note not found")
+    
+    note_obj = note_doc.to_dict()
+    if note_obj.get("provider_id") != provider_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this note")
+    
+    db.collection("customer_notes").document(note_id).delete()
+    
+    return {"message": "Note deleted successfully", "note_id": note_id}

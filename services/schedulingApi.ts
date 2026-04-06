@@ -662,5 +662,68 @@ export const refreshCustomerAutoTags = async (
   return response.data;
 };
 
+// Tag management
+export interface CustomerTag {
+  id: string;
+  tag: string;
+  color: string;
+}
+
+export const createCustomerTag = async (
+  customerId: string,
+  tagData: { tag: string; color: string },
+): Promise<CustomerTag> => {
+  const url = `/provider/customer/${customerId}/tags`;
+  const response = await api.post<CustomerTag>(url, tagData);
+  return response.data;
+};
+
+export const updateCustomerTag = async (
+  tagId: string,
+  tagData: Partial<{ tag: string; color: string }>,
+): Promise<any> => {
+  const url = `/provider/tags/${tagId}`;
+  const response = await api.put<any>(url, tagData);
+  return response.data;
+};
+
+export const deleteCustomerTag = async (tagId: string): Promise<any> => {
+  const url = `/provider/tags/${tagId}`;
+  const response = await api.delete<any>(url);
+  return response.data;
+};
+
+// Notes management
+export interface CustomerNote {
+  id: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const createCustomerNote = async (
+  customerId: string,
+  noteData: { note: string },
+): Promise<CustomerNote> => {
+  const url = `/provider/customer/${customerId}/notes`;
+  const response = await api.post<CustomerNote>(url, noteData);
+  return response.data;
+};
+
+export const updateCustomerNote = async (
+  noteId: string,
+  noteData: { note: string },
+): Promise<any> => {
+  const url = `/provider/notes/${noteId}`;
+  const response = await api.put<any>(url, noteData);
+  return response.data;
+};
+
+export const deleteCustomerNote = async (noteId: string): Promise<any> => {
+  const url = `/provider/notes/${noteId}`;
+  const response = await api.delete<any>(url);
+  return response.data;
+};
+
 // Export the axios instance for custom requests
 export default api;
