@@ -7,7 +7,11 @@ import {
 import { useTheme } from "@/context/ThemeContext";
 import { getConfirmedBookings, syncBusyTimes } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
-import { formatDateTimeTime, formatStoredTimeRange } from "@/utils/time";
+import {
+  formatDateTimeTime,
+  formatLocalDate,
+  formatStoredTimeRange,
+} from "@/utils/time";
 import * as Calendar from "expo-calendar";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -120,7 +124,7 @@ export default function CalendarScreen() {
         const endDate = new Date(event.endDate);
 
         // Format date as YYYY-MM-DD
-        const date = startDate.toISOString().split("T")[0];
+        const date = formatLocalDate(startDate);
 
         // Format times as HH:MM
         const start_time = startDate.toTimeString().slice(0, 5);
@@ -159,7 +163,7 @@ export default function CalendarScreen() {
       };
     });
     deviceEvents.forEach((event) => {
-      const dateKey = event.startDate.split("T")[0];
+      const dateKey = formatLocalDate(new Date(event.startDate));
       if (!marks[dateKey]) {
         marks[dateKey] = {
           marked: true,
@@ -358,8 +362,9 @@ export default function CalendarScreen() {
                   const dayBookings = bookings.filter((b) =>
                     b.date.startsWith(day.dateString),
                   );
-                  const dayDeviceEvents = deviceEvents.filter((e) =>
-                    e.startDate.startsWith(day.dateString),
+                  const dayDeviceEvents = deviceEvents.filter(
+                    (e) =>
+                      formatLocalDate(new Date(e.startDate)) === day.dateString,
                   );
                   setSelectedDayBookings(dayBookings);
                   setSelectedDayDeviceEvents(dayDeviceEvents);

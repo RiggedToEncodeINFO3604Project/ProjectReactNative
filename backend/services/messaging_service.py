@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from firebase_admin import firestore
 from firebase_db import get_database
 from services.profanity_filter import sanitize_message
+from services.datetime_utils import normalize_utc_datetime, utc_now
 
 
 
@@ -63,8 +64,8 @@ def get_or_create_conversation(customer_id: str, provider_id: str) -> str:
         'provider_id': provider_id,
         'customer_name': customer_name,
         'provider_name': provider_name,
-        'created_at': datetime.utcnow(),
-        'updated_at': datetime.utcnow(),
+        'created_at': utc_now(),
+        'updated_at': utc_now(),
         'last_message': None,
         'last_message_time': None,
     }
@@ -109,8 +110,9 @@ def get_user_conversations(user_id: str, role: str) -> List[dict]:
         conversations.append(data)
     
     # Sort by updated_at in Python (most recent first)
+    fallback_timestamp = datetime.min.replace(tzinfo=timezone.utc)
     conversations.sort(
-        key=lambda x: x.get('updated_at') or datetime.min,
+        key=lambda x: normalize_utc_datetime(x.get('updated_at')) or fallback_timestamp,
         reverse=True
     )
     
@@ -197,7 +199,7 @@ def send_message(
     print(f"[PROFANITY_FILTER] Filtered content: {filtered_content}")
     
     # Create message
-    created_at = datetime.utcnow()
+    created_at = utc_now()
     message_data = {
         'conversation_id': conversation_id,
         'sender_id': sender_id,

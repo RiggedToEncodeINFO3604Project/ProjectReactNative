@@ -25,6 +25,7 @@ import {
   TokenResponse,
   UserCreate,
 } from "@/types/scheduling";
+import { formatLocalDate, parseLocalDate } from "@/utils/time";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, { AxiosError, AxiosInstance } from "axios";
 import Constants from "expo-constants";
@@ -493,7 +494,7 @@ export const getAvailableSlotsForReschedule = async (
 
 // Formatting
 export const formatDate = (date: Date): string => {
-  return date.toISOString().split("T")[0];
+  return formatLocalDate(date);
 };
 
 // Add days to a date and return a new Date
@@ -533,7 +534,7 @@ export const transformToScheduleData = (
   response: RescheduleSlotsResponse,
   today: Date = new Date(),
 ): DateScheduleData => {
-  const dateObj = new Date(response.date + "T00:00:00");
+  const dateObj = parseLocalDate(response.date);
   const todayStr = formatDate(today);
   const tomorrowStr = formatDate(addDays(today, 1));
 
@@ -561,8 +562,8 @@ export const generateDateRange = (
   endDate: string,
 ): string[] => {
   const dates: string[] = [];
-  const start = new Date(startDate + "T00:00:00");
-  const end = new Date(endDate + "T00:00:00");
+  const start = parseLocalDate(startDate);
+  const end = parseLocalDate(endDate);
 
   while (start <= end) {
     dates.push(formatDate(start));

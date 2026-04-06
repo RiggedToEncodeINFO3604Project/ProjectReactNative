@@ -41,6 +41,18 @@ export function formatStoredTimeRange(startTime: string, endTime: string): strin
   return `${formatStoredTime(startTime)} - ${formatStoredTime(endTime)}`;
 }
 
+export function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function parseLocalDate(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function formatDateTimeTime(value: string | number | Date): string {
   const date = value instanceof Date ? value : new Date(value);
 

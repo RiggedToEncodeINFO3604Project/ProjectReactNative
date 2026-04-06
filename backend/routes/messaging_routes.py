@@ -1,4 +1,3 @@
-from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List
 import logging
@@ -19,6 +18,7 @@ from websocket_manager import websocket_manager
 
 
 from auth import get_current_user
+from services.datetime_utils import utc_now
 
 log = logging.getLogger("skedulelt.messaging")
 
@@ -201,7 +201,7 @@ async def send_message_endpoint(
             "message_type": request.message_type,
             "image_url": request.image_url,
             "thumbnail_url": None,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": utc_now().isoformat(),
             "read": False,
             "status": "sent"
         }

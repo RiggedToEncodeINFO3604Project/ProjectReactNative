@@ -14,6 +14,11 @@ from services.availability_service import (
     slot_applies_to_date,
     slot_applies_to_service,
 )
+from services.datetime_utils import (
+    format_schedule_date,
+    parse_schedule_date,
+    normalize_firestore_datetime,
+)
 from services.tagging_service import calculate_auto_tags, get_provider_tagging_config, resolve_tag_priority
 
 router = APIRouter(prefix="/provider", tags=["provider"])
@@ -141,7 +146,7 @@ async def set_availability(
     warnings = []
     summary = {'total_slots_created': 0, 'total_remainder_minutes': 0}
     normalized_schedule = []
-    today = datetime.now().date()
+    today = date_type.today()
     
     for day in availability.schedule:
         normalized_day = {
@@ -337,7 +342,7 @@ async def get_pending_bookings(current_user: UserInDB = Depends(get_current_prov
         
         result.append({
             "booking_id": booking_id,
-            "date": booking_data["date"].isoformat(),
+            "date": format_schedule_date(booking_data["date"]),
             "start_time": booking_data["start_time"],
             "end_time": booking_data["end_time"],
             "cost": booking_data["cost"],
@@ -473,7 +478,7 @@ async def get_confirmed_bookings(current_user: UserInDB = Depends(get_current_pr
         
         result.append({
             "booking_id": booking_id,
-            "date": booking_data["date"].isoformat(),
+            "date": format_schedule_date(booking_data["date"]),
             "start_time": booking_data["start_time"],
             "end_time": booking_data["end_time"],
             "cost": booking_data["cost"],
@@ -550,7 +555,7 @@ async def reschedule_booking(
     
     # Parse the new date
     try:
-        new_date = datetime.strptime(reschedule_data.date, "%Y-%m-%d")
+        new_date = parse_schedule_date(reschedule_data.date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
@@ -623,7 +628,7 @@ async def reschedule_booking(
         raise HTTPException(status_code=400, detail="This time slot is already booked")
     
     # Store old values for response
-    old_date = booking_data["date"].isoformat()
+    old_date = format_schedule_date(booking_data["date"])
     old_time = f"{booking_data['start_time']}-{booking_data['end_time']}"
     
     # Update the booking
@@ -674,7 +679,7 @@ async def get_available_slots(
     
     # Parse the date
     try:
-        target_date = datetime.strptime(date, "%Y-%m-%d")
+        target_date = parse_schedule_date(date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
@@ -820,7 +825,7 @@ async def get_customer_snapshot(
     last_service_name = None
     if bookings:
         latest_booking = bookings[0]
-        last_service_date = latest_booking.get("date").isoformat() if latest_booking.get("date") else None
+        last_service_date = format_schedule_date(latest_booking.get("date"))
         # get service by document id
         svc_id = latest_booking.get("service_id")
         last_service_name = "Unknown Service"
