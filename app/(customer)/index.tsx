@@ -55,10 +55,16 @@ export default function CustomerHomeScreen() {
       icon: "chatbubble-outline" as const,
     },
     {
-      title: "Find Providers",
+      title: "Search & Discovery",
       description: "Search for service providers in your area",
       route: "/search",
       icon: "search-outline" as const,
+    },
+    {
+      title: "Skedulelt Support Assistant",
+      description: "Open the chatbot for quick help and answers",
+      route: "/support",
+      icon: "help-circle-outline" as const,
     },
   ];
 
@@ -84,7 +90,11 @@ export default function CustomerHomeScreen() {
             accessibilityLabel="Settings"
             accessibilityRole="button"
           >
-            <IconSymbol name="gearshape.fill" size={24} color={colours.accent} />
+            <IconSymbol
+              name="gearshape.fill"
+              size={24}
+              color={colours.accent}
+            />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
             <Text style={[styles.logoutText, { color: colours.error }]}>
@@ -115,7 +125,9 @@ export default function CustomerHomeScreen() {
                 {item.title}
               </Text>
             </View>
-            <Text style={[styles.menuDescription, { color: colours.textMuted }]}>
+            <Text
+              style={[styles.menuDescription, { color: colours.textMuted }]}
+            >
               {item.description}
             </Text>
           </TouchableOpacity>
