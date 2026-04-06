@@ -1,4 +1,5 @@
 import BackButton from "@/components/BackButton";
+import { SharedColours, UIColours, getScreenPalette } from "@/constants/theme";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useTheme } from "@/context/ThemeContext";
 import { startConversation } from "@/services/messagingApi";
@@ -61,7 +62,11 @@ const MONTHS = [
 ];
 
 export default function ProviderDetailsScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
+  const colours = getScreenPalette(isDarkMode, {
+    backgroundTone: "alt",
+    accent: themeColours.primary,
+  });
   const router = useRouter();
   const { id, provider: providerJson } = useLocalSearchParams<{
     id: string;
@@ -184,24 +189,15 @@ export default function ProviderDetailsScreen() {
   const getDayColor = (status: string) => {
     switch (status) {
       case "fully_booked":
-        return "#FF3B30"; // Red
+        return SharedColours.bookingStatus.cancelled;
       case "mostly_booked":
-        return "#f0c85a"; // Yellow
+        return SharedColours.bookingStatus.pending;
       case "partially_booked":
       case "available":
-        return "#34C759"; // Green
+        return SharedColours.bookingStatus.confirmed;
       default:
-        return "#6b7280"; // Gray
+        return SharedColours.bookingStatus.default;
     }
-  };
-
-  const colours = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
   };
 
   if (!provider) {
@@ -285,7 +281,7 @@ export default function ProviderDetailsScreen() {
                   {
                     color:
                       selectedService?.id === service.id
-                        ? "#151718"
+                        ? colours.accentContrast
                         : colours.text,
                   },
                 ]}
@@ -298,7 +294,7 @@ export default function ProviderDetailsScreen() {
                   {
                     color:
                       selectedService?.id === service.id
-                        ? "#151718"
+                        ? colours.accentContrast
                         : colours.accent,
                   },
                 ]}
@@ -383,7 +379,10 @@ export default function ProviderDetailsScreen() {
                     style={[
                       styles.dayText,
                       {
-                        color: selectedDate === day.date ? "#151718" : "#fff",
+                        color:
+                          selectedDate === day.date
+                            ? colours.accentContrast
+                            : SharedColours.white,
                       },
                     ]}
                   >
@@ -418,7 +417,10 @@ export default function ProviderDetailsScreen() {
                     style={[
                       styles.slotText,
                       {
-                        color: selectedSlot === slot ? "#151718" : colours.text,
+                        color:
+                          selectedSlot === slot
+                            ? colours.accentContrast
+                            : colours.text,
                       },
                     ]}
                   >
@@ -437,9 +439,16 @@ export default function ProviderDetailsScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#151718" />
+              <ActivityIndicator color={colours.accentContrast} />
             ) : (
-              <Text style={styles.bookButtonText}>Book Appointment</Text>
+              <Text
+                style={[
+                  styles.bookButtonText,
+                  { color: colours.accentContrast },
+                ]}
+              >
+                Book Appointment
+              </Text>
             )}
           </TouchableOpacity>
         )}
@@ -593,7 +602,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   bookButtonText: {
-    color: "#151718",
     fontSize: 18,
     fontWeight: "600",
   },
@@ -606,13 +614,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: UIColours.overlay,
   },
   successModalContent: {
     borderRadius: 20,
     padding: 30,
     alignItems: "center",
-    shadowColor: "#000",
+    shadowColor: UIColours.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -622,14 +630,14 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#34C759",
+    backgroundColor: SharedColours.success,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
   },
   successCheckmark: {
     fontSize: 40,
-    color: "#ffffff",
+    color: SharedColours.white,
     fontWeight: "bold",
   },
   successMessage: {

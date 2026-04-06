@@ -60,7 +60,7 @@ const getNextOccurrenceForDay = (today: Date, dayIndex: number) => {
 };
 
 export default function ManageAvailabilityScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
   const today = new Date();
   const todayString = formatDate(today);
@@ -463,7 +463,7 @@ export default function ManageAvailabilityScreen() {
     text: extendedColours.text,
     textMuted: extendedColours.textMuted,
     border: extendedColours.border,
-    accent: SharedColours.bookingStatus.pending,
+    accent: themeColours.primary,
     inputBg: extendedColours.inputBg,
     error: SharedColours.error,
     success: SharedColours.success,
@@ -692,7 +692,9 @@ export default function ManageAvailabilityScreen() {
                         styles.durationButtonText,
                         {
                           color:
-                            tempDuration === duration ? "#151718" : colours.text,
+                            tempDuration === duration
+                              ? UIColours.button.textLight
+                              : colours.text,
                         },
                       ]}
                     >
@@ -981,7 +983,7 @@ export default function ManageAvailabilityScreen() {
                 textDisabledColor: colours.textMuted,
                 todayTextColor: colours.accent,
                 arrowColor: colours.accent,
-                selectedDayTextColor: "#151718",
+                selectedDayTextColor: UIColours.button.textLight,
               }}
             />
             <TouchableOpacity

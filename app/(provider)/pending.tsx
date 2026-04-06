@@ -53,7 +53,7 @@ const formatDayHeader = (dateKey: string) =>
   });
 
 export default function PendingBookingsScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
 
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
@@ -244,7 +244,7 @@ export default function PendingBookingsScreen() {
     text: extendedColours.text,
     textMuted: extendedColours.textMuted,
     border: extendedColours.border,
-    accent: SharedColours.bookingStatus.pending,
+    accent: themeColours.primary,
     success: SharedColours.success,
     error: SharedColours.error,
     overlap: extendedColours.warningBg,

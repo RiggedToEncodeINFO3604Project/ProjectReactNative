@@ -49,7 +49,7 @@ const formatDayHeader = (dateKey: string) =>
   });
 
 export default function ConfirmedBookingsScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
 
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
@@ -120,7 +120,7 @@ export default function ConfirmedBookingsScreen() {
     text: extendedColours.text,
     textMuted: extendedColours.textMuted,
     border: extendedColours.border,
-    accent: SharedColours.bookingStatus.pending,
+    accent: themeColours.primary,
     success: SharedColours.success,
   };
 

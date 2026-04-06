@@ -1,3 +1,4 @@
+import { getScreenPalette } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import {
     getTaggingRules,
@@ -21,7 +22,7 @@ import {
 } from "react-native";
 
 export default function ManageTaggingScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
 
   const [config, setConfig] = useState<TaggingConfig>({});
@@ -148,18 +149,10 @@ export default function ManageTaggingScreen() {
     }
   };
 
-  const colors = {
-    background: isDarkMode ? "#151718" : "#f5f5f5",
-    card: isDarkMode ? "#1e2333" : "#ffffff",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
-    success: "#34C759",
-    warning: "#FF9500",
-    error: "#FF3B30",
-  };
+  const colors = getScreenPalette(isDarkMode, {
+    backgroundTone: "alt",
+    accent: themeColours.primary,
+  });
 
   const SectionHeader = ({
     title,
@@ -331,7 +324,12 @@ export default function ManageTaggingScreen() {
                 <Text
                   style={[
                     styles.priorityButtonText,
-                    { color: tagPriority === mode ? "#000" : colors.text },
+                    {
+                      color:
+                        tagPriority === mode
+                          ? colors.accentContrast
+                          : colors.text,
+                    },
                   ]}
                 >
                   {mode === "manual_first"
@@ -462,9 +460,13 @@ export default function ManageTaggingScreen() {
           disabled={saving}
         >
           {saving ? (
-            <ActivityIndicator color="#000" />
+            <ActivityIndicator color={colors.accentContrast} />
           ) : (
-            <Text style={styles.saveButtonText}>Save Configuration</Text>
+            <Text
+              style={[styles.saveButtonText, { color: colors.accentContrast }]}
+            >
+              Save Configuration
+            </Text>
           )}
         </TouchableOpacity>
 
@@ -580,7 +582,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveButtonText: {
-    color: "#151718",
     fontSize: 16,
     fontWeight: "600",
   },

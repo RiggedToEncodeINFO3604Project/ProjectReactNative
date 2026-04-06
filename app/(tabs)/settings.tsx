@@ -1,43 +1,47 @@
+import { UIColours, getScreenPalette } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { StatusBar, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SettingsScreen() {
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const colours = getScreenPalette(isDarkMode, { cardTone: "alt" });
 
   return (
     <SafeAreaView
-      style={[
-        styles.container,
-        isDarkMode ? styles.darkContainer : styles.lightContainer,
-      ]}
+      style={[styles.container, { backgroundColor: colours.background }]}
     >
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
       <View style={styles.content}>
-        <Text
-          style={[
-            styles.title,
-            isDarkMode ? styles.darkText : styles.lightText,
-          ]}
-        >
+        <Text style={[styles.title, { color: colours.text }]}>
           Settings
         </Text>
 
-        <View style={styles.settingItem}>
-          <Text
-            style={[
-              styles.settingLabel,
-              isDarkMode ? styles.darkText : styles.lightText,
-            ]}
-          >
+        <View
+          style={[
+            styles.settingItem,
+            {
+              backgroundColor: colours.card,
+              borderColor: colours.border,
+            },
+          ]}
+        >
+          <Text style={[styles.settingLabel, { color: colours.text }]}>
             Dark Mode
           </Text>
           <Switch
             value={isDarkMode}
             onValueChange={toggleDarkMode}
-            trackColor={{ false: "#767577", true: "#81b0ff" }}
-            thumbColor={isDarkMode ? "#f5dd4b" : "#f4f3f4"}
+            trackColor={{
+              false: UIColours.switch.trackFalse,
+              true: UIColours.switch.trackTrue,
+            }}
+            thumbColor={
+              isDarkMode
+                ? UIColours.switch.thumbTrueDark
+                : UIColours.switch.thumbFalse
+            }
           />
         </View>
       </View>
@@ -51,12 +55,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  lightContainer: {
-    backgroundColor: "#fff",
-  },
-  darkContainer: {
-    backgroundColor: "#151718",
-  },
   content: {
     width: "80%",
     alignItems: "center",
@@ -68,12 +66,6 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     marginBottom: 20,
   },
-  lightText: {
-    color: "#11181C",
-  },
-  darkText: {
-    color: "#ECEDEE",
-  },
   settingItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -82,7 +74,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: "rgba(0,0,0,0.05)",
+    borderWidth: 1,
   },
   settingLabel: {
     fontFamily: "serif",
