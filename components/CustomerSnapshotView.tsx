@@ -118,6 +118,11 @@ export default function CustomerSnapshotView({
     return `$${(amount ?? 0).toFixed(2)}`;
   };
 
+  // Tags directly from snapshot
+  const sortedTags = useMemo(() => {
+    return snapshot.tags || [];
+  }, [snapshot.tags]);
+
   // Tag management handlers
   const openNewTagModal = () => {
     setTagEditMode(false);
@@ -146,10 +151,11 @@ export default function CustomerSnapshotView({
       if (tagEditMode && selectedTag) {
         // Update tag
         const { updateCustomerTag } = await import("@/services/schedulingApi");
-        await updateCustomerTag(selectedTag.id, {
+        const tagData = {
           tag: tagText,
           color: tagColor,
-        });
+        };
+        await updateCustomerTag(selectedTag.id, tagData);
         onTagUpdated?.();
       } else {
         // Create tag
@@ -384,7 +390,7 @@ export default function CustomerSnapshotView({
         {showEditTagsPanel ? (
           // Edit mode - tags are clickable
           <View style={styles.tagsContainer}>
-            {(snapshot.tags || []).map((tag) => (
+            {sortedTags.map((tag) => (
               <TouchableOpacity
                 key={tag.id}
                 style={[
@@ -405,7 +411,7 @@ export default function CustomerSnapshotView({
         ) : (
           // Display mode
           <View style={styles.tagsContainer}>
-            {(snapshot.tags ?? []).map((tag) => (
+            {sortedTags.map((tag) => (
               <View
                 key={tag.id ?? Math.random().toString()}
                 style={[
@@ -844,10 +850,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
+    position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   tagText: {
     fontSize: 12,
     fontWeight: "500",
+  },
+  weightBadge: {
+    marginLeft: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  weightBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "white",
   },
   noteCard: {
     padding: 12,

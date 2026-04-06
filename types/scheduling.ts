@@ -381,6 +381,7 @@ export interface CustomerTag {
   id: string;
   tag: string;
   color: string;
+  weight?: number;
 }
 
 export interface CustomerNote {

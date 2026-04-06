@@ -1,25 +1,126 @@
+import SuccessModal from "@/components/SuccessModal";
 import { getScreenPalette } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import {
-    getTaggingRules,
-    TaggingConfig,
-    updateTaggingRules,
+  getTaggingRules,
+  TaggingConfig,
+  updateTaggingRules,
 } from "@/services/schedulingApi";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+
+// Extract ThresholdInput as a memoized component to prevent re-creation
+const ThresholdInput = React.memo(
+  ({
+    label,
+    value,
+    onChangeText,
+    helpText,
+    colors,
+  }: {
+    label: string;
+    value: string;
+    onChangeText: (text: string) => void;
+    helpText?: string;
+    colors: any;
+  }) => (
+    <View style={styles.inputGroup}>
+      <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
+      <TextInput
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.inputBg,
+            color: colors.text,
+            borderColor: colors.border,
+          },
+        ]}
+        keyboardType="number-pad"
+        value={value}
+        onChangeText={onChangeText}
+        placeholderTextColor={colors.textMuted}
+      />
+      {helpText && (
+        <Text style={[styles.helpText, { color: colors.textMuted }]}>
+          {helpText}
+        </Text>
+      )}
+    </View>
+  ),
+  (prevProps, nextProps) => {
+    // Custom comparison to prevent re-renders unless these specific props change
+    return (
+      prevProps.value === nextProps.value &&
+      prevProps.label === nextProps.label &&
+      prevProps.helpText === nextProps.helpText &&
+      prevProps.onChangeText === nextProps.onChangeText &&
+      prevProps.colors === nextProps.colors
+    );
+  },
+);
+
+ThresholdInput.displayName = "ThresholdInput";
+
+// Extract PhaseToggle as a memoized component
+const PhaseToggle = React.memo(
+  ({
+    label,
+    value,
+    onToggle,
+    description,
+    colors,
+  }: {
+    label: string;
+    value: boolean;
+    onToggle: (value: boolean) => void;
+    description: string;
+    colors: any;
+  }) => (
+    <View
+      style={[
+        styles.toggleRow,
+        { backgroundColor: colors.card, borderBottomColor: colors.border },
+      ]}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.toggleLabel, { color: colors.text }]}>
+          {label}
+        </Text>
+        <Text style={[styles.toggleDescription, { color: colors.textMuted }]}>
+          {description}
+        </Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        trackColor={{ false: colors.border, true: colors.success }}
+        thumbColor={value ? colors.success : colors.textMuted}
+      />
+    </View>
+  ),
+  (prevProps, nextProps) => {
+    return (
+      prevProps.value === nextProps.value &&
+      prevProps.label === nextProps.label &&
+      prevProps.description === nextProps.description
+    );
+  },
+);
+
+PhaseToggle.displayName = "PhaseToggle";
 
 export default function ManageTaggingScreen() {
   const { isDarkMode, colours: themeColours } = useTheme();
@@ -28,12 +129,14 @@ export default function ManageTaggingScreen() {
   const [config, setConfig] = useState<TaggingConfig>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(
     "frequency",
   );
 
   // Local state for editable values
   const [taggingEnabled, setTaggingEnabled] = useState(true);
+  const [tagWeightingEnabled, setTagWeightingEnabled] = useState(true);
   const [tagPriority, setTagPriority] = useState<
     "auto_first" | "manual_first" | "merge"
   >("manual_first");
@@ -41,6 +144,11 @@ export default function ManageTaggingScreen() {
   const [phase2Enabled, setPhase2Enabled] = useState(true);
   const [phase3Enabled, setPhase3Enabled] = useState(true);
   const [phase4Enabled, setPhase4Enabled] = useState(true);
+
+  // Category weights for auto-tags
+  const [frequencyWeight, setFrequencyWeight] = useState("50");
+  const [recencyWeight, setRecencyWeight] = useState("50");
+  const [spendingWeight, setSpendingWeight] = useState("50");
 
   // Frequency thresholds
   const [returningThreshold, setReturningThreshold] = useState("2");
@@ -62,6 +170,17 @@ export default function ManageTaggingScreen() {
     }, []),
   );
 
+  // Auto-redirect to home after successful save
+  useEffect(() => {
+    if (saveSuccess) {
+      const timer = setTimeout(() => {
+        setSaveSuccess(false);
+        router.push("/(provider)/");
+      }, 2500); // Wait for success modal to auto-close
+      return () => clearTimeout(timer);
+    }
+  }, [saveSuccess, router]);
+
   const loadConfig = async () => {
     setLoading(true);
     try {
@@ -70,6 +189,7 @@ export default function ManageTaggingScreen() {
 
       // Populate state from loaded config
       setTaggingEnabled(rules.enabled ?? true);
+      setTagWeightingEnabled(rules.tag_weighting_enabled ?? true);
       setTagPriority(rules.tag_priority ?? "manual_first");
       setPhase1Enabled(rules.enable_phases?.phase1 ?? true);
       setPhase2Enabled(rules.enable_phases?.phase2 ?? true);
@@ -98,6 +218,12 @@ export default function ManageTaggingScreen() {
         setActiveDays(String(rules.recency_thresholds.active_days || 30));
         setAtRiskDays(String(rules.recency_thresholds.at_risk_days || 180));
       }
+
+      if (rules.category_weights) {
+        setFrequencyWeight(String(rules.category_weights.frequency || 50));
+        setRecencyWeight(String(rules.category_weights.recency || 50));
+        setSpendingWeight(String(rules.category_weights.spending || 50));
+      }
     } catch (error: any) {
       Alert.alert(
         "Error",
@@ -113,6 +239,7 @@ export default function ManageTaggingScreen() {
     try {
       const updatedConfig: Partial<TaggingConfig> = {
         enabled: taggingEnabled,
+        tag_weighting_enabled: tagWeightingEnabled,
         tag_priority: tagPriority,
         frequency_thresholds: {
           returning: parseInt(returningThreshold) || 2,
@@ -128,6 +255,11 @@ export default function ManageTaggingScreen() {
           active_days: parseInt(activeDays) || 30,
           at_risk_days: parseInt(atRiskDays) || 180,
         },
+        category_weights: {
+          frequency: parseInt(frequencyWeight) || 50,
+          recency: parseInt(recencyWeight) || 50,
+          spending: parseInt(spendingWeight) || 50,
+        },
         enable_phases: {
           phase1: phase1Enabled,
           phase2: phase2Enabled,
@@ -138,7 +270,7 @@ export default function ManageTaggingScreen() {
 
       await updateTaggingRules(updatedConfig);
       setConfig(updatedConfig);
-      Alert.alert("Success", "Auto-tagging configuration saved successfully");
+      setSaveSuccess(true);
     } catch (error: any) {
       Alert.alert(
         "Error",
@@ -177,75 +309,6 @@ export default function ManageTaggingScreen() {
         color={colors.accent}
       />
     </TouchableOpacity>
-  );
-
-  const ThresholdInput = ({
-    label,
-    value,
-    onChangeText,
-    helpText,
-  }: {
-    label: string;
-    value: string;
-    onChangeText: (text: string) => void;
-    helpText?: string;
-  }) => (
-    <View style={styles.inputGroup}>
-      <Text style={[styles.inputLabel, { color: colors.text }]}>{label}</Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.inputBg,
-            color: colors.text,
-            borderColor: colors.border,
-          },
-        ]}
-        keyboardType="number-pad"
-        value={value}
-        onChangeText={onChangeText}
-        placeholderTextColor={colors.textMuted}
-      />
-      {helpText && (
-        <Text style={[styles.helpText, { color: colors.textMuted }]}>
-          {helpText}
-        </Text>
-      )}
-    </View>
-  );
-
-  const PhaseToggle = ({
-    label,
-    value,
-    onToggle,
-    description,
-  }: {
-    label: string;
-    value: boolean;
-    onToggle: (value: boolean) => void;
-    description: string;
-  }) => (
-    <View
-      style={[
-        styles.toggleRow,
-        { backgroundColor: colors.card, borderBottomColor: colors.border },
-      ]}
-    >
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.toggleLabel, { color: colors.text }]}>
-          {label}
-        </Text>
-        <Text style={[styles.toggleDescription, { color: colors.textMuted }]}>
-          {description}
-        </Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        trackColor={{ false: colors.border, true: colors.success }}
-        thumbColor={value ? colors.success : colors.textMuted}
-      />
-    </View>
   );
 
   if (loading) {
@@ -294,6 +357,30 @@ export default function ManageTaggingScreen() {
               onValueChange={setTaggingEnabled}
               trackColor={{ false: colors.border, true: colors.success }}
               thumbColor={taggingEnabled ? colors.success : colors.textMuted}
+            />
+          </View>
+        </View>
+
+        {/* Tag Weighting */}
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.toggleLabel, { color: colors.text }]}>
+                Enable Tag Weighting
+              </Text>
+              <Text
+                style={[styles.toggleDescription, { color: colors.textMuted }]}
+              >
+                Sort tags by priority weight (1-100)
+              </Text>
+            </View>
+            <Switch
+              value={tagWeightingEnabled}
+              onValueChange={setTagWeightingEnabled}
+              trackColor={{ false: colors.border, true: colors.success }}
+              thumbColor={
+                tagWeightingEnabled ? colors.success : colors.textMuted
+              }
             />
           </View>
         </View>
@@ -357,24 +444,28 @@ export default function ManageTaggingScreen() {
             value={phase1Enabled}
             onToggle={setPhase1Enabled}
             description="Frequency, Recency, Spending"
+            colors={colors}
           />
           <PhaseToggle
             label="Phase 2: Behavior"
             value={phase2Enabled}
             onToggle={setPhase2Enabled}
             description="Booking patterns, Time preferences, Cancellations"
+            colors={colors}
           />
           <PhaseToggle
             label="Phase 3: Advanced"
             value={phase3Enabled}
             onToggle={setPhase3Enabled}
             description="Service preferences, Communication patterns"
+            colors={colors}
           />
           <PhaseToggle
             label="Phase 4: Customization"
             value={phase4Enabled}
             onToggle={setPhase4Enabled}
             description="Color customization, Priority rules"
+            colors={colors}
           />
         </View>
 
@@ -387,18 +478,21 @@ export default function ManageTaggingScreen() {
               value={returningThreshold}
               onChangeText={setReturningThreshold}
               helpText="Customer is tagged 'Returning' at this visit count"
+              colors={colors}
             />
             <ThresholdInput
               label="Regular (visits ≥)"
               value={regularThreshold}
               onChangeText={setRegularThreshold}
               helpText="Customer is tagged 'Regular' at this visit count"
+              colors={colors}
             />
             <ThresholdInput
               label="Loyal (visits ≥)"
               value={loyalThreshold}
               onChangeText={setLoyalThreshold}
               helpText="Customer is tagged 'Loyal' at this visit count"
+              colors={colors}
             />
           </View>
         )}
@@ -412,18 +506,21 @@ export default function ManageTaggingScreen() {
               value={regularSpenderThreshold}
               onChangeText={setRegularSpenderThreshold}
               helpText="Customer is tagged 'Regular Spender' above this amount"
+              colors={colors}
             />
             <ThresholdInput
               label="High Value ($)"
               value={highValueThreshold}
               onChangeText={setHighValueThreshold}
               helpText="Customer is tagged 'High Value' above this amount"
+              colors={colors}
             />
             <ThresholdInput
               label="Premium ($)"
               value={premiumThreshold}
               onChangeText={setPremiumThreshold}
               helpText="Customer is tagged 'Premium' above this amount"
+              colors={colors}
             />
           </View>
         )}
@@ -437,12 +534,42 @@ export default function ManageTaggingScreen() {
               value={activeDays}
               onChangeText={setActiveDays}
               helpText="Last service within this many days = 'Active'"
+              colors={colors}
             />
             <ThresholdInput
               label="At Risk Days"
               value={atRiskDays}
               onChangeText={setAtRiskDays}
               helpText="Last service within this many days = 'At Risk', beyond = 'Inactive'"
+              colors={colors}
+            />
+          </View>
+        )}
+
+        {/* Category Weights */}
+        <SectionHeader title="Category Weights" sectionKey="weights" />
+        {expandedSection === "weights" && (
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <ThresholdInput
+              label="Frequency Weight (1-100)"
+              value={frequencyWeight}
+              onChangeText={setFrequencyWeight}
+              helpText="Priority weight for frequency-based tags (First Visit, Returning, Regular, Loyal)"
+              colors={colors}
+            />
+            <ThresholdInput
+              label="Recency Weight (1-100)"
+              value={recencyWeight}
+              onChangeText={setRecencyWeight}
+              helpText="Priority weight for recency-based tags (Active, At Risk, Inactive)"
+              colors={colors}
+            />
+            <ThresholdInput
+              label="Spending Weight (1-100)"
+              value={spendingWeight}
+              onChangeText={setSpendingWeight}
+              helpText="Priority weight for spending-based tags (New Client, Regular Spender, High Value, Premium)"
+              colors={colors}
             />
           </View>
         )}
@@ -472,6 +599,14 @@ export default function ManageTaggingScreen() {
 
         <View style={{ height: 30 }} />
       </ScrollView>
+
+      <SuccessModal
+        visible={saveSuccess}
+        message="Configuration saved successfully!"
+        onClose={() => setSaveSuccess(false)}
+        autoClose={true}
+        autoCloseDelay={2500}
+      />
     </View>
   );
 }
