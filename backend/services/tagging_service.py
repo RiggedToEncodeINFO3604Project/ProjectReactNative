@@ -65,6 +65,11 @@ def get_provider_tagging_config(db, provider_id: str) -> Dict:
             "Direct Booker": "#8E8E93"
         },
         "tag_priority": "auto_first",  # "auto_first", "manual_first", or "merge"
+        "category_weights": {
+            "frequency": 50,  # (First Visit, Returning, Regular, Loyal)
+            "recency": 50,    # (Active, At Risk, Inactive)
+            "spending": 50,   # (New Client, Regular Spender, High Value, Premium)
+        },
         "enable_phases": {
             "phase1": True,
             "phase2": True,
@@ -79,6 +84,25 @@ def _get_tag_color(tag_name: str, config: Dict) -> str:
     """Get color for a tag, with fallback to defaults."""
     tag_colors = config.get("tag_colors", {})
     return tag_colors.get(tag_name, "#8E8E93")  # gray default
+
+
+def _get_tag_weight(tag_name: str, config: Dict) -> Optional[int]:
+    """Get weight for an auto-tag based on its category."""
+    category_weights = config.get("category_weights", {"frequency": 50, "recency": 50, "spending": 50})
+    
+    # mapping tag names to categories
+    frequency_tags = {"First Visit", "Returning", "Regular", "Loyal"}
+    recency_tags = {"Active", "At Risk", "Inactive"}
+    spending_tags = {"New Client", "Regular Spender", "High Value", "Premium"}
+    
+    if tag_name in frequency_tags:
+        return category_weights.get("frequency")
+    elif tag_name in recency_tags:
+        return category_weights.get("recency")
+    elif tag_name in spending_tags:
+        return category_weights.get("spending")
+    
+    return None  # if it doesn't have a category, it doesn't have a weight
 
 
 def analyze_service_preferences(db, bookings: List[Dict], services: List[Dict]) -> List[Dict]:
@@ -326,6 +350,10 @@ def calculate_auto_tags(db, provider_id: str, customer_id: str, bookings: List[D
         tag_name = tag.get("tag", "")
         if tag_name:
             tag["color"] = _get_tag_color(tag_name, config)
+            # Adding in the weight for categorical tags
+            weight = _get_tag_weight(tag_name, config)
+            if weight:
+                tag["weight"] = weight
 
     return auto_tags
 

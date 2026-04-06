@@ -270,6 +270,7 @@ class CustomerTag(BaseModel):
     provider_id: str
     tag: str
     color: Optional[str] = "#42bbeb"  # Light blue-ish by default
+    weight: Optional[int] = None  # Priority weight for sorting and filtering
     created_at: datetime
 
     class Config:

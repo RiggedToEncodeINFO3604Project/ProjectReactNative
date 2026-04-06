@@ -893,6 +893,12 @@ async def get_customer_snapshot(
     # merge manual tags with auto-tags using priority rules
     priority_mode = config.get("tag_priority", "manual_first")
     merged_tags = resolve_tag_priority(tags, auto_tags, priority_mode)
+    
+    # sorting highest to lowest, default zero 
+    for tag in merged_tags:
+        if "weight" not in tag or tag["weight"] is None:
+            tag["weight"] = 0
+    merged_tags.sort(key=lambda t: t.get("weight", 0), reverse=True)
 
     return {
         "customer_id": customer_id,
@@ -1044,12 +1050,14 @@ async def create_customer_tag(
     
     db.collection("customer_tags").document(tag_id).set(tag_dict)
     
-    return {
+    result = {
         "id": tag_id,
         "tag": tag_dict["tag"],
         "color": tag_dict["color"],
         "created_at": now.isoformat()
     }
+    
+    return result
 
 
 @router.put("/tags/{tag_id}", response_model=dict)
@@ -1085,12 +1093,14 @@ async def update_customer_tag(
     
     db.collection("customer_tags").document(tag_id).update(update_dict)
     
-    return {
+    result = {
         "id": tag_id,
         "tag": update_dict.get("tag", tag_obj.get("tag")),
         "color": update_dict.get("color", tag_obj.get("color")),
         "message": "Tag updated successfully"
     }
+    
+    return result
 
 
 @router.delete("/tags/{tag_id}", response_model=dict)

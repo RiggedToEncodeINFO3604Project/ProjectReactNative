@@ -6,13 +6,15 @@ import { useTheme } from "@/context/ThemeContext";
 import {
   acceptBooking,
   getConfirmedBookings,
+  getCustomerSnapshot,
   getPendingBookings,
   rejectBooking,
 } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
 import * as Calendar from "expo-calendar";
-import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+// import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -62,18 +64,42 @@ export default function PendingBookingsScreen() {
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [bookingToReject, setBookingToReject] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [bookingTags, setBookingTags] = useState<Record<string, any[]>>({});
+  const [snapshotMap, setSnapshotMap] = useState<Record<string, any>>({}); // Cache full snapshots
 
-  useFocusEffect(
-    useCallback(() => {
-      loadBookings();
-    }, []),
-  );
+  // Load bookings and snapshots once on mount
+  useEffect(() => {
+    loadBookings();
+  }, []);
 
   const loadBookings = async () => {
     setLoading(true);
     try {
       const results = await getPendingBookings();
       setBookings(results);
+
+      // Fetch tags and snapshots for each customer
+      const tagsMap: Record<string, any[]> = {};
+      const snapshotsMap: Record<string, any> = {};
+      for (const booking of results) {
+        try {
+          const snapshot = await getCustomerSnapshot(booking.customer_id);
+          const tags = snapshot.tags || [];
+          // Sort tags by weight descending (highest first)
+          tags.sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0));
+          tagsMap[booking.customer_id] = tags;
+          snapshotsMap[booking.customer_id] = snapshot; // Cache full snapshot
+        } catch (error) {
+          // If snapshot fetch fails, just skip tags for this booking
+          console.warn(
+            `Failed to fetch snapshot for customer ${booking.customer_id}:`,
+            error,
+          );
+          tagsMap[booking.customer_id] = [];
+        }
+      }
+      setBookingTags(tagsMap);
+      setSnapshotMap(snapshotsMap); // Store cached snapshots
     } catch (error: any) {
       Alert.alert(
         "Error",
@@ -279,6 +305,36 @@ export default function PendingBookingsScreen() {
         </Text>
       </View>
 
+      {/* Customer Tags Section */}
+      {bookingTags[item.customer_id] &&
+        bookingTags[item.customer_id].length > 0 && (
+          <View style={styles.tagsSection}>
+            <Text style={[styles.tagsLabel, { color: colours.textMuted }]}>
+              Tags
+            </Text>
+            <View style={styles.tagsContainer}>
+              {bookingTags[item.customer_id].slice(0, 5).map((tag) => (
+                <View
+                  key={tag.id}
+                  style={[
+                    styles.tag,
+                    {
+                      backgroundColor: (tag.color ?? "#999") + "33",
+                      borderColor: tag.color ?? "#999",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.tagText, { color: tag.color ?? "#999" }]}
+                  >
+                    {tag.tag ?? "Untitled"}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
       {/* Row 1: Communication tools - Message and Snapshot buttons */}
       <View style={styles.communicationButtons}>
         <MessageCustomerButton
@@ -294,7 +350,13 @@ export default function PendingBookingsScreen() {
               "[Navigation] Navigating to snapshot for customer:",
               item.customer_id,
             );
-            router.push(`/snapshot/${item.customer_id}`);
+            router.push({
+              pathname: `/snapshot/[customerId]`,
+              params: {
+                customerId: item.customer_id,
+                cachedSnapshot: JSON.stringify(snapshotMap[item.customer_id]),
+              },
+            });
           }}
         >
           <Text
@@ -528,6 +590,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   rejectButtonText: { fontSize: 16, fontWeight: "600" },
+  tagsSection: { marginBottom: 12 },
+  tagsLabel: { fontSize: 12, fontWeight: "600", marginBottom: 8 },
+  tagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  tag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  tagText: { fontSize: 12, fontWeight: "600" },
   loader: { marginTop: 50 },
   emptyText: { textAlign: "center", fontSize: 16, marginTop: 50 },
 });

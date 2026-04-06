@@ -631,6 +631,12 @@ export interface TaggingConfig {
   recency_thresholds?: { active_days: number; at_risk_days: number };
   tag_colors?: Record<string, string>;
   tag_priority?: "auto_first" | "manual_first" | "merge";
+  tag_weighting_enabled?: boolean;
+  category_weights?: {
+    frequency?: number;
+    recency?: number;
+    spending?: number;
+  };
   enable_phases?: {
     phase1: boolean;
     phase2: boolean;
@@ -667,6 +673,7 @@ export interface CustomerTag {
   id: string;
   tag: string;
   color: string;
+  weight?: number;
 }
 
 export const createCustomerTag = async (

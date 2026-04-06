@@ -1,6 +1,5 @@
 // AI'd display components - will remove deprecated components and manually review and rewrite all display elements before final sprint
 import CustomerSnapshotView from "@/components/CustomerSnapshotView";
-import { getScreenPalette } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { getCustomerSnapshot } from "@/services/schedulingApi";
 import { CustomerSnapshot } from "@/types/scheduling";
@@ -8,18 +7,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function CustomerSnapshotScreen() {
   const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
-  const { customerId } = useLocalSearchParams<{ customerId: string }>();
+  const { customerId, cachedSnapshot } = useLocalSearchParams<{
+    customerId: string;
+    cachedSnapshot?: string;
+  }>();
 
   const [snapshot, setSnapshot] = useState<CustomerSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,7 +51,19 @@ export default function CustomerSnapshotScreen() {
       : customerId;
 
     if (actualCustomerId) {
-      loadSnapshot(actualCustomerId);
+      // Check if we have a cached snapshot from navigation params
+      if (cachedSnapshot) {
+        try {
+          const parsed = JSON.parse(cachedSnapshot);
+          if (mountedRef.current) setSnapshot(parsed);
+          if (mountedRef.current) setLoading(false);
+        } catch (error) {
+          console.warn("Failed to parse cached snapshot:", error);
+          loadSnapshot(actualCustomerId);
+        }
+      } else {
+        loadSnapshot(actualCustomerId);
+      }
     } else {
       setError("Customer ID is missing. Please go back and try again.");
       setLoading(false);
@@ -57,7 +71,7 @@ export default function CustomerSnapshotScreen() {
     return () => {
       mountedRef.current = false;
     };
-  }, [customerId]);
+  }, [customerId, cachedSnapshot]);
 
   const loadSnapshot = async (idToLoad?: string) => {
     const targetId =
