@@ -1,12 +1,12 @@
 const express = require("express");
 const path = require("path");
-const https = require("https");
 const http = require("http");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 const app = express();
 const PORT = process.env.PORT || 8081;
 const BACKEND_PORT = 8000;
+const RAG_PORT = 8001;
 const LOCAL_BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 
 // ============================================
@@ -68,7 +68,7 @@ app.use("/ws", wsProxy);
  * Proxy function that properly handles both JSON and FormData requests
  * Uses raw body to preserve multipart/form-data for login
  */
-function proxyToLocalBackend(req, res, targetPath) {
+function proxyToLocalService(req, res, targetPath, targetPort) {
   const chunks = [];
 
   // Collect raw body data
@@ -82,7 +82,7 @@ function proxyToLocalBackend(req, res, targetPath) {
     // Forward the original content-type header (important for FormData)
     const headers = {
       ...req.headers,
-      host: `localhost:${BACKEND_PORT}`,
+      host: `localhost:${targetPort}`,
     };
 
     // Update content-length if we have body data
@@ -92,15 +92,13 @@ function proxyToLocalBackend(req, res, targetPath) {
 
     const options = {
       hostname: "localhost",
-      port: BACKEND_PORT,
+      port: targetPort,
       path: targetPath,
       method: req.method,
       headers: headers,
     };
 
-    console.log(
-      `[Proxy] ${req.method} ${targetPath} -> localhost:${BACKEND_PORT}`,
-    );
+    console.log(`[Proxy] ${req.method} ${targetPath} -> localhost:${targetPort}`);
     console.log(`[Proxy] Content-Type: ${req.headers["content-type"]}`);
 
     const proxyReq = http.request(options, (proxyRes) => {
@@ -148,6 +146,14 @@ function proxyToLocalBackend(req, res, targetPath) {
 
     proxyReq.end();
   });
+}
+
+function proxyToLocalBackend(req, res, targetPath) {
+  return proxyToLocalService(req, res, targetPath, BACKEND_PORT);
+}
+
+function proxyToLocalRag(req, res, targetPath) {
+  return proxyToLocalService(req, res, targetPath, RAG_PORT);
 }
 
 // ============================================
@@ -418,90 +424,13 @@ app.post(
 // EXTERNAL RAG SERVER PROXY (Chatbot)
 // ============================================
 
-// Proxy endpoint for chatbot - forwards to external FastAPI RAG server
+// Proxy endpoint for chatbot - forwards to the local RAG FastAPI server
 app.post("/api/chat", express.json(), async (req, res) => {
-  try {
-    const { message, history } = req.body;
+  proxyToLocalRag(req, res, "/api/chat");
+});
 
-    // Forward to external FastAPI server (RAG Server)
-    const FASTAPI_HOST =
-      process.env.FASTAPI_HOST || "rag-server-bf1a.onrender.com";
-    const FASTAPI_PATH = "/api/chat";
-
-    const postData = JSON.stringify({ message, history });
-
-    const options = {
-      hostname: FASTAPI_HOST,
-      path: FASTAPI_PATH,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(postData),
-        "User-Agent": "Express-Proxy/1.0",
-        Accept: "application/json",
-      },
-    };
-
-    console.log(`Proxying to: https://${FASTAPI_HOST}${FASTAPI_PATH}`);
-
-    const proxyReq = https.request(options, (proxyRes) => {
-      let data = Buffer.alloc(0);
-
-      proxyRes.on("data", (chunk) => {
-        data = Buffer.concat([data, chunk]);
-      });
-
-      proxyRes.on("end", () => {
-        console.log(`FastAPI response status: ${proxyRes.statusCode}`);
-        console.log(`FastAPI response headers:`, proxyRes.headers);
-
-        const contentType = proxyRes.headers["content-type"] || "";
-
-        if (!contentType.includes("application/json")) {
-          console.error(`Unexpected content-type: ${contentType}`);
-          console.error(
-            `Raw response: ${data.toString("utf-8").substring(0, 500)}`,
-          );
-          return res.status(500).json({
-            error: "FastAPI returned non-JSON response",
-            contentType,
-            rawResponse: data.toString("utf-8").substring(0, 300),
-          });
-        }
-
-        try {
-          const parsedData = JSON.parse(data.toString("utf-8"));
-          res.status(proxyRes.statusCode).json(parsedData);
-        } catch (error) {
-          console.error("Failed to parse FastAPI response:", error.message);
-          console.error(
-            "Raw response:",
-            data.toString("utf-8").substring(0, 500),
-          );
-          res.status(500).json({
-            error: "Failed to parse FastAPI response",
-            details: error.message,
-          });
-        }
-      });
-    });
-
-    proxyReq.on("error", (error) => {
-      console.error("Proxy error:", error);
-      res.status(500).json({
-        error: "Failed to connect to FastAPI server",
-        details: error.message,
-      });
-    });
-
-    proxyReq.write(postData);
-    proxyReq.end();
-  } catch (error) {
-    console.error("Chat API error:", error);
-    res.status(500).json({
-      error: error.message || "Failed to process chat request",
-    });
-  }
+app.get("/api/rag/health", (req, res) => {
+  proxyToLocalRag(req, res, "/api/health");
 });
 
 // ============================================
@@ -516,6 +445,10 @@ app.get("/health", (req, res) => {
     websocket: {
       proxyEnabled: true,
       backendPort: BACKEND_PORT,
+    },
+    rag: {
+      proxyEnabled: true,
+      ragPort: RAG_PORT,
     },
   });
 });
@@ -556,6 +489,7 @@ const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`========================================`);
   console.log(`Express server running on port ${PORT}`);
   console.log(`Proxying API requests to localhost:${BACKEND_PORT}`);
+  console.log(`Proxying RAG requests to localhost:${RAG_PORT}`);
   console.log(`WebSocket proxy enabled on /ws`);
   console.log(`WebSocket target: ws://localhost:${BACKEND_PORT}/ws`);
   console.log(`========================================`);

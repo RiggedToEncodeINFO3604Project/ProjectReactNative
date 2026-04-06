@@ -1,15 +1,17 @@
+import { getScreenPalette } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { Stack } from "expo-router";
 
 export default function ProviderLayout() {
   const { isDarkMode } = useTheme();
+  const screenPalette = getScreenPalette(isDarkMode, { backgroundTone: "alt" });
 
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         contentStyle: {
-          backgroundColor: isDarkMode ? "#151718" : "#f5f5f5",
+          backgroundColor: screenPalette.background,
         },
       }}
     >

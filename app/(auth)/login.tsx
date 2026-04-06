@@ -1,3 +1,4 @@
+import { getScreenPalette } from "@/constants/theme";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -63,7 +64,16 @@ export default function LoginScreen() {
   };
 
   const handleOpenRagServer = async () => {
-    const url = "https://rag-server-bf1a.onrender.com/";
+    const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL || "").replace(
+      /\/+$/,
+      "",
+    );
+    const normalizedBaseUrl = apiBaseUrl.replace(/\/api\/chat$/, "");
+    const url = normalizedBaseUrl
+      ? `${normalizedBaseUrl}/api/rag/health`
+      : (typeof window !== "undefined"
+        ? `${window.location.origin}/api/rag/health`
+        : "http://localhost:8081/api/rag/health");
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
@@ -72,15 +82,7 @@ export default function LoginScreen() {
     }
   };
 
-  const colours = {
-    background: isDarkMode ? "#151718" : "#ffffff",
-    card: isDarkMode ? "#1e2333" : "#f8f9fa",
-    text: isDarkMode ? "#ECEDEE" : "#11181C",
-    textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-    border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-    accent: "#f0c85a",
-    inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
-  };
+  const colours = getScreenPalette(isDarkMode, { cardTone: "alt" });
 
   const handleSettingsPress = () => {
     router.push("/settings");
@@ -158,9 +160,13 @@ export default function LoginScreen() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#151718" />
+                <ActivityIndicator color={colours.accentContrast} />
               ) : (
-                <Text style={styles.buttonText}>Login</Text>
+                <Text
+                  style={[styles.buttonText, { color: colours.accentContrast }]}
+                >
+                  Login
+                </Text>
               )}
             </TouchableOpacity>
 
@@ -262,7 +268,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   buttonText: {
-    color: "#151718",
     fontSize: 18,
     fontWeight: "600",
   },

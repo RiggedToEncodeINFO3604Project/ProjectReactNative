@@ -30,10 +30,23 @@ import axios, { AxiosError, AxiosInstance } from "axios";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-const DEFAULT_API_PORT = "8000";
-
 const normalizeApiUrl = (value?: string | null): string => {
   return (value || "").trim().replace(/\/+$/, "");
+};
+
+const extractPort = (value: string): string => {
+  const match = value.match(/:(\d+)(?:\/|$)/);
+  return match?.[1] || "8000";
+};
+
+const isPrivateOrLocalHost = (hostname: string): boolean => {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+  );
 };
 
 const extractExpoHost = (): string | null => {
@@ -65,6 +78,18 @@ const resolveApiUrl = (): string => {
     configuredUrl.includes("localhost") ||
     configuredUrl.includes("127.0.0.1");
 
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    if (isLocalhostConfig && configuredUrl) {
+      const configuredPort = extractPort(configuredUrl);
+      const currentHostname = window.location.hostname;
+      if (isPrivateOrLocalHost(currentHostname)) {
+        return `${window.location.protocol}//${currentHostname}:${configuredPort}`;
+      }
+      return window.location.origin;
+    }
+    return configuredUrl || window.location.origin;
+  }
+
   if (!isLocalhostConfig) {
     return configuredUrl;
   }
@@ -78,7 +103,8 @@ const resolveApiUrl = (): string => {
 
   if (expoHostname) {
     const protocol = configuredUrl.startsWith("https://") ? "https" : "http";
-    const resolvedUrl = `${protocol}://${expoHostname}:${DEFAULT_API_PORT}`;
+    const configuredPort = extractPort(configuredUrl);
+    const resolvedUrl = `${protocol}://${expoHostname}:${configuredPort}`;
     console.log(
       `[API] Resolved Expo device API URL from "${configuredUrl || "(empty)"}" to "${resolvedUrl}"`,
     );

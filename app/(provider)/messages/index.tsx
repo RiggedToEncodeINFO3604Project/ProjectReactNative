@@ -6,6 +6,7 @@
 import BackButton from "@/components/BackButton";
 import { ConversationListItem } from "@/components/messaging/ConversationListItem";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { getConversations, messagingSocket } from "@/services/messagingApi";
@@ -49,6 +50,7 @@ function toConversationPreview(
 export default function MessagesScreen() {
   const { token, user } = useAuth();
   const { colours: theme, isDarkMode } = useTheme();
+  const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
   const currentUserId = user?.id || "";
   const router = useRouter();
 
@@ -231,12 +233,12 @@ export default function MessagesScreen() {
       {/* Header */}
       <View
         style={[
-          styles.header,
-          {
-            backgroundColor: theme.background,
-            borderBottomColor: isDarkMode ? "#333" : "#e9ecef",
-          },
-        ]}
+            styles.header,
+            {
+              backgroundColor: theme.background,
+              borderBottomColor: extendedColours.borderAlt,
+            },
+          ]}
       >
         <BackButton onPress={() => router.back()} style={styles.backButton} />
         <Text style={[styles.headerTitle, { color: theme.text }]}>
@@ -251,7 +253,7 @@ export default function MessagesScreen() {
       <View
         style={[
           styles.searchContainer,
-          { backgroundColor: isDarkMode ? "#2a2a2a" : "#f5f5f5" },
+          { backgroundColor: extendedColours.searchBg },
         ]}
       >
         <IconSymbol
@@ -307,7 +309,7 @@ export default function MessagesScreen() {
               style={[
                 styles.separator,
                 {
-                  backgroundColor: isDarkMode ? "#333" : "#f0f0f0",
+                  backgroundColor: extendedColours.searchInputBg,
                 },
               ]}
             />
@@ -321,7 +323,7 @@ export default function MessagesScreen() {
                     styles.separator,
                     styles.aiSupportSeparator,
                     {
-                      backgroundColor: isDarkMode ? "#444" : "#e0e0e0",
+                      backgroundColor: extendedColours.borderAlt,
                     },
                   ]}
                 />
@@ -338,7 +340,7 @@ export default function MessagesScreen() {
                   style={[
                     styles.aiSupportIcon,
                     {
-                      backgroundColor: isDarkMode ? "#1a3a4a" : "#e3f2fd",
+                      backgroundColor: extendedColours.selectedBg,
                     },
                   ]}
                 >
@@ -438,16 +440,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   connectionStatus: {
-    backgroundColor: "#dc3545",
+    backgroundColor: SharedColours.error,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
   connectingStatus: {
-    backgroundColor: "#ffc107",
+    backgroundColor: SharedColours.warningAlt,
   },
   connectionStatusText: {
-    color: "#fff",
+    color: SharedColours.white,
     fontSize: 11,
     fontWeight: "600",
   },

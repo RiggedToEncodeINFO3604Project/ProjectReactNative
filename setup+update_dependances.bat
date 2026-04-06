@@ -24,7 +24,7 @@ echo.
 call :require_command npm "Node.js and npm"
 if errorlevel 1 goto :fail
 
-echo [1/6] Installing frontend dependencies...
+echo [1/8] Installing frontend dependencies...
 call npm install
 if errorlevel 1 (
     echo Error: Frontend npm install failed.
@@ -33,7 +33,7 @@ if errorlevel 1 (
 echo Frontend dependencies installed successfully.
 echo.
 
-echo [2/6] Applying npm audit fixes when available...
+echo [2/8] Applying npm audit fixes when available...
 call npm audit fix
 if errorlevel 1 (
     echo Warning: npm audit fix did not complete successfully.
@@ -41,7 +41,7 @@ if errorlevel 1 (
 )
 echo.
 
-echo [3/6] Preparing backend virtual environment...
+echo [3/8] Preparing backend virtual environment...
 if not exist "backend" (
     echo Error: Backend folder was not found.
     goto :fail
@@ -79,7 +79,7 @@ if not exist "venv\Scripts\python.exe" (
 echo Backend virtual environment is ready.
 echo.
 
-echo [4/6] Installing backend dependencies...
+echo [4/8] Installing backend dependencies...
 call "venv\Scripts\python.exe" -m pip install --upgrade pip
 if errorlevel 1 (
     echo Warning: pip upgrade did not complete successfully.
@@ -94,7 +94,62 @@ if errorlevel 1 (
 echo Backend dependencies installed successfully.
 echo.
 
-echo [5/6] Checking environment file...
+echo [5/8] Preparing RAG virtual environment...
+popd >nul
+
+if not exist "RAG-Server" (
+    echo Error: RAG-Server folder was not found.
+    goto :fail
+)
+
+pushd "RAG-Server" >nul
+
+if not exist "requirements.txt" (
+    echo Error: RAG-Server\requirements.txt was not found.
+    popd >nul
+    goto :fail
+)
+
+if not exist "venv\Scripts\python.exe" (
+    call :find_python_for_venv
+    if errorlevel 1 (
+        popd >nul
+        goto :fail
+    )
+
+    echo Creating RAG virtual environment...
+    call !PYTHON_BOOTSTRAP! -m venv venv
+    if errorlevel 1 (
+        echo Error: Failed to create the RAG virtual environment.
+        popd >nul
+        goto :fail
+    )
+)
+
+if not exist "venv\Scripts\python.exe" (
+    echo Error: RAG virtual environment was not created correctly.
+    popd >nul
+    goto :fail
+)
+echo RAG virtual environment is ready.
+echo.
+
+echo [6/8] Installing RAG dependencies...
+call "venv\Scripts\python.exe" -m pip install --upgrade pip
+if errorlevel 1 (
+    echo Warning: RAG pip upgrade did not complete successfully.
+)
+
+call "venv\Scripts\python.exe" -m pip install -r requirements.txt
+if errorlevel 1 (
+    echo Error: RAG dependency installation failed.
+    popd >nul
+    goto :fail
+)
+echo RAG dependencies installed successfully.
+echo.
+
+echo [7/8] Checking environment file...
 popd >nul
 if not exist ".env" (
     echo Warning: .env file was not found in the project root.
@@ -104,12 +159,13 @@ if not exist ".env" (
     echo   SECRET_KEY=your-secret-key
     echo   ALGORITHM=HS256
     echo   ACCESS_TOKEN_EXPIRE_MINUTES=30
+    echo   GEMINI_API_KEY=your-gemini-api-key
 ) else (
     echo .env file exists.
 )
 echo.
 
-echo [6/6] Testing Firebase connection when available...
+echo [8/8] Testing Firebase connection when available...
 pushd "backend" >nul
 if exist "test_firebase_connection.py" (
     call "venv\Scripts\python.exe" test_firebase_connection.py

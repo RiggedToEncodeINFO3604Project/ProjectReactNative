@@ -31,6 +31,11 @@ const MAPPING = {
   "chevron.down": "keyboard-arrow-down",
   "cpu.fill": "memory",
   "robot.fill": "smart-toy",
+  sparkles: "auto-awesome",
+  calendar: "calendar-month",
+  "lock.shield.fill": "shield",
+  "chart.line.uptrend.xyaxis": "trending-up",
+  "person.fill": "person",
 } as IconMapping;
 
 /**

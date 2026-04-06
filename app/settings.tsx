@@ -16,9 +16,7 @@ export default function SettingsScreen() {
     text: extendedColours.text,
     textMuted: extendedColours.textMuted,
     border: extendedColours.border,
-    accent: isDarkMode
-      ? SharedColours.bookingStatus.pending
-      : extendedColours.text,
+    accent: SharedColours.bookingStatus.pending,
   };
 
   const handleBackPress = () => {
@@ -40,7 +38,11 @@ export default function SettingsScreen() {
           },
         ]}
       >
-        <BackButton onPress={handleBackPress} style={styles.backButton} />
+        <BackButton
+          onPress={handleBackPress}
+          style={styles.backButton}
+          color={colours.accent}
+        />
         <Text style={[styles.title, { color: colours.text }]}>Settings</Text>
         <View style={styles.placeholder} />
       </View>
