@@ -465,6 +465,7 @@ export default function ChatScreen() {
           replaceOptimisticMessage(prev, tempId, {
             ...optimisticMessage,
             id: response.message_id || tempId,
+            content: response.filtered_content ?? optimisticMessage.content,
             status: "sent" as MessageStatus,
           }),
         );
@@ -511,6 +512,7 @@ export default function ChatScreen() {
           replaceOptimisticMessage(prev, messageId, {
             ...failedMessage,
             id: response.message_id || messageId,
+            content: response.filtered_content ?? failedMessage.content,
             status: "sent" as MessageStatus,
           }),
         );

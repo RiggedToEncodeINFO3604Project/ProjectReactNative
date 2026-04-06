@@ -219,7 +219,10 @@ async def send_message_endpoint(
         # - Check if recipient has active WebSocket connection
         # - If not, send Expo push notification
         
-        return {"message_id": message_id}
+        return {
+            "message_id": message_id,
+            "filtered_content": filtered_content,
+        }
     
     except HTTPException:
         raise

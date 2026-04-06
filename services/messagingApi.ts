@@ -221,8 +221,11 @@ export const getMessages = async (
 export const sendMessage = async (
   conversationId: string,
   data: SendMessageRequest,
-): Promise<{ message_id: string }> => {
-  const response = await api.post<{ message_id: string }>(
+): Promise<{ message_id: string; filtered_content?: string }> => {
+  const response = await api.post<{
+    message_id: string;
+    filtered_content?: string;
+  }>(
     `/api/messaging/conversations/${conversationId}/messages`,
     data,
   );
