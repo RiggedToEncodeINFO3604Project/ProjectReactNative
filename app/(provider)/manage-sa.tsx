@@ -6,7 +6,7 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function ManageSAScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
 
   const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
@@ -17,7 +17,7 @@ export default function ManageSAScreen() {
     text: extendedColours.text,
     textMuted: extendedColours.textMuted,
     border: extendedColours.border,
-    accent: SharedColours.bookingStatus.pending,
+    accent: themeColours.primary,
   };
 
   return (

@@ -1,6 +1,7 @@
 // AI'd display components - will remove deprecated components and manually review and rewrite all display elements before final sprint
 import BackButton from "@/components/BackButton";
 import CustomerSnapshotView from "@/components/CustomerSnapshotView";
+import { getScreenPalette } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { getCustomerSnapshot } from "@/services/schedulingApi";
 import { CustomerSnapshot } from "@/types/scheduling";
@@ -16,7 +17,7 @@ import {
 } from "react-native";
 
 export default function CustomerSnapshotScreen() {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
   const { customerId } = useLocalSearchParams<{ customerId: string }>();
 
@@ -45,16 +46,12 @@ export default function CustomerSnapshotScreen() {
 
   // attempted fix for unmounting - thought colours relaoding was triggering unmount
   const colours = useMemo(
-    () => ({
-      background: isDarkMode ? "#151718" : "#f5f5f5",
-      card: isDarkMode ? "#1e2333" : "#ffffff",
-      text: isDarkMode ? "#ECEDEE" : "#11181C",
-      textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-      border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-      accent: "#f0c85a",
-      error: "#FF3B30",
-    }),
-    [isDarkMode],
+    () =>
+      getScreenPalette(isDarkMode, {
+        backgroundTone: "alt",
+        accent: themeColours.primary,
+      }),
+    [isDarkMode, themeColours.primary],
   );
 
   useEffect(() => {
