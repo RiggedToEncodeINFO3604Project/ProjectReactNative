@@ -14,6 +14,7 @@ import {
   Service,
   TimeSlot,
 } from "@/types/scheduling";
+import { formatStoredTimeRange } from "@/utils/time";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -424,7 +425,7 @@ export default function ProviderDetailsScreen() {
                       },
                     ]}
                   >
-                    {slot.start_time} - {slot.end_time}
+                    {formatStoredTimeRange(slot.start_time, slot.end_time)}
                   </Text>
                 </TouchableOpacity>
               ))}

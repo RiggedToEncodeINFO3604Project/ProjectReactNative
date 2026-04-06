@@ -12,6 +12,11 @@ import {
   Service,
   TimeSlot,
 } from "@/types/scheduling";
+import {
+  formatStoredTime,
+  formatStoredTimeRange,
+  parseTwelveHourTime,
+} from "@/utils/time";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -76,8 +81,8 @@ export default function ManageAvailabilityScreen() {
     dayIndex: number;
     slotIndex: number | null; // null means adding new slot
   } | null>(null);
-  const [tempStartTime, setTempStartTime] = useState("09:00");
-  const [tempEndTime, setTempEndTime] = useState("17:00");
+  const [tempStartTime, setTempStartTime] = useState(formatStoredTime("09:00"));
+  const [tempEndTime, setTempEndTime] = useState(formatStoredTime("17:00"));
   const [tempDuration, setTempDuration] = useState(30);
   const [tempRecurrence, setTempRecurrence] =
     useState<AvailabilityRecurrence>("repeat_weekly");
@@ -154,8 +159,8 @@ export default function ManageAvailabilityScreen() {
   const addTimeSlot = (dayIndex: number) => {
     // Open modal for adding a new slot (don't add to schedule yet)
     setEditingSlot({ dayIndex, slotIndex: null });
-    setTempStartTime("09:00");
-    setTempEndTime("17:00");
+    setTempStartTime(formatStoredTime("09:00"));
+    setTempEndTime(formatStoredTime("17:00"));
     setTempDuration(30);
     setTempRecurrence("repeat_weekly");
     setTempEndDate(todayString);
@@ -187,8 +192,8 @@ export default function ManageAvailabilityScreen() {
   ) => {
     const slotRecurrence = String(slot.recurrence_type || "repeat_weekly");
     setEditingSlot({ dayIndex, slotIndex }); // slotIndex is a number for existing slots
-    setTempStartTime(slot.start_time);
-    setTempEndTime(slot.end_time);
+    setTempStartTime(formatStoredTime(slot.start_time));
+    setTempEndTime(formatStoredTime(slot.end_time));
     setTempDuration(slot.session_duration || 30);
     setTempRecurrence(
       slotRecurrence === "just_this_week"
@@ -313,19 +318,20 @@ export default function ManageAvailabilityScreen() {
   const saveSlotEdit = () => {
     if (!editingSlot) return;
 
-    // Validate time format
-    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-    if (!timeRegex.test(tempStartTime) || !timeRegex.test(tempEndTime)) {
+    const parsedStartTime = parseTwelveHourTime(tempStartTime);
+    const parsedEndTime = parseTwelveHourTime(tempEndTime);
+
+    if (!parsedStartTime || !parsedEndTime) {
       Alert.alert(
         "Invalid Time",
-        "Please enter times in HH:MM format (24-hour)",
+        "Please enter times in h:mm AM/PM format.",
       );
       return;
     }
 
     // Validate start < end
-    const startParts = tempStartTime.split(":").map(Number);
-    const endParts = tempEndTime.split(":").map(Number);
+    const startParts = parsedStartTime.split(":").map(Number);
+    const endParts = parsedEndTime.split(":").map(Number);
     const startMinutes = startParts[0] * 60 + startParts[1];
     const endMinutes = endParts[0] * 60 + endParts[1];
 
@@ -393,8 +399,8 @@ export default function ManageAvailabilityScreen() {
     }
 
     const newSlot: TimeSlot = {
-      start_time: tempStartTime,
-      end_time: tempEndTime,
+      start_time: parsedStartTime,
+      end_time: parsedEndTime,
       session_duration: tempDuration,
       recurrence_type: tempRecurrence,
       start_date,
@@ -472,13 +478,15 @@ export default function ManageAvailabilityScreen() {
 
   // Generate live preview for the modal
   const getPreview = () => {
-    const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-    if (!timeRegex.test(tempStartTime) || !timeRegex.test(tempEndTime)) {
+    const parsedStartTime = parseTwelveHourTime(tempStartTime);
+    const parsedEndTime = parseTwelveHourTime(tempEndTime);
+
+    if (!parsedStartTime || !parsedEndTime) {
       return null;
     }
 
-    const startParts = tempStartTime.split(":").map(Number);
-    const endParts = tempEndTime.split(":").map(Number);
+    const startParts = parsedStartTime.split(":").map(Number);
+    const endParts = parsedEndTime.split(":").map(Number);
     const startMinutes = startParts[0] * 60 + startParts[1];
     const endMinutes = endParts[0] * 60 + endParts[1];
 
@@ -486,7 +494,7 @@ export default function ManageAvailabilityScreen() {
       return null;
     }
 
-    return generateSessionsPreview(tempStartTime, tempEndTime, tempDuration);
+    return generateSessionsPreview(parsedStartTime, parsedEndTime, tempDuration);
   };
 
   const preview = editModalVisible ? getPreview() : null;
@@ -548,7 +556,7 @@ export default function ManageAvailabilityScreen() {
                 >
                   <View style={styles.slotInfo}>
                     <Text style={[styles.slotTimeText, { color: colours.text }]}>
-                      {slot.start_time} - {slot.end_time}
+                      {formatStoredTimeRange(slot.start_time, slot.end_time)}
                     </Text>
                     <Text
                       style={[
@@ -635,7 +643,7 @@ export default function ManageAvailabilityScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
-                Start Time (HH:MM)
+                Start Time
               </Text>
               <TextInput
                 style={[
@@ -644,15 +652,16 @@ export default function ManageAvailabilityScreen() {
                 ]}
                 value={tempStartTime}
                 onChangeText={setTempStartTime}
-                placeholder="09:00"
+                placeholder="9:00 AM"
                 placeholderTextColor={colours.textMuted}
-                maxLength={5}
+                maxLength={8}
+                autoCapitalize="characters"
               />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
-                End Time (HH:MM)
+                End Time
               </Text>
               <TextInput
                 style={[
@@ -661,9 +670,10 @@ export default function ManageAvailabilityScreen() {
                 ]}
                 value={tempEndTime}
                 onChangeText={setTempEndTime}
-                placeholder="17:00"
+                placeholder="5:00 PM"
                 placeholderTextColor={colours.textMuted}
-                maxLength={5}
+                maxLength={8}
+                autoCapitalize="characters"
               />
             </View>
 
@@ -899,7 +909,7 @@ export default function ManageAvailabilityScreen() {
                   >
                     {preview.sessions
                       .slice(0, 4)
-                      .map((s) => `${s.start}-${s.end}`)
+                      .map((s) => formatStoredTimeRange(s.start, s.end))
                       .join(", ")}
                     {preview.sessions.length > 4 &&
                       ` +${preview.sessions.length - 4} more`}

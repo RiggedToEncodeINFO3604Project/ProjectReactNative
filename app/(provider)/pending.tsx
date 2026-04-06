@@ -11,6 +11,7 @@ import {
   rejectBooking,
 } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
+import { formatStoredTime, formatStoredTimeRange } from "@/utils/time";
 import * as Calendar from "expo-calendar";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -24,14 +25,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const formatTime = (time: string) => {
-  const [hourStr, minuteStr] = time.split(":");
-  const hour = parseInt(hourStr, 10);
-  const period = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${hour12}:${minuteStr} ${period}`;
-};
 
 //groups bookings first by day, then within each day by start_time slot
 const groupByDayThenTime = (bookings: BookingWithDetails[]) => {
@@ -301,7 +294,7 @@ export default function PendingBookingsScreen() {
           📞 {item.customer_phone}
         </Text>
         <Text style={[styles.detailText, { color: colours.textMuted }]}>
-          🕐 {formatTime(item.start_time)} – {formatTime(item.end_time)}
+          🕐 {formatStoredTimeRange(item.start_time, item.end_time)}
         </Text>
       </View>
 
@@ -458,7 +451,7 @@ export default function PendingBookingsScreen() {
                       <Text
                         style={[styles.timeSlotText, { color: colours.accent }]}
                       >
-                        {formatTime(slot)}
+                        {formatStoredTime(slot)}
                       </Text>
                       {/* overlap badge to warn provider that multiple bookings share this slot */}
                       {slotBookings.length > 1 && (

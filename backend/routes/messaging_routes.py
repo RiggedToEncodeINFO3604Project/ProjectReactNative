@@ -1,4 +1,3 @@
-from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List
 import logging
@@ -14,11 +13,13 @@ from services.messaging_service import (
     verify_user_in_conversation,
     get_conversation_by_id,
     mark_conversation_as_read,
+    mark_message_as_read,
 )
 from websocket_manager import websocket_manager
 
 
 from auth import get_current_user
+from services.datetime_utils import utc_now
 
 log = logging.getLogger("skedulelt.messaging")
 
@@ -201,7 +202,7 @@ async def send_message_endpoint(
             "message_type": request.message_type,
             "image_url": request.image_url,
             "thumbnail_url": None,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": utc_now().isoformat(),
             "read": False,
             "status": "sent"
         }
@@ -218,7 +219,10 @@ async def send_message_endpoint(
         # - Check if recipient has active WebSocket connection
         # - If not, send Expo push notification
         
-        return {"message_id": message_id}
+        return {
+            "message_id": message_id,
+            "filtered_content": filtered_content,
+        }
     
     except HTTPException:
         raise
@@ -300,7 +304,6 @@ async def mark_message_read(
                 detail="You are not a participant in this conversation"
             )
         
-        from backend.services.messaging_service import mark_message_as_read
         success = mark_message_as_read(
             conversation_id=conversation_id,
             message_id=message_id,

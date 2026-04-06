@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from datetime import timedelta, datetime
+from datetime import timedelta
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from models import UserCreate, User, Token, UserRole, CustomerCreate, Customer, ProviderCreate, Provider
 from auth import get_password_hash, verify_password, create_access_token
 from config import settings
 from firebase_db import get_database
+from services.datetime_utils import utc_now
 import uuid
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -50,7 +51,7 @@ async def register_customer(request: CustomerRegisterRequest):
         "email": request.email,
         "password": get_password_hash(request.password),
         "role": "Customer",
-        "created_at": datetime.utcnow(),
+        "created_at": utc_now(),
         "last_login": None
     }
     db.collection("users").document(user_id).set(user_dict)
@@ -82,7 +83,7 @@ async def register_provider(request: ProviderRegisterRequest):
         "email": request.email,
         "password": get_password_hash(request.password),
         "role": "Provider",
-        "created_at": datetime.utcnow(),
+        "created_at": utc_now(),
         "last_login": None
     }
     db.collection("users").document(user_id).set(user_dict)
@@ -129,7 +130,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user_id = user_doc.id
     
     # Update last login
-    db.collection("users").document(user_id).update({"last_login": datetime.utcnow()})
+    db.collection("users").document(user_id).update({"last_login": utc_now()})
     
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(

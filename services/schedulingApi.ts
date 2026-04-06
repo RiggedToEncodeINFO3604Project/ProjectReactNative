@@ -14,6 +14,7 @@ import {
   CustomerCreate,
   CustomerSnapshot,
   DateScheduleData,
+  DateRangeResponse,
   DayBookingStatus,
   MessageResponse,
   ProviderCreate,
@@ -25,6 +26,7 @@ import {
   TokenResponse,
   UserCreate,
 } from "@/types/scheduling";
+import { formatLocalDate, parseLocalDate } from "@/utils/time";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, { AxiosError, AxiosInstance } from "axios";
 import Constants from "expo-constants";
@@ -493,7 +495,7 @@ export const getAvailableSlotsForReschedule = async (
 
 // Formatting
 export const formatDate = (date: Date): string => {
-  return date.toISOString().split("T")[0];
+  return formatLocalDate(date);
 };
 
 // Add days to a date and return a new Date
@@ -533,7 +535,7 @@ export const transformToScheduleData = (
   response: RescheduleSlotsResponse,
   today: Date = new Date(),
 ): DateScheduleData => {
-  const dateObj = new Date(response.date + "T00:00:00");
+  const dateObj = parseLocalDate(response.date);
   const todayStr = formatDate(today);
   const tomorrowStr = formatDate(addDays(today, 1));
 
@@ -561,8 +563,8 @@ export const generateDateRange = (
   endDate: string,
 ): string[] => {
   const dates: string[] = [];
-  const start = new Date(startDate + "T00:00:00");
-  const end = new Date(endDate + "T00:00:00");
+  const start = parseLocalDate(startDate);
+  const end = parseLocalDate(endDate);
 
   while (start <= end) {
     dates.push(formatDate(start));
@@ -578,14 +580,18 @@ export const getAvailableSlotsForDateRange = async (
   startDate: string,
   endDate: string,
 ): Promise<DateScheduleData[]> => {
-  const dates = generateDateRange(startDate, endDate);
   const today = new Date();
-
-  const responses = await Promise.all(
-    dates.map((date) => getAvailableSlotsForReschedule(bookingId, date)),
+  const response = await api.get<DateRangeResponse>(
+    `/provider/bookings/${bookingId}/available-slots-range`,
+    {
+      params: {
+        start_date: startDate,
+        end_date: endDate,
+      },
+    },
   );
 
-  return responses.map((response) => transformToScheduleData(response, today));
+  return response.data.dates.map((date) => transformToScheduleData(date, today));
 };
 
 // Get customer snapshot for a specific customer
