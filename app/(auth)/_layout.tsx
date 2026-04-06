@@ -1,8 +1,10 @@
+import { getScreenPalette } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { Stack } from "expo-router";
 
 export default function AuthLayout() {
   const { isDarkMode } = useTheme();
+  const screenPalette = getScreenPalette(isDarkMode);
 
   return (
     <Stack
@@ -10,7 +12,7 @@ export default function AuthLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: {
-          backgroundColor: isDarkMode ? "#151718" : "#ffffff",
+          backgroundColor: screenPalette.background,
         },
       }}
     >

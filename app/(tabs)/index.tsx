@@ -1,31 +1,30 @@
 import { Link } from "expo-router";
 import { Platform, StatusBar, StyleSheet, Text, View } from "react-native";
 
+import { getScreenPalette } from "@/constants/theme";
 import AnimatedButton from "@/components/ui/animated-button";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function HomeScreen() {
   const { isDarkMode } = useTheme();
+  const colours = getScreenPalette(isDarkMode);
 
   return (
-    <View
-      style={[
-        styles.container,
-        isDarkMode ? styles.darkContainer : styles.lightContainer,
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
       <View style={styles.content}>
-        <Text
-          style={[
-            styles.title,
-            isDarkMode ? styles.darkText : styles.lightText,
-          ]}
-        >
+        <Text style={[styles.title, { color: colours.text }]}>
           welcome to
         </Text>
-        <Text style={styles.brandName}>SkeduleIt</Text>
+        <Text
+          style={[
+            styles.brandName,
+            { color: colours.accent, textShadowColor: colours.accent },
+          ]}
+        >
+          SkeduleIt
+        </Text>
 
         <Link href="/support" asChild>
           <AnimatedButton title="Support Assistant" />
@@ -42,12 +41,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingBottom: Platform.OS === "ios" ? 80 : 60,
   },
-  lightContainer: {
-    backgroundColor: "#fff",
-  },
-  darkContainer: {
-    backgroundColor: "#151718",
-  },
   content: {
     alignItems: "center",
     gap: 8,
@@ -59,18 +52,10 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: "uppercase",
   },
-  lightText: {
-    color: "#11181C",
-  },
-  darkText: {
-    color: "#ECEDEE",
-  },
   brandName: {
     fontFamily: "serif",
     fontSize: 56,
     fontWeight: "400",
-    color: "#f0c85a",
-    textShadowColor: "#f0c85a",
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 20,
     marginBottom: 60,

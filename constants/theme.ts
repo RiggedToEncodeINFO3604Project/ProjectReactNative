@@ -284,6 +284,43 @@ export const UIColours = {
   },
 };
 
+type ScreenPaletteTone = "default" | "alt";
+
+type ScreenPaletteOptions = {
+  backgroundTone?: ScreenPaletteTone;
+  cardTone?: ScreenPaletteTone;
+  accent?: string;
+  accentContrast?: string;
+};
+
+export function getScreenPalette(
+  isDarkMode: boolean,
+  options: ScreenPaletteOptions = {},
+) {
+  const extended = getExtendedColours(isDarkMode);
+
+  return {
+    background:
+      options.backgroundTone === "alt"
+        ? extended.backgroundAlt
+        : extended.background,
+    card: options.cardTone === "alt" ? extended.cardAlt : extended.card,
+    text: extended.text,
+    textMuted: extended.textMuted,
+    textSecondary: extended.textSecondary,
+    border: extended.border,
+    borderAlt: extended.borderAlt,
+    inputBg: extended.inputBg,
+    accent: options.accent ?? SharedColours.bookingStatus.pending,
+    accentContrast: options.accentContrast ?? UIColours.button.textLight,
+    success: SharedColours.success,
+    error: SharedColours.error,
+    warning: SharedColours.warning,
+    overlay: UIColours.overlay,
+    shadow: UIColours.shadow,
+  };
+}
+
 // ============================================================================
 // User Type
 // ============================================================================

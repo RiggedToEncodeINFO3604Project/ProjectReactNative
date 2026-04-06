@@ -10,6 +10,7 @@ import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
 
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { getScreenPalette } from "@/constants/theme";
 import {
   ThemeProvider as CustomThemeProvider,
   useTheme,
@@ -19,6 +20,7 @@ import {
 function AuthNavigator() {
   const { isAuthenticated, role, isLoading } = useAuth();
   const { isDarkMode, setUserType } = useTheme();
+  const screenPalette = getScreenPalette(isDarkMode);
   const segments = useSegments();
 
   // Set userType based on role
@@ -46,10 +48,10 @@ function AuthNavigator() {
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: isDarkMode ? "#151718" : "#ffffff",
+          backgroundColor: screenPalette.background,
         }}
       >
-        <ActivityIndicator size="large" color="#f0c85a" />
+        <ActivityIndicator size="large" color={screenPalette.accent} />
       </View>
     );
   }
