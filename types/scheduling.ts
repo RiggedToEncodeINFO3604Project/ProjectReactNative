@@ -300,9 +300,7 @@ export interface DateRangeParams {
 }
 
 export interface DateRangeResponse {
-  dates: DateScheduleData[];
-  hasMore: boolean;
-  nextStartDate?: string;
+  dates: RescheduleSlotsResponse[];
 }
 
 // Legacy type - keeping for backward compatibility but prefer RescheduleSlotsResponse

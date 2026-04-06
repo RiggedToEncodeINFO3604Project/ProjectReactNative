@@ -14,6 +14,7 @@ import {
   CustomerCreate,
   CustomerSnapshot,
   DateScheduleData,
+  DateRangeResponse,
   DayBookingStatus,
   MessageResponse,
   ProviderCreate,
@@ -579,14 +580,18 @@ export const getAvailableSlotsForDateRange = async (
   startDate: string,
   endDate: string,
 ): Promise<DateScheduleData[]> => {
-  const dates = generateDateRange(startDate, endDate);
   const today = new Date();
-
-  const responses = await Promise.all(
-    dates.map((date) => getAvailableSlotsForReschedule(bookingId, date)),
+  const response = await api.get<DateRangeResponse>(
+    `/provider/bookings/${bookingId}/available-slots-range`,
+    {
+      params: {
+        start_date: startDate,
+        end_date: endDate,
+      },
+    },
   );
 
-  return responses.map((response) => transformToScheduleData(response, today));
+  return response.data.dates.map((date) => transformToScheduleData(date, today));
 };
 
 // Get customer snapshot for a specific customer

@@ -8,7 +8,7 @@ from auth import get_current_provider
 from firebase_db import get_database
 from firebase_admin import firestore
 import uuid
-from datetime import datetime, timezone, date as date_type
+from datetime import datetime, timezone, date as date_type, timedelta
 from services.availability_service import (
     normalize_slot_recurrence,
     slot_applies_to_date,
@@ -61,6 +61,159 @@ def generate_sessions(start_time: str, end_time: str, session_duration: int) -> 
         'sessions': sessions,
         'remainder_minutes': remainder_minutes,
         'sessions_created': len(sessions)
+    }
+
+
+def get_provider_reschedule_context(
+    db,
+    booking_id: str,
+    current_user: UserInDB,
+) -> Dict[str, Any]:
+    booking_doc = db.collection("client_records").document(booking_id).get()
+    if not booking_doc.exists:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    booking_data = booking_doc.to_dict()
+
+    service_doc = db.collection("services").document(booking_data["service_id"]).get()
+    provider_docs = (
+        db.collection("providers")
+        .where("user_id", "==", current_user.id)
+        .limit(1)
+        .get()
+    )
+
+    if len(provider_docs) == 0:
+        raise HTTPException(status_code=404, detail="Provider profile not found")
+
+    provider_doc = provider_docs[0]
+    provider_id = provider_doc.id
+    service_data = service_doc.to_dict() if service_doc.exists else None
+
+    if not service_data or service_data["provider_id"] != provider_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    availability_docs = (
+        db.collection("availability")
+        .where("provider_id", "==", provider_id)
+        .limit(1)
+        .get()
+    )
+    availability = availability_docs[0].to_dict() if availability_docs else None
+
+    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
+    service_ids = [doc.id for doc in services_docs]
+
+    return {
+        "booking_data": booking_data,
+        "provider_id": provider_id,
+        "availability": availability,
+        "service_ids": service_ids,
+    }
+
+
+def get_bookings_for_service_ids(
+    db,
+    service_ids: List[str],
+) -> List[Dict[str, Any]]:
+    bookings = []
+
+    if not service_ids:
+        return bookings
+
+    for i in range(0, len(service_ids), 10):
+        batch_ids = service_ids[i:i + 10]
+        bookings_docs = (
+            db.collection("client_records")
+            .where("service_id", "in", batch_ids)
+            .get()
+        )
+        for doc in bookings_docs:
+            bookings.append({"id": doc.id, "data": doc.to_dict()})
+
+    return bookings
+
+
+def build_available_slots_response(
+    booking_id: str,
+    booking_data: Dict[str, Any],
+    availability: Dict[str, Any] | None,
+    existing_bookings: List[Dict[str, Any]],
+    target_date: datetime,
+) -> Dict[str, Any]:
+    day_of_week = target_date.weekday()
+
+    if not availability:
+        return {
+            "date": format_schedule_date(target_date),
+            "day_of_week": DAYS[day_of_week],
+            "available_slots": [],
+            "booked_slots": [],
+            "message": "No availability schedule found",
+        }
+
+    applicable_slots = []
+    for day in availability.get("schedule", []):
+        if day.get("day_of_week") != day_of_week:
+            continue
+        applicable_slots = [
+            slot for slot in day.get("time_slots", [])
+            if slot_applies_to_date(slot, target_date.date())
+            and slot_applies_to_service(slot, booking_data["service_id"])
+        ]
+        break
+
+    if not applicable_slots:
+        return {
+            "date": format_schedule_date(target_date),
+            "day_of_week": DAYS[day_of_week],
+            "available_slots": [],
+            "booked_slots": [],
+            "message": "No availability for this day",
+        }
+
+    booked_slots = [
+        {
+            "start_time": booking["data"]["start_time"],
+            "end_time": booking["data"]["end_time"],
+            "booking_id": booking["id"],
+        }
+        for booking in existing_bookings
+        if booking["data"].get("status") in ["pending", "confirmed"]
+    ]
+
+    available_slots = []
+    for slot in applicable_slots:
+        session_duration = slot.get("session_duration", 30)
+        sessions = generate_sessions(
+            slot.get("start_time"),
+            slot.get("end_time"),
+            session_duration,
+        )
+
+        for session in sessions.get("sessions", []):
+            is_booked = False
+            for booked in booked_slots:
+                if (
+                    booked["start_time"] == session["start_time"]
+                    and booked["end_time"] == session["end_time"]
+                    and booked["booking_id"] != booking_id
+                ):
+                    is_booked = True
+                    break
+
+            if not is_booked:
+                available_slots.append({
+                    "start_time": session["start_time"],
+                    "end_time": session["end_time"],
+                    "session_duration": session_duration,
+                })
+
+    return {
+        "date": format_schedule_date(target_date),
+        "day_of_week": DAYS[day_of_week],
+        "available_slots": available_slots,
+        "booked_slots": booked_slots,
     }
 
 
@@ -532,26 +685,9 @@ async def reschedule_booking(
     current_user: UserInDB = Depends(get_current_provider)
 ):
     db = get_database()
-    
-    booking_doc = db.collection("client_records").document(booking_id).get()
-    if not booking_doc.exists:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    
-    booking_data = booking_doc.to_dict()
-    
-    # Verify this booking belongs to this provider
-    service_doc = db.collection("services").document(booking_data["service_id"]).get()
-    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
-    
-    if len(provider_docs) == 0:
-        raise HTTPException(status_code=404, detail="Provider profile not found")
-    
-    provider_doc = provider_docs[0]
-    provider_id = provider_doc.id
-    service_data = service_doc.to_dict() if service_doc.exists else None
-    
-    if not service_data or service_data["provider_id"] != provider_id:
-        raise HTTPException(status_code=403, detail="Not authorized to reschedule this booking")
+    context = get_provider_reschedule_context(db, booking_id, current_user)
+    booking_data = context["booking_data"]
+    provider_id = context["provider_id"]
     
     # Parse the new date
     try:
@@ -656,26 +792,8 @@ async def get_available_slots(
     current_user: UserInDB = Depends(get_current_provider)
 ):
     db = get_database()
-    
-    booking_doc = db.collection("client_records").document(booking_id).get()
-    if not booking_doc.exists:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    
-    booking_data = booking_doc.to_dict()
-    
-    # Verify this booking belongs to this provider
-    service_doc = db.collection("services").document(booking_data["service_id"]).get()
-    provider_docs = db.collection("providers").where("user_id", "==", current_user.id).limit(1).get()
-    
-    if len(provider_docs) == 0:
-        raise HTTPException(status_code=404, detail="Provider profile not found")
-    
-    provider_doc = provider_docs[0]
-    provider_id = provider_doc.id
-    service_data = service_doc.to_dict() if service_doc.exists else None
-    
-    if not service_data or service_data["provider_id"] != provider_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    context = get_provider_reschedule_context(db, booking_id, current_user)
+    booking_data = context["booking_data"]
     
     # Parse the date
     try:
@@ -683,84 +801,74 @@ async def get_available_slots(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
-    # Get the day of week (0=Monday, 6=Sunday)
-    day_of_week = target_date.weekday()
-    
-    # Get provider's availability for this day
-    availability_docs = db.collection("availability").where("provider_id", "==", provider_id).limit(1).get()
-    if len(availability_docs) == 0:
-        return {"date": date, "day_of_week": DAYS[day_of_week], "available_slots": [], "booked_slots": [], "message": "No availability schedule found"}
-    
-    availability = availability_docs[0].to_dict()
-    
-    applicable_slots = []
-    for day in availability.get("schedule", []):
-        if day.get("day_of_week") != day_of_week:
-            continue
-        applicable_slots = [
-            slot for slot in day.get("time_slots", [])
-            if slot_applies_to_date(slot, target_date.date())
-            and slot_applies_to_service(slot, booking_data["service_id"])
-        ]
-        break
-
-    if not applicable_slots:
-        return {"date": date, "day_of_week": DAYS[day_of_week], "available_slots": [], "booked_slots": [], "message": "No availability for this day"}
-    
-    # Get all provider's service IDs
-    services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
-    service_ids = [doc.id for doc in services_docs]
-    
-    # Get all bookings for this date (pending or confirmed)
     existing_bookings = []
-    if service_ids:
-        for i in range(0, len(service_ids), 10):
-            batch_ids = service_ids[i:i+10]
-            bookings_docs = db.collection("client_records").where("service_id", "in", batch_ids).where("date", "==", target_date).get()
-            for doc in bookings_docs:
-                booking_status = doc.to_dict().get("status")
-                if booking_status in ["pending", "confirmed"]:
-                    existing_bookings.append({"id": doc.id, "data": doc.to_dict()})
-    
-    # Extract booked slots
-    booked_slots = [
-        {"start_time": b["data"]["start_time"], "end_time": b["data"]["end_time"], "booking_id": b["id"]}
-        for b in existing_bookings
-    ]
-    
-    # Generate available slots from availability schedule
-    available_slots = []
-    for slot in applicable_slots:
-        session_duration = slot.get("session_duration", 30)
-        start_time = slot.get("start_time")
-        end_time = slot.get("end_time")
-        
-        # Generate sessions for this time slot
-        sessions = generate_sessions(start_time, end_time, session_duration)
-        
-        for session in sessions.get("sessions", []):
-            # Check if this session is already booked
-            is_booked = False
-            for booked in booked_slots:
-                if (booked["start_time"] == session["start_time"] and 
-                    booked["end_time"] == session["end_time"] and
-                    booked["booking_id"] != booking_id):  # Exclude current booking
-                    is_booked = True
-                    break
-            
-            if not is_booked:
-                available_slots.append({
-                    "start_time": session["start_time"],
-                    "end_time": session["end_time"],
-                    "session_duration": session_duration
-                })
-    
-    return {
-        "date": date,
-        "day_of_week": DAYS[day_of_week],
-        "available_slots": available_slots,
-        "booked_slots": booked_slots
-    }
+    for booking in get_bookings_for_service_ids(db, context["service_ids"]):
+        booking_date = normalize_firestore_datetime(booking["data"].get("date"))
+        if booking_date == target_date:
+            existing_bookings.append(booking)
+
+    return build_available_slots_response(
+        booking_id=booking_id,
+        booking_data=booking_data,
+        availability=context["availability"],
+        existing_bookings=existing_bookings,
+        target_date=target_date,
+    )
+
+
+@router.get("/bookings/{booking_id}/available-slots-range", response_model=dict)
+async def get_available_slots_range(
+    booking_id: str,
+    start_date: str = Query(..., description="Start date in YYYY-MM-DD format"),
+    end_date: str = Query(..., description="End date in YYYY-MM-DD format"),
+    current_user: UserInDB = Depends(get_current_provider),
+):
+    db = get_database()
+    context = get_provider_reschedule_context(db, booking_id, current_user)
+
+    try:
+        parsed_start_date = parse_schedule_date(start_date)
+        parsed_end_date = parse_schedule_date(end_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+
+    if parsed_end_date < parsed_start_date:
+        raise HTTPException(status_code=400, detail="End date cannot be earlier than start date")
+
+    all_bookings = get_bookings_for_service_ids(db, context["service_ids"])
+    bookings_by_date: Dict[str, List[Dict[str, Any]]] = {}
+
+    for booking in all_bookings:
+        booking_data = booking["data"]
+        booking_status = booking_data.get("status")
+        if booking_status not in ["pending", "confirmed"]:
+            continue
+
+        booking_date = normalize_firestore_datetime(booking_data.get("date"))
+        if not booking_date:
+            continue
+        if parsed_start_date <= booking_date <= parsed_end_date:
+            date_key = format_schedule_date(booking_date)
+            if date_key not in bookings_by_date:
+                bookings_by_date[date_key] = []
+            bookings_by_date[date_key].append(booking)
+
+    responses = []
+    current_date = parsed_start_date
+    while current_date <= parsed_end_date:
+        date_key = format_schedule_date(current_date)
+        responses.append(
+            build_available_slots_response(
+                booking_id=booking_id,
+                booking_data=context["booking_data"],
+                availability=context["availability"],
+                existing_bookings=bookings_by_date.get(date_key, []),
+                target_date=current_date,
+            )
+        )
+        current_date += timedelta(days=1)
+
+    return {"dates": responses}
 
 
 # customer snapshot - with integrated auto-tagging
