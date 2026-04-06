@@ -33,6 +33,84 @@ import {
   View,
 } from "react-native";
 
+const MESSAGE_MATCH_WINDOW_MS = 5000;
+
+const getMessageTimestamp = (message: Message): number =>
+  new Date(message.created_at).getTime();
+
+const isSameLogicalMessage = (
+  existing: Message,
+  incoming: Message,
+  options?: { ignoreContent?: boolean },
+): boolean => {
+  if (existing.id === incoming.id) {
+    return true;
+  }
+
+  const sameSender =
+    existing.sender_id === incoming.sender_id &&
+    existing.sender_role === incoming.sender_role;
+  const sameType = existing.message_type === incoming.message_type;
+  const sameImage = existing.image_url === incoming.image_url;
+  const sameContent = options?.ignoreContent
+    ? true
+    : existing.content === incoming.content;
+  const closeInTime =
+    Math.abs(getMessageTimestamp(existing) - getMessageTimestamp(incoming)) <
+    MESSAGE_MATCH_WINDOW_MS;
+
+  return sameSender && sameType && sameImage && sameContent && closeInTime;
+};
+
+const isOptimisticMessage = (message: Message): boolean =>
+  typeof message.id === "string" && message.id.startsWith("temp-");
+
+const upsertMessages = (
+  currentMessages: Message[],
+  incomingMessages: Message[],
+  options?: { ignoreContent?: boolean },
+): Message[] => {
+  const merged = [...currentMessages];
+
+  incomingMessages.forEach((incoming) => {
+    const existingIndex = merged.findIndex((existing) =>
+      isSameLogicalMessage(existing, incoming, {
+        ignoreContent:
+          options?.ignoreContent &&
+          (isOptimisticMessage(existing) || isOptimisticMessage(incoming)),
+      }),
+    );
+
+    if (existingIndex >= 0) {
+      merged[existingIndex] = {
+        ...merged[existingIndex],
+        ...incoming,
+      };
+      return;
+    }
+
+    merged.push(incoming);
+  });
+
+  return merged.sort(
+    (a, b) => getMessageTimestamp(a) - getMessageTimestamp(b),
+  );
+};
+
+const replaceOptimisticMessage = (
+  currentMessages: Message[],
+  tempId: string,
+  persistedMessage: Message,
+): Message[] => {
+  const withoutTemp = currentMessages.filter((message) => message.id !== tempId);
+  return upsertMessages(withoutTemp, [persistedMessage], {
+    ignoreContent: true,
+  });
+};
+
+const getRenderKey = (message: Message, index: number): string =>
+  `${message.id}-${message.created_at}-${index}`;
+
 export default function ChatScreen() {
   const { token, user } = useAuth();
   const { colours: theme } = useTheme();
@@ -46,6 +124,7 @@ export default function ChatScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [hasHydratedMessages, setHasHydratedMessages] = useState(false);
   const [connectionState, setConnectionState] = useState<
     "connected" | "disconnected" | "connecting"
   >("disconnected");
@@ -98,14 +177,20 @@ export default function ChatScreen() {
   const fetchMessages = useCallback(async () => {
     if (!conversationId) return;
     setIsLoadingMessages(true);
+    setHasHydratedMessages(false);
     try {
       const data = await getMessages(conversationId, 50);
       // Reverse to show oldest first
-      setMessages(Array.isArray(data) ? data.reverse() : []);
+      setMessages(
+        Array.isArray(data)
+          ? upsertMessages([], [...data].reverse())
+          : [],
+      );
     } catch (error) {
       console.error("Error fetching messages:", error);
       setMessages([]);
     } finally {
+      setHasHydratedMessages(true);
       setIsLoadingMessages(false);
     }
   }, [conversationId]);
@@ -114,31 +199,7 @@ export default function ChatScreen() {
   const handleNewMessage = useCallback(
     (message: Message) => {
       if (message.conversation_id === conversationId) {
-        setMessages((prev) => {
-          // Check if message already exists by ID
-          const existingById = prev.find((m) => m.id === message.id);
-          if (existingById) {
-            return prev; // Already have this message
-          }
-
-          // Check if a temp message that matches (same sender, similar time)
-          // Note: We don't check content because the filtered content may differ
-          const tempMessage = prev.find(
-            (m) =>
-              m.id.startsWith("temp-") &&
-              m.sender_id === message.sender_id &&
-              Math.abs(
-                new Date(m.created_at).getTime() -
-                  new Date(message.created_at).getTime(),
-              ) < 5000,
-          );
-
-          if (tempMessage) {
-            // Replace temp message with real one (contains filtered content)
-            return prev.map((m) => (m.id === tempMessage.id ? message : m));
-          }
-          return [...prev, message];
-        });
+        setMessages((prev) => upsertMessages(prev, [message], { ignoreContent: true }));
       }
     },
     [conversationId],
@@ -158,94 +219,38 @@ export default function ChatScreen() {
   const handleFirebaseMessages = useCallback(
     (firebaseMessages: Message[]) => {
       if (!conversationId || !firebaseMessages.length) return;
+      if (!hasHydratedMessages) return;
 
       setMessages((prev) => {
         if (!prev || !Array.isArray(prev)) {
-          return firebaseMessages;
-        }
-
-        // Create a map of existing messages by ID
-        const existingMap = new Map(prev.map((m) => [m.id, m]));
-        let hasChanges = false;
-
-        // Process all Firebase messages
-        firebaseMessages.forEach((fm) => {
-          const existing = existingMap.get(fm.id);
-
-          if (!existing) {
-            // Check if we have a temp message that matches this real message
-            // Note: We don't check content because filtered content may differ
-            const tempMatch = prev.find(
-              (m) =>
-                m &&
-                m.id &&
-                m.id.startsWith("temp-") &&
-                m.sender_id === fm.sender_id &&
-                Math.abs(
-                  new Date(m.created_at).getTime() -
-                    new Date(fm.created_at).getTime(),
-                ) < 5000,
-            );
-
-            if (tempMatch) {
-              // Replace temp with real message from Firebase
-              console.log(
-                "[Firebase] Replacing temp message:",
-                tempMatch.id,
-                "->",
-                fm.id,
-              );
-              // Remove the temp message and add the real message
-              existingMap.delete(tempMatch.id);
-              existingMap.set(fm.id, fm);
-              hasChanges = true;
-            } else {
-              // Completely new message
-              console.log(
-                "[Firebase] Adding new message:",
-                fm.id,
-                "status:",
-                fm.status,
-              );
-              existingMap.set(fm.id, fm);
-              hasChanges = true;
-            }
-          } else {
-            // Existing message - check if status or read changed
-            const statusChanged = existing.status !== fm.status;
-            const readChanged = existing.read !== fm.read;
-
-            if (statusChanged || readChanged) {
-              console.log(
-                `[Firebase] Message ${fm.id} changed: status ${existing.status}->${fm.status}, read ${existing.read}->${fm.read}`,
-              );
-              existingMap.set(fm.id, fm);
-              hasChanges = true;
-            } else if (
-              existing.id.startsWith("temp-") &&
-              !fm.id.startsWith("temp-")
-            ) {
-              // Replace temp message with real one from Firebase
-              existingMap.set(fm.id, fm);
-              hasChanges = true;
-            }
-          }
-        });
-
-        if (!hasChanges && prev.length > 0) {
           return prev;
         }
 
-        // Convert back to array and sort by time
-        const allMessages = Array.from(existingMap.values()).sort(
-          (a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-        );
-        return allMessages;
+        if (prev.length === 0) {
+          return prev;
+        }
+        const nextMessages = upsertMessages(prev, firebaseMessages, {
+          ignoreContent: true,
+        });
+
+        const noStructuralChange =
+          nextMessages.length === prev.length &&
+          nextMessages.every(
+            (message, index) =>
+              message.id === prev[index]?.id &&
+              message.status === prev[index]?.status &&
+              message.read === prev[index]?.read,
+          );
+
+        if (noStructuralChange) {
+          return prev;
+        }
+
+        return nextMessages;
       });
       setFirebaseConnected(true);
     },
-    [conversationId],
+    [conversationId, hasHydratedMessages],
   );
 
   // Handle connection state change
@@ -284,6 +289,7 @@ export default function ChatScreen() {
     */
 
     return () => {
+      setHasHydratedMessages(false);
       // Cleanup WebSocket on unmount
       messagingSocket.disconnect();
       // Cleanup Firebase subscription
@@ -297,11 +303,14 @@ export default function ChatScreen() {
     fetchMessages,
     handleNewMessage,
     handleConnectionChange,
+    conversationId,
   ]);
 
   // Subscribe to Firebase Firestore real-time updates
   useEffect(() => {
-    if (!conversationId || !isFirebaseConfigured()) return;
+    if (!conversationId || !isFirebaseConfigured() || !hasHydratedMessages) {
+      return;
+    }
 
     const unsubscribe = subscribeToConversationMessages(
       conversationId,
@@ -311,7 +320,7 @@ export default function ChatScreen() {
     return () => {
       unsubscribe();
     };
-  }, [conversationId, handleFirebaseMessages]);
+  }, [conversationId, handleFirebaseMessages, hasHydratedMessages]);
 
   // Mark conversation as read when opened
   useEffect(() => {
@@ -453,15 +462,11 @@ export default function ChatScreen() {
 
         // Update message status to "sent" on success
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === tempId
-              ? {
-                  ...m,
-                  status: "sent" as MessageStatus,
-                  id: response.message_id || tempId,
-                }
-              : m,
-          ),
+          replaceOptimisticMessage(prev, tempId, {
+            ...optimisticMessage,
+            id: response.message_id || tempId,
+            status: "sent" as MessageStatus,
+          }),
         );
       } catch (error) {
         console.error("Error sending message:", error);
@@ -496,16 +501,18 @@ export default function ChatScreen() {
 
       try {
         // Retry sending the message
-        await sendMessage(conversationId, {
+        const response = await sendMessage(conversationId, {
           content: failedMessage.content,
           message_type: failedMessage.message_type,
         });
 
         // Update status to "sent" on success
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === messageId ? { ...m, status: "sent" as MessageStatus } : m,
-          ),
+          replaceOptimisticMessage(prev, messageId, {
+            ...failedMessage,
+            id: response.message_id || messageId,
+            status: "sent" as MessageStatus,
+          }),
         );
       } catch (error) {
         console.error("Error retrying message:", error);
@@ -548,7 +555,7 @@ export default function ChatScreen() {
             Conversation not found
           </Text>
           <Text style={[styles.errorSubtext, { color: theme.icon }]}>
-            The conversation may have been deleted or you don't have access
+            The conversation may have been deleted or you do not have access
           </Text>
         </View>
       </View>
@@ -600,7 +607,7 @@ export default function ChatScreen() {
             Array.isArray(messages) &&
             messages.map((message, index) => (
               <View
-                key={message.id}
+                key={getRenderKey(message, index)}
                 ref={(ref) => {
                   if (ref) {
                     messageRefs.current.set(message.id, ref);
