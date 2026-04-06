@@ -13,14 +13,17 @@ type BackButtonProps = {
   onPress: (event: GestureResponderEvent) => void;
   label?: string;
   style?: StyleProp<ViewStyle>;
+  color?: string;
 };
 
 export default function BackButton({
   onPress,
   label = "Back",
   style,
+  color,
 }: BackButtonProps) {
   const { colours } = useTheme();
+  const buttonColor = color ?? colours.tint;
 
   return (
     <TouchableOpacity
@@ -30,8 +33,8 @@ export default function BackButton({
       accessibilityLabel={label}
       activeOpacity={0.7}
     >
-      <IconSymbol name="arrow.backward" size={18} color={colours.tint} />
-      <Text style={[styles.label, { color: colours.tint }]}>{label}</Text>
+      <IconSymbol name="arrow.backward" size={18} color={buttonColor} />
+      <Text style={[styles.label, { color: buttonColor }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
