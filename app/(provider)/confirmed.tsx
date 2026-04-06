@@ -5,6 +5,7 @@ import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { deleteBooking, getConfirmedBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
+import { formatStoredTimeRange } from "@/utils/time";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -17,14 +18,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const formatTime = (time: string) => {
-  const [hourStr, minuteStr] = time.split(":");
-  const hour = parseInt(hourStr, 10);
-  const period = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${hour12}:${minuteStr} ${period}`;
-};
 
 const groupByDay = (bookings: BookingWithDetails[]) => {
   const grouped: Record<string, BookingWithDetails[]> = {};
@@ -148,7 +141,7 @@ export default function ConfirmedBookingsScreen() {
           Customer: {item.customer_name}
         </Text>
         <Text style={[styles.detailText, { color: colours.textMuted }]}>
-          Time: {formatTime(item.start_time)} – {formatTime(item.end_time)}
+          Time: {formatStoredTimeRange(item.start_time, item.end_time)}
         </Text>
       </View>
 

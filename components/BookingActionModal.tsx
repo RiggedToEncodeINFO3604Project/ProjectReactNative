@@ -12,6 +12,7 @@ import {
   DateScheduleData,
   TimeSlot,
 } from "@/types/scheduling";
+import { formatStoredTime, formatStoredTimeRange } from "@/utils/time";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -316,7 +317,7 @@ export default function BookingActionModal({
                         },
                       ]}
                     >
-                      {slot.start_time}
+                      {formatStoredTime(slot.start_time)}
                     </Text>
                     <Text
                       style={[
@@ -438,7 +439,7 @@ export default function BookingActionModal({
                     Time:
                   </Text>
                   <Text style={[styles.detailValue, { color: colours.text }]}>
-                    {booking.start_time} - {booking.end_time}
+                    {formatStoredTimeRange(booking.start_time, booking.end_time)}
                   </Text>
 
                   <Text
@@ -504,7 +505,7 @@ export default function BookingActionModal({
                 >
                   Current: {booking.service_name} on{" "}
                   {new Date(booking.date).toLocaleDateString()} at{" "}
-                  {booking.start_time}
+                  {formatStoredTime(booking.start_time)}
                 </Text>
 
                 <Text
@@ -545,7 +546,7 @@ export default function BookingActionModal({
                     ]}
                   >
                     <Text style={[styles.summaryText, { color: colours.text }]}>
-                      Selected: {selectedDate} at {selectedSlot.start_time}
+                      Selected: {selectedDate} at {formatStoredTime(selectedSlot.start_time)}
                     </Text>
                   </View>
                 )}

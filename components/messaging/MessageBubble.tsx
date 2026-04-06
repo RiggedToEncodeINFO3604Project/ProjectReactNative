@@ -12,6 +12,7 @@ import {
 } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { Message, MessageStatus } from "@/types/scheduling";
+import { formatDateTimeTime } from "@/utils/time";
 import {
   ActivityIndicator,
   Image,
@@ -35,11 +36,6 @@ const DOUBLE_CHECK_ICON = "✓✓";
 const HIGHLIGHT_COLOR = SharedColours.highlight; // Yellow highlight
 const FAILED_ICON = "⚠️";
 const SENDING_ICON = "🕐";
-
-function formatTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
 
 function getStatusIcon(status?: MessageStatus): {
   icon: string;
@@ -214,7 +210,7 @@ export function MessageBubble({
               },
             ]}
           >
-            {formatTime(message.created_at)}
+            {formatDateTimeTime(message.created_at)}
           </Text>
           {isCurrentUser && showStatus && (
             <View style={styles.statusContainer}>

@@ -7,6 +7,7 @@ import {
 import { useTheme } from "@/context/ThemeContext";
 import { getConfirmedBookings, syncBusyTimes } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
+import { formatDateTimeTime, formatStoredTimeRange } from "@/utils/time";
 import * as Calendar from "expo-calendar";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -193,7 +194,7 @@ export default function CalendarScreen() {
           {dateDisplay}
         </Text>
         <Text style={[styles.eventTime, { color: colours.textMuted }]}>
-          {item.start_time} – {item.end_time}
+          {formatStoredTimeRange(item.start_time, item.end_time)}
         </Text>
         {item.customer_name ? (
           <Text style={[styles.eventCustomer, { color: colours.textSecondary }]}>
@@ -251,18 +252,8 @@ export default function CalendarScreen() {
                 </Text>
                 <ScrollView style={{ maxHeight: 150 }}>
                   {selectedDayDeviceEvents.map((e, i) => {
-                    const timeOptions = {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    } as const;
-                    const start = new Date(e.startDate).toLocaleTimeString(
-                      [],
-                      timeOptions,
-                    );
-                    const end = new Date(e.endDate).toLocaleTimeString(
-                      [],
-                      timeOptions,
-                    );
+                    const start = formatDateTimeTime(e.startDate);
+                    const end = formatDateTimeTime(e.endDate);
                     return (
                       <View
                         key={i}
@@ -277,7 +268,7 @@ export default function CalendarScreen() {
                         <Text
                           style={[styles.eventTime, { color: colours.textMuted }]}
                         >
-                          {start} – {end}
+                          {start} - {end}
                         </Text>
                       </View>
                     );
@@ -309,7 +300,7 @@ export default function CalendarScreen() {
                       <Text
                         style={[styles.eventTime, { color: colours.textMuted }]}
                       >
-                        {b.start_time} – {b.end_time}
+                        {formatStoredTimeRange(b.start_time, b.end_time)}
                       </Text>
                     </View>
                   ))}
