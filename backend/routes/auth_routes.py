@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from models import UserCreate, User, Token, UserRole, CustomerCreate, Customer, ProviderCreate, Provider
-from auth import get_password_hash, verify_password, create_access_token
+from auth import create_access_token, get_current_user, get_password_hash, verify_password
 from config import settings
 from firebase_db import get_database
 from services.datetime_utils import utc_now
+from services.notification_service import remove_user_push_token, save_user_push_token
 import uuid
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -33,6 +34,10 @@ class ProviderRegisterRequest(BaseModel):
     provider_address: str
     is_active: bool = True
     user_id: str = ""
+
+
+class PushTokenRequest(BaseModel):
+    push_token: str = Field(..., min_length=1)
 
 
 # Register a new customer user
@@ -144,3 +149,21 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         "role": user_data["role"],
         "user_id": user_id
     }
+
+
+@router.post("/push-token", response_model=dict)
+async def register_push_token(
+    request: PushTokenRequest,
+    current_user: User = Depends(get_current_user),
+):
+    save_user_push_token(current_user.id, request.push_token)
+    return {"message": "Push token registered"}
+
+
+@router.post("/push-token/remove", response_model=dict)
+async def unregister_push_token(
+    request: PushTokenRequest,
+    current_user: User = Depends(get_current_user),
+):
+    remove_user_push_token(current_user.id, request.push_token)
+    return {"message": "Push token removed"}

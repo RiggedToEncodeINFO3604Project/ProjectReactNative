@@ -5,6 +5,7 @@ import {
   registerProvider as apiRegisterProvider,
   getStoredAuth,
 } from "@/services/schedulingApi";
+import { clearDevicePushToken } from "@/services/notifications";
 import {
   AuthContextType,
   AuthState,
@@ -93,6 +94,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async (): Promise<void> => {
+    try {
+      await clearDevicePushToken();
+    } catch (error) {
+      console.error("Error clearing push token:", error);
+    }
+
     await apiLogout();
     setState({
       isAuthenticated: false,
