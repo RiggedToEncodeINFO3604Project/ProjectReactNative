@@ -122,6 +122,63 @@ class MessagingServiceTests(unittest.TestCase):
             }
         )
 
+    def test_mark_conversation_as_read_resets_counter_and_marks_other_party_messages(self):
+        conv_ref = MagicMock()
+
+        main_batch = MagicMock()
+        sub_batch = MagicMock()
+        db = MagicMock()
+        db.batch.side_effect = [main_batch, sub_batch]
+
+        unread_main_doc = SimpleNamespace(id="msg-1")
+        unread_sub_doc = SimpleNamespace(id="msg-1")
+
+        messages_query = MagicMock()
+        messages_query.where.return_value = messages_query
+        messages_query.stream.return_value = [unread_main_doc]
+        messages_collection = MagicMock()
+        messages_collection.where.return_value = messages_query
+        messages_collection.document.side_effect = lambda doc_id: f"main-doc:{doc_id}"
+
+        subcollection_query = MagicMock()
+        subcollection_query.where.return_value = subcollection_query
+        subcollection_query.stream.return_value = [unread_sub_doc]
+        subcollection_ref = MagicMock()
+        subcollection_ref.where.return_value = subcollection_query
+        subcollection_ref.document.side_effect = lambda doc_id: f"sub-doc:{doc_id}"
+        conv_ref.collection.return_value = subcollection_ref
+
+        conversations_collection = MagicMock()
+        conversations_collection.document.return_value = conv_ref
+
+        def collection_side_effect(name):
+            if name == "conversations":
+                return conversations_collection
+            if name == "messages":
+                return messages_collection
+            raise AssertionError(f"Unexpected collection: {name}")
+
+        db.collection.side_effect = collection_side_effect
+
+        with patch.object(messaging_service, "get_database", return_value=db):
+            success = messaging_service.mark_conversation_as_read(
+                "conversation-1",
+                "Customer",
+            )
+
+        self.assertTrue(success)
+        conv_ref.update.assert_called_once_with({"customer_unread_count": 0})
+        main_batch.update.assert_called_once_with(
+            "main-doc:msg-1",
+            {"read": True, "status": "read"},
+        )
+        sub_batch.update.assert_called_once_with(
+            "sub-doc:msg-1",
+            {"read": True, "status": "read"},
+        )
+        main_batch.commit.assert_called_once()
+        sub_batch.commit.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
