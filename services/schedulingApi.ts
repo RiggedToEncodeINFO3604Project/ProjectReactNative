@@ -224,6 +224,14 @@ export const logout = async (): Promise<void> => {
   await AsyncStorage.multiRemove(["token", "role", "userId"]);
 };
 
+export const registerPushToken = async (pushToken: string): Promise<void> => {
+  await api.post("/auth/push-token", { push_token: pushToken });
+};
+
+export const unregisterPushToken = async (pushToken: string): Promise<void> => {
+  await api.post("/auth/push-token/remove", { push_token: pushToken });
+};
+
 // Get stored auth data
 export const getStoredAuth = async (): Promise<{
   token: string | null;
