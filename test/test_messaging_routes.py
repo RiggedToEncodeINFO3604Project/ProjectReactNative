@@ -50,7 +50,70 @@ class MessagingRoutesTests(unittest.TestCase):
             response.json()["detail"],
             "You are not a participant in this conversation",
         )
-   
+    def test_send_message_broadcasts_and_notifies_offline_recipient(self):
+        with (
+            patch.object(
+                messaging_routes,
+                "verify_user_in_conversation",
+                return_value=True,
+            ),
+            patch.object(
+                messaging_routes,
+                "send_message",
+                return_value=("message-1", "filtered hello"),
+            ) as send_message_mock,
+            patch.object(
+                messaging_routes,
+                "get_conversation_by_id",
+                return_value={
+                    "provider_id": "provider-9",
+                    "customer_name": "Ava Customer",
+                    "provider_name": "Kai Provider",
+                },
+            ),
+            patch.object(
+                messaging_routes.websocket_manager,
+                "broadcast_to_conversation",
+                new=AsyncMock(),
+            ) as broadcast_mock,
+            patch.object(
+                messaging_routes.websocket_manager,
+                "is_user_online",
+                return_value=False,
+            ),
+            patch.object(
+                messaging_routes,
+                "send_chat_push_notification",
+            ) as push_mock,
+        ):
+            response = self.client.post(
+                "/api/messaging/conversations/conv-1/messages",
+                json={"content": "hello there", "message_type": "text"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"message_id": "message-1", "filtered_content": "filtered hello"},
+        )
+
+        send_message_mock.assert_called_once_with(
+            conversation_id="conv-1",
+            sender_id="customer-1",
+            sender_role=UserRole.CUSTOMER,
+            content="hello there",
+            message_type="text",
+            image_url=None,
+        )
+        broadcast_mock.assert_awaited_once()
+        push_mock.assert_called_once_with(
+            recipient_user_id="provider-9",
+            sender_name="Ava Customer",
+            conversation_id="conv-1",
+            recipient_role=UserRole.PROVIDER.value,
+            message_preview="filtered hello",
+            message_type="text",
+        )
         
 if __name__ == "__main__":
     unittest.main()
