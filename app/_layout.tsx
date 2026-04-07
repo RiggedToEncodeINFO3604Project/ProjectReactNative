@@ -3,8 +3,9 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { useEffect } from "react";
-import { Redirect, Stack, useSegments } from "expo-router";
+import * as Notifications from "expo-notifications";
+import { useEffect, useRef } from "react";
+import { Redirect, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import "react-native-reanimated";
@@ -15,13 +16,19 @@ import {
   ThemeProvider as CustomThemeProvider,
   useTheme,
 } from "@/context/ThemeContext";
+import {
+  getConversationRouteFromNotification,
+  syncDevicePushToken,
+} from "@/services/notifications";
 
 // Component to handle auth-based routing
 function AuthNavigator() {
-  const { isAuthenticated, role, isLoading } = useAuth();
+  const { isAuthenticated, role, isLoading, user } = useAuth();
   const { isDarkMode, setUserType } = useTheme();
   const screenPalette = getScreenPalette(isDarkMode);
   const segments = useSegments();
+  const router = useRouter();
+  const handledNotificationId = useRef<string | null>(null);
 
   // Set userType based on role
   useEffect(() => {
@@ -31,6 +38,59 @@ function AuthNavigator() {
       setUserType("customer");
     }
   }, [isAuthenticated, role, setUserType]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      return;
+    }
+
+    syncDevicePushToken().catch((error) => {
+      console.error("Error syncing push token:", error);
+    });
+  }, [isAuthenticated, user?.id]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const navigateFromNotification = (
+      response: Notifications.NotificationResponse | null,
+    ) => {
+      if (!response) {
+        return;
+      }
+
+      const notificationId = response.notification.request.identifier;
+      if (handledNotificationId.current === notificationId) {
+        return;
+      }
+
+      const route = getConversationRouteFromNotification(
+        response.notification.request.content.data,
+      );
+      if (!route) {
+        return;
+      }
+
+      handledNotificationId.current = notificationId;
+      router.push(route as never);
+    };
+
+    Notifications.getLastNotificationResponseAsync()
+      .then(navigateFromNotification)
+      .catch((error) => {
+        console.error("Error reading last notification response:", error);
+      });
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      navigateFromNotification,
+    );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isAuthenticated, router]);
 
   console.log(
     "AuthNavigator - isAuthenticated:",
@@ -58,9 +118,6 @@ function AuthNavigator() {
 
   // Determine top level group currently in - seems to have fixed the unmounting before loading
   const inAuthGroup = segments[0] === "(auth)";
-  const inCustomerGroup = segments[0] === "(customer)";
-  const inProviderGroup = segments[0] === "(provider)";
-  
   // Check if currently on settings screen (accessible without auth)
   const currentRoute = segments.length > 0 ? segments[segments.length - 1] : "";
   const isSettingsRoute = currentRoute === "settings";
