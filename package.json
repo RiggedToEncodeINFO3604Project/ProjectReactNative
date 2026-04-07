@@ -7,6 +7,7 @@
     "build": "expo export --platform web",
     "start": "node server.js",
     "reset-project": "node ./scripts/reset-project.js",
+    "test": "python -m unittest discover -s test -p \"test_*.py\"",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
