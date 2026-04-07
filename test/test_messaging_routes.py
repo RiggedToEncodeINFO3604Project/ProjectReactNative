@@ -50,6 +50,7 @@ class MessagingRoutesTests(unittest.TestCase):
             response.json()["detail"],
             "You are not a participant in this conversation",
         )
+
     def test_send_message_broadcasts_and_notifies_offline_recipient(self):
         with (
             patch.object(
@@ -113,6 +114,36 @@ class MessagingRoutesTests(unittest.TestCase):
             recipient_role=UserRole.PROVIDER.value,
             message_preview="filtered hello",
             message_type="text",
+        )
+
+    def test_mark_conversation_read_broadcasts_status_update(self):
+        with (
+            patch.object(
+                messaging_routes,
+                "verify_user_in_conversation",
+                return_value=True,
+            ),
+            patch.object(
+                messaging_routes,
+                "mark_conversation_as_read",
+                return_value=True,
+            ),
+            patch.object(
+                messaging_routes.websocket_manager,
+                "broadcast_message_read",
+                new=AsyncMock(),
+            ) as broadcast_mock,
+        ):
+            response = self.client.post("/api/messaging/conversations/conv-1/read")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"success": True, "message": "Conversation marked as read"},
+        )
+        broadcast_mock.assert_awaited_once_with(
+            conversation_id="conv-1",
+            user_role=UserRole.CUSTOMER,
         )
         
 if __name__ == "__main__":
