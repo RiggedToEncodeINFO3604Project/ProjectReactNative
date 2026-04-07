@@ -65,6 +65,63 @@ class MessagingServiceTests(unittest.TestCase):
 
         db = MagicMock()
 
+        def collection_side_effect(name):
+            if name == "conversations":
+                return conversations_collection
+            if name == "messages":
+                return messages_ref
+            raise AssertionError(f"Unexpected collection: {name}")
+
+        db.collection.side_effect = collection_side_effect
+
+        with (
+            patch.object(messaging_service, "get_database", return_value=db),
+            patch.object(
+                messaging_service,
+                "sanitize_message",
+                return_value="clean content",
+            ),
+            patch.object(messaging_service, "utc_now", return_value=created_at),
+            patch.object(
+                messaging_service.firestore,
+                "Increment",
+                side_effect=lambda value: ("increment", value),
+            ),
+        ):
+            message_id, filtered_content = messaging_service.send_message(
+                conversation_id="conversation-1",
+                sender_id="customer-1",
+                sender_role="Customer",
+                content="dirty content",
+            )
+
+        self.assertEqual(message_id, "message-123")
+        self.assertEqual(filtered_content, "clean content")
+
+        messages_ref.add.assert_called_once()
+        added_message = messages_ref.add.call_args.args[0]
+        self.assertEqual(added_message["content"], "clean content")
+        self.assertEqual(added_message["status"], "sent")
+        self.assertFalse(added_message["read"])
+
+        subcollection_doc_ref.set.assert_called_once()
+        conv_ref.update.assert_called_once_with(
+            {
+                "updated_at": created_at,
+                "last_message": {
+                    "id": "message-123",
+                    "sender_id": "customer-1",
+                    "sender_role": "Customer",
+                    "content": "clean content",
+                    "message_type": "text",
+                    "image_url": None,
+                    "created_at": created_at,
+                },
+                "last_message_time": created_at,
+                "provider_unread_count": ("increment", 1),
+            }
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
