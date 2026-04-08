@@ -156,6 +156,28 @@ Run on device/emulator:
 - Press `a` for Android emulator
 - Scan QR code with Expo Go for physical device
 
+### 3. Testing the Calendar Integration using Expo Go
+
+In one terminal run the following commands
+cd backend
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+In the second terminal run the following command
+npx expo start
+
+Scan QR code from inside the Expo Go App
+
+Note: In order for the app to build, you must be logged in to both the Expo Go App, as well as into the second terminal (after scanning the QR code you are prompted to login from the second terminal, use your Expo Go account credentials).
+
+In the .env file
+
+Replace the following line with your own IP address. PC/Laptop and phone must be on the same network connection.
+
+Example IP address:
+
+Replace/Comment out: EXPO_PUBLIC_API_URL=http://localhost:8000
+With this containing your IP address: EXPO_PUBLIC_API_URL=http://192.168.0.128:8000
+
 ## API Endpoints
 
 ### Authentication

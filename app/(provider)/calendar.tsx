@@ -70,10 +70,30 @@ export default function CalendarScreen() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      await Promise.all([loadBookings(), loadDeviceEvents()]);
+      const confirmedBookings = await loadBookings();
+      await loadDeviceEvents(confirmedBookings);
     } finally {
       setLoading(false);
     }
+  };
+
+  const hasBookingOverlap = (
+    event: any,
+    bookings: BookingWithDetails[],
+  ): boolean => {
+    const eventStart = new Date(event.startDate);
+    const eventEnd = new Date(event.endDate);
+    const eventDate = eventStart.toISOString().split("T")[0];
+
+    return bookings.some((booking) => {
+      const bookingDate = booking.date.split("T")[0];
+      if (bookingDate !== eventDate) return false;
+
+      const bookingStart = new Date(`${bookingDate}T${booking.start_time}:00`);
+      const bookingEnd = new Date(`${bookingDate}T${booking.end_time}:00`);
+
+      return eventStart < bookingEnd && eventEnd > bookingStart;
+    });
   };
 
   const loadBookings = async () => {
@@ -90,7 +110,7 @@ export default function CalendarScreen() {
     }
   };
 
-  const loadDeviceEvents = async () => {
+  const loadDeviceEvents = async (confirmedBookings: BookingWithDetails[]) => {
     try {
       const { status } = await Calendar.requestCalendarPermissionsAsync();
       if (status !== "granted") {
