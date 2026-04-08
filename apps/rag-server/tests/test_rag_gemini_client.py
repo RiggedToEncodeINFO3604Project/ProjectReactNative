@@ -72,11 +72,11 @@ class GeminiClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(contents[4].role, "user")
         self.assertEqual(contents[4].parts[0].text, "How do I book an appointment?")
 
-    async def test_call_with_retry_retries_on_429_then_succeeds(self):
+    async def test_call_with_retry_uses_fallback_model_after_429(self):
         class RateLimitError(Exception):
             code = 429
 
-        response = SimpleNamespace(text="retry succeeded")
+        response = SimpleNamespace(text="fallback succeeded")
         fake_client = SimpleNamespace(
             models=SimpleNamespace(),
         )
@@ -84,6 +84,8 @@ class GeminiClientTests(unittest.IsolatedAsyncioTestCase):
             side_effect=[RateLimitError("Too many requests"), response]
         )
         fake_client.models.generate_content = generate_mock
+        first_config = object()
+        second_config = object()
 
         with (
             patch.object(
@@ -91,16 +93,32 @@ class GeminiClientTests(unittest.IsolatedAsyncioTestCase):
                 "_get_client",
                 return_value=fake_client,
             ),
-            patch("gemini_client.asyncio.sleep", new=AsyncMock()) as sleep_mock,
+            patch.object(
+                gemini_client,
+                "MODEL_CHAIN",
+                ("gemini-3-flash-preview", "gemini-2.5-flash", "gemma-4-26b-a4b-it"),
+            ),
+            patch.object(
+                gemini_client,
+                "_build_generation_config",
+                side_effect=[first_config, second_config],
+            ) as build_config_mock,
         ):
             answer = await gemini_client._call_with_retry(
                 asyncio.get_running_loop(),
                 contents=[],
             )
 
-        self.assertEqual(answer, "retry succeeded")
+        self.assertEqual(answer, "fallback succeeded")
         self.assertEqual(generate_mock.call_count, 2)
-        sleep_mock.assert_awaited_once_with(gemini_client.BASE_DELAY_SECONDS)
+        self.assertEqual(generate_mock.call_args_list[0].kwargs["model"], "gemini-3-flash-preview")
+        self.assertEqual(generate_mock.call_args_list[1].kwargs["model"], "gemini-2.5-flash")
+        self.assertIs(generate_mock.call_args_list[0].kwargs["config"], first_config)
+        self.assertIs(generate_mock.call_args_list[1].kwargs["config"], second_config)
+        self.assertEqual(
+            [call.args[0] for call in build_config_mock.call_args_list],
+            ["gemini-3-flash-preview", "gemini-2.5-flash"],
+        )
 
 
 if __name__ == "__main__":
