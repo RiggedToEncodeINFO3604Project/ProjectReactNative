@@ -4,6 +4,7 @@
 // =======================================================
 
 import {
+  AvailabilityRecurrence,
   AvailabilityResponse,
   AvailabilitySchedule,
   AvailableSlotsResponse,
@@ -28,9 +29,16 @@ import {
 } from "@/types/scheduling";
 import { formatLocalDate, parseLocalDate } from "@/utils/time";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios, { AxiosError, AxiosInstance } from "axios";
+import axios, { AxiosError, AxiosInstance, isAxiosError } from "axios";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import {
+  getFirebaseIdToken,
+  signInToFirebaseWithCustomToken,
+  signInToFirebaseWithEmail,
+  signOutFromFirebase,
+  waitForFirebaseAuthReady,
+} from "@/services/firebaseClient";
 
 const normalizeApiUrl = (value?: string | null): string => {
   return (value || "").trim().replace(/\/+$/, "");
@@ -117,6 +125,342 @@ const resolveApiUrl = (): string => {
 };
 
 const API_URL = resolveApiUrl();
+const FIREBASE_API_KEY = (process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "").trim();
+
+const AUTH_STORAGE_KEYS = {
+  role: "role",
+  userId: "userId",
+} as const;
+
+const LEGACY_AUTH_STORAGE_KEYS = {
+  token: "token",
+  refreshToken: "refreshToken",
+} as const;
+
+interface StoredAuthBundle {
+  role: string | null;
+  userId: string | null;
+}
+
+interface LegacyStoredAuthBundle {
+  token: string | null;
+  refreshToken: string | null;
+}
+
+interface BackendLegacyLoginResponse {
+  custom_token: string;
+  role: TokenResponse["role"];
+  user_id: string;
+}
+
+interface FirebaseRefreshResponse {
+  access_token: string;
+  refresh_token: string;
+}
+
+interface FirebaseCustomTokenResponse {
+  custom_token: string;
+}
+
+const extractFirebaseErrorMessage = (
+  error: unknown,
+  fallback: string,
+): string => {
+  const rawCode = (
+    error as {
+      code?: string;
+      response?: { data?: { error?: { message?: string }; detail?: string } };
+      message?: string;
+    }
+  )?.code ||
+    (error as {
+      response?: { data?: { error?: { message?: string }; detail?: string } };
+      message?: string;
+    })?.response?.data?.error?.message ||
+    (error as {
+      response?: { data?: { error?: { message?: string }; detail?: string } };
+      message?: string;
+    })?.response?.data?.detail ||
+    (error as { message?: string })?.message ||
+    fallback;
+
+  switch (rawCode) {
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+    case "INVALID_LOGIN_CREDENTIALS":
+    case "INVALID_PASSWORD":
+    case "EMAIL_NOT_FOUND":
+      return "Incorrect email or password.";
+    case "auth/user-disabled":
+    case "USER_DISABLED":
+      return "This account has been disabled.";
+    case "auth/email-already-in-use":
+    case "EMAIL_EXISTS":
+      return "Email already registered.";
+    case "auth/network-request-failed":
+      return "Unable to reach Firebase right now. Please try again.";
+    case "auth/invalid-custom-token":
+    case "auth/custom-token-mismatch":
+      return "Unable to complete sign-in.";
+    case "auth/id-token-expired":
+    case "auth/user-token-expired":
+    case "TOKEN_EXPIRED":
+    case "INVALID_ID_TOKEN":
+      return "Your session expired. Please sign in again.";
+    default:
+      return rawCode.replace(/^auth\//, "").replace(/_/g, " ");
+  }
+};
+
+const getFirebaseApiKey = (): string => {
+  if (!FIREBASE_API_KEY) {
+    throw new Error("Firebase authentication is not configured.");
+  }
+  return FIREBASE_API_KEY;
+};
+
+const getStoredAuthBundle = async (): Promise<StoredAuthBundle> => {
+  const [role, userId] = await Promise.all([
+    AsyncStorage.getItem(AUTH_STORAGE_KEYS.role),
+    AsyncStorage.getItem(AUTH_STORAGE_KEYS.userId),
+  ]);
+
+  return {
+    role,
+    userId,
+  };
+};
+
+const getLegacyStoredAuthBundle = async (): Promise<LegacyStoredAuthBundle> => {
+  const [token, refreshToken] = await Promise.all([
+    AsyncStorage.getItem(LEGACY_AUTH_STORAGE_KEYS.token),
+    AsyncStorage.getItem(LEGACY_AUTH_STORAGE_KEYS.refreshToken),
+  ]);
+
+  return {
+    token,
+    refreshToken,
+  };
+};
+
+const persistAuthBundle = async (
+  bundle: Partial<StoredAuthBundle>,
+): Promise<void> => {
+  await Promise.all(
+    Object.entries(bundle)
+      .filter(([, value]) => value !== undefined && value !== null)
+      .map(([key, value]) =>
+        AsyncStorage.setItem(
+          AUTH_STORAGE_KEYS[key as keyof typeof AUTH_STORAGE_KEYS],
+          String(value),
+        ),
+      ),
+  );
+};
+
+const persistBackendSession = async (
+  session: Pick<TokenResponse, "role" | "user_id">,
+): Promise<void> => {
+  await persistAuthBundle({
+    role: session.role,
+    userId: session.user_id,
+  });
+};
+
+const clearStoredAuth = async (): Promise<void> => {
+  await AsyncStorage.multiRemove([
+    AUTH_STORAGE_KEYS.role,
+    AUTH_STORAGE_KEYS.userId,
+  ]);
+};
+
+const clearLegacyStoredAuth = async (): Promise<void> => {
+  await AsyncStorage.multiRemove([
+    LEGACY_AUTH_STORAGE_KEYS.token,
+    LEGACY_AUTH_STORAGE_KEYS.refreshToken,
+  ]);
+};
+
+const exchangeFirebaseIdToken = async (
+  idToken: string,
+): Promise<TokenResponse> => {
+  const response = await axios.post<TokenResponse>(
+    `${API_URL}/auth/login`,
+    {
+      id_token: idToken,
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  return response.data;
+};
+
+const migrateLegacyLogin = async (
+  email: string,
+  password: string,
+): Promise<BackendLegacyLoginResponse> => {
+  const response = await axios.post<BackendLegacyLoginResponse>(
+    `${API_URL}/auth/login/legacy`,
+    {
+      email,
+      password,
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  return response.data;
+};
+
+const mintFirebaseCustomToken = async (
+  idToken: string,
+): Promise<FirebaseCustomTokenResponse> => {
+  const response = await axios.post<FirebaseCustomTokenResponse>(
+    `${API_URL}/auth/firebase/custom-token`,
+    {
+      id_token: idToken,
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  return response.data;
+};
+
+const refreshLegacyFirebaseToken = async (
+  refreshToken: string,
+): Promise<FirebaseRefreshResponse> => {
+  const response = await axios.post<FirebaseRefreshResponse>(
+    `https://securetoken.googleapis.com/v1/token?key=${getFirebaseApiKey()}`,
+    `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
+    {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    },
+  );
+
+  return response.data;
+};
+
+const restoreLegacyFirebaseSdkSession = async () => {
+  const legacyAuth = await getLegacyStoredAuthBundle();
+  let idToken = legacyAuth.token;
+
+  if (!idToken && !legacyAuth.refreshToken) {
+    return null;
+  }
+
+  const signInWithLegacyToken = async (token: string) => {
+    const customToken = await mintFirebaseCustomToken(token);
+    const credential = await signInToFirebaseWithCustomToken(
+      customToken.custom_token,
+    );
+    await clearLegacyStoredAuth();
+    return credential.user;
+  };
+
+  if (idToken) {
+    try {
+      return await signInWithLegacyToken(idToken);
+    } catch {
+      if (!legacyAuth.refreshToken) {
+        await clearLegacyStoredAuth();
+        return null;
+      }
+    }
+  }
+
+  if (!legacyAuth.refreshToken) {
+    await clearLegacyStoredAuth();
+    return null;
+  }
+
+  try {
+    const refreshed = await refreshLegacyFirebaseToken(legacyAuth.refreshToken);
+    idToken = refreshed.access_token;
+    await AsyncStorage.multiSet([
+      [LEGACY_AUTH_STORAGE_KEYS.token, refreshed.access_token],
+      [LEGACY_AUTH_STORAGE_KEYS.refreshToken, refreshed.refresh_token],
+    ]);
+    return await signInWithLegacyToken(idToken);
+  } catch (error) {
+    console.error("Unable to restore legacy Firebase session:", error);
+    await clearLegacyStoredAuth();
+    return null;
+  }
+};
+
+const finalizeFirebaseLogin = async (): Promise<TokenResponse> => {
+  const token = await getFirebaseIdToken(true);
+  if (!token) {
+    throw new Error("Unable to complete sign-in.");
+  }
+
+  try {
+    const response = await exchangeFirebaseIdToken(token);
+    await clearLegacyStoredAuth();
+    await persistBackendSession(response);
+    return { ...response, access_token: token };
+  } catch (error) {
+    await signOutFromFirebase();
+    await clearStoredAuth();
+    throw error;
+  }
+};
+
+export const getValidAuthToken = async (): Promise<string | null> => {
+  try {
+    return await getFirebaseIdToken();
+  } catch (error) {
+    console.error("Error getting Firebase auth token:", error);
+    await clearLegacyStoredAuth();
+    await clearStoredAuth();
+    return null;
+  }
+};
+
+export const restoreAuthSession = async (): Promise<TokenResponse | null> => {
+  let currentUser = await waitForFirebaseAuthReady();
+  if (!currentUser) {
+    currentUser = await restoreLegacyFirebaseSdkSession();
+  }
+
+  if (!currentUser) {
+    await clearStoredAuth();
+    return null;
+  }
+
+  const token = await currentUser.getIdToken();
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const response = await exchangeFirebaseIdToken(token);
+    await persistBackendSession(response);
+    return { ...response, access_token: token };
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 401) {
+      await signOutFromFirebase();
+      await clearLegacyStoredAuth();
+      await clearStoredAuth();
+      return null;
+    }
+    throw error;
+  }
+};
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -129,7 +473,7 @@ const api: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem("token");
+    const token = await getValidAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -145,8 +489,9 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear storage
-      await AsyncStorage.multiRemove(["token", "role", "userId"]);
+      await signOutFromFirebase();
+      await clearLegacyStoredAuth();
+      await clearStoredAuth();
     }
     return Promise.reject(error);
   },
@@ -196,32 +541,40 @@ export const login = async (
   email: string,
   password: string,
 ): Promise<TokenResponse> => {
-  const formData = new FormData();
-  formData.append("username", email);
-  formData.append("password", password);
+  try {
+    await signInToFirebaseWithEmail(email, password);
+    return await finalizeFirebaseLogin();
+  } catch (error) {
+    const loginError = new Error(
+      extractFirebaseErrorMessage(error, "Unable to sign in right now."),
+    );
 
-  const response = await axios.post<TokenResponse>(
-    `${API_URL}/auth/login`,
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    },
-  );
+    if (loginError.message !== "Incorrect email or password.") {
+      throw loginError;
+    }
 
-  if (response.data.access_token) {
-    await AsyncStorage.setItem("token", response.data.access_token);
-    await AsyncStorage.setItem("role", response.data.role);
-    await AsyncStorage.setItem("userId", response.data.user_id);
+    try {
+      const legacyLogin = await migrateLegacyLogin(email, password);
+      await signInToFirebaseWithCustomToken(legacyLogin.custom_token);
+      return await finalizeFirebaseLogin();
+    } catch (legacyError) {
+      const message = extractFirebaseErrorMessage(
+        legacyError,
+        loginError.message,
+      );
+      if (message === "Incorrect email or password.") {
+        throw loginError;
+      }
+      throw new Error(message);
+    }
   }
-
-  return response.data;
 };
 
 // Logout and clear stored credentials
 export const logout = async (): Promise<void> => {
-  await AsyncStorage.multiRemove(["token", "role", "userId"]);
+  await signOutFromFirebase();
+  await clearLegacyStoredAuth();
+  await clearStoredAuth();
 };
 
 export const registerPushToken = async (pushToken: string): Promise<void> => {
@@ -238,15 +591,11 @@ export const getStoredAuth = async (): Promise<{
   role: string | null;
   userId: string | null;
 }> => {
-  const [token, role, userId] = await AsyncStorage.multiGet([
-    "token",
-    "role",
-    "userId",
-  ]);
+  const storedAuth = await getStoredAuthBundle();
   return {
-    token: token[1],
-    role: role[1],
-    userId: userId[1],
+    token: await getValidAuthToken(),
+    role: storedAuth.role,
+    userId: storedAuth.userId,
   };
 };
 
@@ -401,7 +750,7 @@ export const getAvailability = async (): Promise<AvailabilitySchedule> => {
         recurrence_type:
           slot.recurrence_type === "just_this_week"
             ? "just_today"
-            : (slot.recurrence_type ?? "repeat_weekly"),
+            : ((slot.recurrence_type ?? "repeat_weekly") as AvailabilityRecurrence),
         start_date: slot.start_date ?? null,
         end_date: slot.end_date ?? null,
         service_ids: slot.service_ids ?? [],

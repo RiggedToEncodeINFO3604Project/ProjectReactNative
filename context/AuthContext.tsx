@@ -3,7 +3,7 @@ import {
   logout as apiLogout,
   registerCustomer as apiRegisterCustomer,
   registerProvider as apiRegisterProvider,
-  getStoredAuth,
+  restoreAuthSession,
 } from "@/services/schedulingApi";
 import { clearDevicePushToken } from "@/services/notifications";
 import {
@@ -14,7 +14,6 @@ import {
   ProviderCreate,
   TokenResponse,
   UserCreate,
-  UserRole,
 } from "@/types/scheduling";
 import React, {
   createContext,
@@ -41,19 +40,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const { token, role, userId } = await getStoredAuth();
+        const session = await restoreAuthSession();
 
-        if (token && role && userId) {
+        if (session) {
           setState({
             isAuthenticated: true,
             user: {
-              id: userId,
+              id: session.user_id,
               email: "",
-              role: role as UserRole,
+              role: session.role,
               createdAt: new Date(),
             },
-            token,
-            role: role as UserRole,
+            token: session.access_token,
+            role: session.role,
             isLoading: false,
           });
         } else {
