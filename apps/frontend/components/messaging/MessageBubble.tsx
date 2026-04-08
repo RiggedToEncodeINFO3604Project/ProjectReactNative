@@ -183,14 +183,15 @@ export function MessageBubble({
           <View style={styles.imageContent}>
             <Image source={{ uri: message.image_url }} style={styles.image} />
             {!!message.content?.trim() && (
-              <Text
+              <HighlightedText
+                text={message.content.trim()}
+                highlight={highlightQuery}
                 style={[
                   styles.imageCaption,
                   { color: bubbleColor === otherBubbleColor ? "#000" : "#fff" },
                 ]}
-              >
-                {message.content.trim()}
-              </Text>
+                highlightStyle={styles.highlightText}
+              />
             )}
           </View>
         ) : (

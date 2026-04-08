@@ -27,6 +27,10 @@ import {
   uploadMessagingImage,
 } from "@/services/messagingMedia";
 import { Conversation, Message, MessageStatus } from "@/types/scheduling";
+import {
+  getReceivedMessageSearchResults,
+  isMessageFromOtherUser,
+} from "@/utils/messageSearch";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -176,13 +180,13 @@ export default function ChatScreen() {
 
   // Search results - filter messages based on search query
   const searchResults = useMemo(() => {
-    if (!messageSearchQuery.trim()) return [];
-    const query = messageSearchQuery.toLowerCase();
-    return messages.filter(
-      (m) =>
-        m.message_type === "text" && m.content.toLowerCase().includes(query),
+    return getReceivedMessageSearchResults(
+      messages,
+      messageSearchQuery,
+      currentUserId,
+      user?.role,
     );
-  }, [messages, messageSearchQuery]);
+  }, [currentUserId, messageSearchQuery, messages, user?.role]);
 
   // Fetch conversation details
   const fetchConversation = useCallback(async () => {
@@ -420,15 +424,16 @@ export default function ChatScreen() {
     router.back();
   }, [router]);
 
+  const handleOpenMessageSearch = useCallback(() => {
+    setIsMessageSearching(true);
+    setCurrentResultIndex(0);
+  }, []);
+
   // Handle message search
   const handleMessageSearch = useCallback((query: string) => {
+    setIsMessageSearching(true);
     setMessageSearchQuery(query);
     setCurrentResultIndex(0);
-    if (query.trim()) {
-      setIsMessageSearching(true);
-    } else {
-      setIsMessageSearching(false);
-    }
   }, []);
 
   // Handle search close
@@ -651,6 +656,7 @@ export default function ChatScreen() {
         avatar={otherUserAvatar}
         status={connectionState === "connected" ? "Online" : undefined}
         onBack={handleBack}
+        onSearchOpen={handleOpenMessageSearch}
         onSearch={handleMessageSearch}
         isSearching={isMessageSearching}
         searchQuery={messageSearchQuery}
@@ -686,29 +692,42 @@ export default function ChatScreen() {
             </View>
           ) : (
             Array.isArray(messages) &&
-            messages.map((message, index) => (
-              <View
-                key={getRenderKey(message, index)}
-                ref={(ref) => {
-                  if (ref) {
-                    messageRefs.current.set(message.id, ref);
-                  }
-                }}
-              >
-                <MessageBubble
-                  message={message}
-                  isCurrentUser={message.sender_id === currentUserId}
-                  showStatus={index === messages.length - 1}
-                  highlightQuery={isMessageSearching ? messageSearchQuery : ""}
-                  isHighlighted={
-                    isMessageSearching &&
-                    searchResults.length > 0 &&
-                    searchResults[currentResultIndex]?.id === message.id
-                  }
-                  onRetry={handleRetryMessage}
-                />
-              </View>
-            ))
+            messages.map((message, index) => {
+              const isCurrentUserMessage = message.sender_id === currentUserId;
+              const isReceivedMessage = isMessageFromOtherUser(
+                message,
+                currentUserId,
+                user?.role,
+              );
+
+              return (
+                <View
+                  key={getRenderKey(message, index)}
+                  ref={(ref) => {
+                    if (ref) {
+                      messageRefs.current.set(message.id, ref);
+                    }
+                  }}
+                >
+                  <MessageBubble
+                    message={message}
+                    isCurrentUser={isCurrentUserMessage}
+                    showStatus={index === messages.length - 1}
+                    highlightQuery={
+                      isMessageSearching && isReceivedMessage
+                        ? messageSearchQuery
+                        : ""
+                    }
+                    isHighlighted={
+                      isMessageSearching &&
+                      searchResults.length > 0 &&
+                      searchResults[currentResultIndex]?.id === message.id
+                    }
+                    onRetry={handleRetryMessage}
+                  />
+                </View>
+              );
+            })
           )}
         </ScrollView>
       )}
