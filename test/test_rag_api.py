@@ -75,7 +75,33 @@ class RagApiTests(unittest.TestCase):
         self.assertIn("detail", body)
         self.assertTrue(any("message" in ".".join(map(str, item["loc"])) for item in body["detail"]))
 
+    def test_chat_endpoint_maps_rate_limit_errors(self):
+        with patch.object(
+            rag_main,
+            "chat",
+            new=AsyncMock(side_effect=Exception("429 quota exceeded")),
+        ):
+            response = self.client.post(
+                "/api/chat",
+                json={"message": "Hello", "history": []},
+            )
 
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.json()["detail"]["error"], "rate_limit")
+
+    def test_chat_endpoint_maps_content_blocked_errors(self):
+        with patch.object(
+            rag_main,
+            "chat",
+            new=AsyncMock(side_effect=Exception("Safety policy violation")),
+        ):
+            response = self.client.post(
+                "/api/chat",
+                json={"message": "Hello", "history": []},
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["detail"]["error"], "content_blocked")
 
 
 if __name__ == "__main__":
