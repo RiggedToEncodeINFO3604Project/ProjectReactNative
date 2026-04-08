@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -6,7 +7,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 
-RAG_SERVER_DIR = Path(__file__).resolve().parents[1] / "RAG-Server"
+os.environ.setdefault("GEMINI_API_KEY", "test-key")
+
+RAG_SERVER_DIR = Path(__file__).resolve().parents[1]
 if str(RAG_SERVER_DIR) not in sys.path:
     sys.path.insert(0, str(RAG_SERVER_DIR))
 
@@ -74,15 +77,19 @@ class GeminiClientTests(unittest.IsolatedAsyncioTestCase):
             code = 429
 
         response = SimpleNamespace(text="retry succeeded")
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(),
+        )
         generate_mock = unittest.mock.MagicMock(
             side_effect=[RateLimitError("Too many requests"), response]
         )
+        fake_client.models.generate_content = generate_mock
 
         with (
             patch.object(
-                gemini_client._client.models,
-                "generate_content",
-                generate_mock,
+                gemini_client,
+                "_get_client",
+                return_value=fake_client,
             ),
             patch("gemini_client.asyncio.sleep", new=AsyncMock()) as sleep_mock,
         ):

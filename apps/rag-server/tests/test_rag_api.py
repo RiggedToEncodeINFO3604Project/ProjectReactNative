@@ -1,15 +1,18 @@
 import importlib.util
 import io
+import os
 import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from fastapi.testclient import TestClient
+import httpx
 
 
-RAG_SERVER_DIR = Path(__file__).resolve().parents[1] / "RAG-Server"
+os.environ.setdefault("GEMINI_API_KEY", "test-key")
+
+RAG_SERVER_DIR = Path(__file__).resolve().parents[1]
 if str(RAG_SERVER_DIR) not in sys.path:
     sys.path.insert(0, str(RAG_SERVER_DIR))
 
@@ -23,14 +26,21 @@ rag_main_spec.loader.exec_module(rag_main)
 
 
 class RagApiTests(unittest.TestCase):
-    def setUp(self):
-        self.client = TestClient(rag_main.app)
+    def request(self, method: str, url: str, **kwargs):
+        async def make_request():
+            transport = httpx.ASGITransport(app=rag_main.app)
+            async with httpx.AsyncClient(
+                transport=transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.request(method, url, **kwargs)
 
-    def tearDown(self):
-        self.client.close()
+        import asyncio
+
+        return asyncio.run(make_request())
 
     def test_health_endpoint_reports_service_status(self):
-        response = self.client.get("/api/health")
+        response = self.request("GET", "/api/health")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
@@ -47,7 +57,8 @@ class RagApiTests(unittest.TestCase):
                 )
             ),
         ):
-            response = self.client.post(
+            response = self.request(
+                "POST",
                 "/api/chat",
                 json={
                     "message": "How do I book an appointment?",
@@ -65,7 +76,8 @@ class RagApiTests(unittest.TestCase):
         )
 
     def test_chat_endpoint_returns_validation_error_for_blank_message(self):
-        response = self.client.post(
+        response = self.request(
+            "POST",
             "/api/chat",
             json={"message": "   ", "history": []},
         )
@@ -81,7 +93,8 @@ class RagApiTests(unittest.TestCase):
             "chat",
             new=AsyncMock(side_effect=Exception("429 quota exceeded")),
         ):
-            response = self.client.post(
+            response = self.request(
+                "POST",
                 "/api/chat",
                 json={"message": "Hello", "history": []},
             )
@@ -95,7 +108,8 @@ class RagApiTests(unittest.TestCase):
             "chat",
             new=AsyncMock(side_effect=Exception("Safety policy violation")),
         ):
-            response = self.client.post(
+            response = self.request(
+                "POST",
                 "/api/chat",
                 json={"message": "Hello", "history": []},
             )
