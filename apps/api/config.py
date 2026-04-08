@@ -1,6 +1,6 @@
-import os
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     
     # Firebase Configuration
     firebase_credentials: str = ""  # JSON string of Firebase service account
+    firebase_storage_bucket: str = Field(
+        default="",
+        validation_alias="EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET",
+    )
     
     # Legacy JWT settings retained for compatibility with existing env files
     secret_key: str = ""
