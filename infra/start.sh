@@ -55,6 +55,13 @@ echo "FastAPI backend started with PID $BACKEND_PID"
 wait_for_url "FastAPI backend" "http://localhost:8000/health"
 
 echo "========================================"
+echo "Building Expo web app with runtime environment variables..."
+echo "========================================"
+
+cd /app
+npm run build:web --workspace apps/frontend
+
+echo "========================================"
 echo "Starting Express server on port ${PORT:-8081}..."
 echo "========================================"
 

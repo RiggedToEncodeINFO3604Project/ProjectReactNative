@@ -43,9 +43,6 @@ RUN pip3 install --no-cache-dir --break-system-packages -r apps/api/requirements
 # Copy all source code
 COPY . .
 
-# Build Expo web app
-RUN npm run build:web --workspace apps/frontend
-
 # Copy and set permissions for startup script
 COPY infra/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
