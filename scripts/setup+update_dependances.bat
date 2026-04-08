@@ -65,6 +65,12 @@ if not exist "requirements.txt" (
     goto :fail
 )
 
+if not exist "requirements-test.txt" (
+    echo Error: apps\api\requirements-test.txt was not found.
+    popd >nul
+    goto :fail
+)
+
 if not exist "venv\Scripts\python.exe" (
     call :find_python_for_venv
     if errorlevel 1 (
@@ -95,7 +101,7 @@ if errorlevel 1 (
     echo Warning: pip upgrade did not complete successfully.
 )
 
-call "venv\Scripts\python.exe" -m pip install -r requirements.txt
+call "venv\Scripts\python.exe" -m pip install -r requirements-test.txt
 if errorlevel 1 (
     echo Error: Backend dependency installation failed.
     popd >nul
