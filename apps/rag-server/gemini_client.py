@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -38,6 +39,15 @@ _executor = ThreadPoolExecutor(max_workers=4)
 _queue: asyncio.Queue | None = None
 _worker_task: asyncio.Task | None = None
 _client: genai.Client | None = None
+_client_lock = threading.Lock()
+
+
+def _is_client_closed(client: genai.Client | None) -> bool:
+    if client is None:
+        return True
+
+    httpx_client = getattr(getattr(client, "_api_client", None), "_httpx_client", None)
+    return bool(getattr(httpx_client, "is_closed", False))
 
 
 def _create_client() -> genai.Client:
@@ -49,11 +59,18 @@ def _create_client() -> genai.Client:
     return genai.Client(api_key=api_key)
 
 
+def _reset_client() -> None:
+    global _client
+    with _client_lock:
+        _client = None
+
+
 def _get_client() -> genai.Client:
     global _client
-    if _client is None:
-        _client = _create_client()
-    return _client
+    with _client_lock:
+        if _is_client_closed(_client):
+            _client = _create_client()
+        return _client
 
 
 def _get_queue() -> asyncio.Queue:
@@ -102,6 +119,12 @@ async def _call_with_retry(
             return response.text or ""
         except Exception as exc:
             last_error = exc
+            lowered_message = str(exc).lower()
+            if "client has been closed" in lowered_message and attempt < MAX_RETRIES:
+                log.warning("[Queue] Gemini client closed unexpectedly. Recreating client.")
+                _reset_client()
+                continue
+
             status_code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
             if status_code == 429 and attempt < MAX_RETRIES:
                 delay = BASE_DELAY_SECONDS * (2**attempt)
