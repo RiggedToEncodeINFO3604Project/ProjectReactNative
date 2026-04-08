@@ -1,6 +1,5 @@
 import {
-  getReceivedMessageSearchResults,
-  isMessageFromOtherUser,
+  getMessageSearchResults,
 } from "@/utils/messageSearch";
 import { Message } from "@/types/scheduling";
 
@@ -39,30 +38,36 @@ const messages: Message[] = [
 ];
 
 describe("messageSearch", () => {
-  it("matches only messages received from the other user", () => {
-    const results = getReceivedMessageSearchResults(
-      messages,
-      "friday",
-      "customer-1",
-      "Customer",
-    );
+  it("matches messages from both sides of the conversation", () => {
+    const results = getMessageSearchResults(messages, "friday");
 
-    expect(results).toEqual([messages[0]]);
+    expect(results).toEqual([messages[0], messages[1]]);
   });
 
-  it("matches case-insensitively across received message content", () => {
-    const results = getReceivedMessageSearchResults(
-      messages,
-      "STYLE REFERENCE",
-      "customer-1",
-      "Customer",
-    );
+  it("matches case-insensitively across message content", () => {
+    const results = getMessageSearchResults(messages, "STYLE REFERENCE");
 
     expect(results).toEqual([messages[2]]);
   });
 
-  it("falls back to role comparison when the current user id is unavailable", () => {
-    expect(isMessageFromOtherUser(messages[0], "", "Customer")).toBe(true);
-    expect(isMessageFromOtherUser(messages[1], "", "Customer")).toBe(false);
+  it("ignores blank queries and empty content", () => {
+    const results = getMessageSearchResults(
+      [
+        ...messages,
+        {
+          id: "empty-message",
+          conversation_id: "conversation-1",
+          sender_id: "provider-1",
+          sender_role: "Provider",
+          content: "   ",
+          message_type: "text",
+          created_at: "2026-04-08T12:03:00.000Z",
+          read: false,
+        },
+      ],
+      "   ",
+    );
+
+    expect(results).toEqual([]);
   });
 });

@@ -27,10 +27,7 @@ import {
   uploadMessagingImage,
 } from "@/services/messagingMedia";
 import { Conversation, Message, MessageStatus } from "@/types/scheduling";
-import {
-  getReceivedMessageSearchResults,
-  isMessageFromOtherUser,
-} from "@/utils/messageSearch";
+import { getMessageSearchResults } from "@/utils/messageSearch";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -180,13 +177,8 @@ export default function ChatScreen() {
 
   // Search results - filter messages based on search query
   const searchResults = useMemo(() => {
-    return getReceivedMessageSearchResults(
-      messages,
-      messageSearchQuery,
-      currentUserId,
-      user?.role,
-    );
-  }, [currentUserId, messageSearchQuery, messages, user?.role]);
+    return getMessageSearchResults(messages, messageSearchQuery);
+  }, [messageSearchQuery, messages]);
 
   // Fetch conversation details
   const fetchConversation = useCallback(async () => {
@@ -694,11 +686,6 @@ export default function ChatScreen() {
             Array.isArray(messages) &&
             messages.map((message, index) => {
               const isCurrentUserMessage = message.sender_id === currentUserId;
-              const isReceivedMessage = isMessageFromOtherUser(
-                message,
-                currentUserId,
-                user?.role,
-              );
 
               return (
                 <View
@@ -713,11 +700,7 @@ export default function ChatScreen() {
                     message={message}
                     isCurrentUser={isCurrentUserMessage}
                     showStatus={index === messages.length - 1}
-                    highlightQuery={
-                      isMessageSearching && isReceivedMessage
-                        ? messageSearchQuery
-                        : ""
-                    }
+                    highlightQuery={isMessageSearching ? messageSearchQuery : ""}
                     isHighlighted={
                       isMessageSearching &&
                       searchResults.length > 0 &&

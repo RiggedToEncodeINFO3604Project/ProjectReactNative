@@ -72,7 +72,7 @@ export function ChatHeader({
           />
           <TextInput
             style={[styles.searchInput, { color: theme.text }]}
-            placeholder="Search received messages..."
+            placeholder="Search messages..."
             placeholderTextColor={theme.icon}
             value={searchQuery}
             onChangeText={onSearch}
