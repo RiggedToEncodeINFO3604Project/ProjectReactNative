@@ -69,7 +69,31 @@ class GeminiClientTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(contents[4].role, "user")
         self.assertEqual(contents[4].parts[0].text, "How do I book an appointment?")
 
+    async def test_call_with_retry_retries_on_429_then_succeeds(self):
+        class RateLimitError(Exception):
+            code = 429
 
+        response = SimpleNamespace(text="retry succeeded")
+        generate_mock = unittest.mock.MagicMock(
+            side_effect=[RateLimitError("Too many requests"), response]
+        )
+
+        with (
+            patch.object(
+                gemini_client._client.models,
+                "generate_content",
+                generate_mock,
+            ),
+            patch("gemini_client.asyncio.sleep", new=AsyncMock()) as sleep_mock,
+        ):
+            answer = await gemini_client._call_with_retry(
+                asyncio.get_running_loop(),
+                contents=[],
+            )
+
+        self.assertEqual(answer, "retry succeeded")
+        self.assertEqual(generate_mock.call_count, 2)
+        sleep_mock.assert_awaited_once_with(gemini_client.BASE_DELAY_SECONDS)
 
 
 if __name__ == "__main__":
