@@ -2,7 +2,7 @@
 Orchestrate reconstruction of the non-identity Firestore test collections.
 
 Each collection's create logic now lives in its own rebuild script under
-backend/firestore_collections/.
+apps/api/firestore_collections/.
 """
 
 import sys

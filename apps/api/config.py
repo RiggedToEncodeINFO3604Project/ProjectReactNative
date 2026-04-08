@@ -4,8 +4,8 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
-# Find the root .env file (go up one directory from backend/)
-ROOT_DIR = Path(__file__).parent.parent
+# Find the root .env file from apps/api/
+ROOT_DIR = Path(__file__).resolve().parents[2]
 ENV_FILE = ROOT_DIR / ".env"
 
 

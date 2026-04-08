@@ -2,7 +2,7 @@
 Clear messaging-related Firestore collections.
 
 Destructive ownership lives in separate per-collection scripts under
-backend/firestore_collections/.
+apps/api/firestore_collections/.
 """
 
 import sys

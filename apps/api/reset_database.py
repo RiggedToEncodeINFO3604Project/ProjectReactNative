@@ -2,7 +2,7 @@
 Orchestrate destructive Firestore resets collection by collection.
 
 Each collection's delete logic lives in its own destroy script under
-backend/firestore_collections/.
+apps/api/firestore_collections/.
 """
 
 import sys
