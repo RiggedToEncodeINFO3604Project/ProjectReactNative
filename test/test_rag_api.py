@@ -64,6 +64,17 @@ class RagApiTests(unittest.TestCase):
             },
         )
 
+    def test_chat_endpoint_returns_validation_error_for_blank_message(self):
+        response = self.client.post(
+            "/api/chat",
+            json={"message": "   ", "history": []},
+        )
+
+        self.assertEqual(response.status_code, 422)
+        body = response.json()
+        self.assertIn("detail", body)
+        self.assertTrue(any("message" in ".".join(map(str, item["loc"])) for item in body["detail"]))
+
 
 
 
