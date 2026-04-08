@@ -35,6 +35,22 @@ wait_for_url() {
 trap cleanup EXIT INT TERM
 
 echo "========================================"
+echo "Building Expo web app with runtime environment variables..."
+echo "========================================"
+
+cd /app
+npm run build:web --workspace apps/frontend
+
+echo "========================================"
+echo "Starting Express server on port ${PORT:-8081}..."
+echo "========================================"
+
+cd /app
+npm run serve &
+EXPRESS_PID=$!
+echo "Express server started with PID $EXPRESS_PID"
+
+echo "========================================"
 echo "Starting RAG server on port 8001..."
 echo "========================================"
 
@@ -53,22 +69,6 @@ python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 echo "FastAPI backend started with PID $BACKEND_PID"
 wait_for_url "FastAPI backend" "http://localhost:8000/health"
-
-echo "========================================"
-echo "Building Expo web app with runtime environment variables..."
-echo "========================================"
-
-cd /app
-npm run build:web --workspace apps/frontend
-
-echo "========================================"
-echo "Starting Express server on port ${PORT:-8081}..."
-echo "========================================"
-
-cd /app
-npm run serve &
-EXPRESS_PID=$!
-echo "Express server started with PID $EXPRESS_PID"
 
 set +e
 wait -n "$RAG_PID" "$BACKEND_PID" "$EXPRESS_PID"
