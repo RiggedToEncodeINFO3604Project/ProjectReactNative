@@ -10,6 +10,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { useCallback, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -21,13 +22,15 @@ import {
 
 interface MessageInputProps {
   onSend: (text: string) => void;
-  onAttachment?: () => void;
+  onSendImageFile?: () => Promise<void> | void;
+  onSendImageUrl?: (imageUrl: string, caption?: string) => Promise<void> | void;
   disabled?: boolean;
 }
 
 export function MessageInput({
   onSend,
-  onAttachment,
+  onSendImageFile,
+  onSendImageUrl,
   disabled = false,
 }: MessageInputProps) {
   const { isDarkMode, colours: theme } = useTheme();
@@ -37,10 +40,15 @@ export function MessageInput({
   const [inputHeight, setInputHeight] = useState(44);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [recentEmojis, setRecentEmojis] = useState<string[]>([]);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageCaption, setImageCaption] = useState("");
   const inputRef = useRef<TextInputType>(null);
 
   const isEmpty = text.trim().length === 0;
   const canSend = !isEmpty && !disabled;
+  const canSendImageUrl =
+    !!imageUrl.trim() && !disabled && typeof onSendImageUrl === "function";
 
   const handleSend = () => {
     if (!canSend) return;
@@ -51,6 +59,25 @@ export function MessageInput({
     setInputHeight(44);
     setShowEmojiPicker(false);
   };
+
+  const closeAttachmentModal = useCallback(() => {
+    setShowAttachmentModal(false);
+    setImageUrl("");
+    setImageCaption("");
+  }, []);
+
+  const handleSendImageUrl = useCallback(() => {
+    if (!canSendImageUrl || !onSendImageUrl) return;
+
+    onSendImageUrl(imageUrl.trim(), imageCaption.trim());
+    closeAttachmentModal();
+  }, [
+    canSendImageUrl,
+    closeAttachmentModal,
+    imageCaption,
+    imageUrl,
+    onSendImageUrl,
+  ]);
 
   const handleEmojiSelect = useCallback((emoji: string) => {
     setText((prevText) => prevText + emoji);
@@ -83,7 +110,11 @@ export function MessageInput({
 
   // Handle Enter key - send on web/desktop, new line on mobile
   const handleKeyPress = (event: {
-    nativeEvent: { key: string; shiftKey?: boolean };
+    preventDefault?: () => void;
+    nativeEvent: {
+      key: string;
+      shiftKey?: boolean;
+    };
   }) => {
     // Only handle Enter key on web platform
     if (Platform.OS === "web" && event.nativeEvent.key === "Enter") {
@@ -121,18 +152,17 @@ export function MessageInput({
         </Pressable>
 
         {/* Attachment button */}
-        {onAttachment && (
+        {(onSendImageFile || onSendImageUrl) && (
           <Pressable
-            onPress={onAttachment}
+            onPress={() => setShowAttachmentModal(true)}
             disabled={disabled}
             style={[styles.iconButton, disabled && styles.disabledButton]}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <IconSymbol
-              name="paperplane.fill"
+              name="paperclip"
               size={24}
               color={disabled ? theme.icon : theme.icon}
-              style={{ transform: [{ rotate: "-45deg" }] }}
             />
           </Pressable>
         )}
@@ -198,6 +228,128 @@ export function MessageInput({
         onEmojiSelect={handleEmojiSelect}
         recentEmojis={recentEmojis}
       />
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={showAttachmentModal}
+        onRequestClose={closeAttachmentModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: theme.background,
+                borderColor: extendedColours.borderAlt,
+              },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Send Image
+            </Text>
+
+            {Platform.OS === "web" && onSendImageFile ? (
+              <Pressable
+                onPress={() => {
+                  closeAttachmentModal();
+                  onSendImageFile();
+                }}
+                disabled={disabled}
+                style={[
+                  styles.attachmentAction,
+                  {
+                    backgroundColor: isDarkMode
+                      ? extendedColours.cardAlt
+                      : extendedColours.background,
+                  },
+                ]}
+              >
+                <Text style={[styles.attachmentActionText, { color: theme.text }]}>
+                  Choose image from device
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {onSendImageUrl ? (
+              <>
+                <TextInput
+                  style={[
+                    styles.attachmentInput,
+                    {
+                      color: theme.text,
+                      borderColor: extendedColours.borderAlt,
+                      backgroundColor: isDarkMode
+                        ? extendedColours.cardAlt
+                        : extendedColours.background,
+                    },
+                  ]}
+                  value={imageUrl}
+                  onChangeText={setImageUrl}
+                  placeholder="Paste an image URL"
+                  placeholderTextColor={theme.icon}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TextInput
+                  style={[
+                    styles.attachmentInput,
+                    styles.captionInput,
+                    {
+                      color: theme.text,
+                      borderColor: extendedColours.borderAlt,
+                      backgroundColor: isDarkMode
+                        ? extendedColours.cardAlt
+                        : extendedColours.background,
+                    },
+                  ]}
+                  value={imageCaption}
+                  onChangeText={setImageCaption}
+                  placeholder="Optional caption"
+                  placeholderTextColor={theme.icon}
+                  multiline
+                />
+              </>
+            ) : null}
+
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={closeAttachmentModal}
+                style={[
+                  styles.modalButton,
+                  {
+                    backgroundColor: isDarkMode
+                      ? extendedColours.cardAlt
+                      : extendedColours.background,
+                  },
+                ]}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.text }]}>
+                  Cancel
+                </Text>
+              </Pressable>
+              {onSendImageUrl ? (
+                <Pressable
+                  onPress={handleSendImageUrl}
+                  disabled={!canSendImageUrl}
+                  style={[
+                    styles.modalButton,
+                    styles.primaryModalButton,
+                    { backgroundColor: theme.tint },
+                    !canSendImageUrl && styles.disabledButton,
+                  ]}
+                >
+                  <Text
+                    style={[styles.modalButtonText, { color: theme.background }]}
+                  >
+                    Send URL
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -252,6 +404,60 @@ const styles = StyleSheet.create({
   sendButtonDisabled: {
     shadowOpacity: 0,
     elevation: 0,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
+    padding: 16,
+  },
+  modalCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 16,
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  attachmentAction: {
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  attachmentActionText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  attachmentInput: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+  },
+  captionInput: {
+    minHeight: 84,
+    textAlignVertical: "top",
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  modalButton: {
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  primaryModalButton: {
+    minWidth: 96,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
   },
 });
 
