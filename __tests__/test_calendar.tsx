@@ -364,6 +364,7 @@ const denyCalendarPermission = () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockGetConfirmedBookings.mockResolvedValue([]);
   jest.spyOn(Alert, "alert").mockImplementation(() => null);
 });
 
