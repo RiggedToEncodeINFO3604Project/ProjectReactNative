@@ -6,7 +6,7 @@ echo "========================================"
 echo "Starting RAG server on port 8001..."
 echo "========================================"
 
-cd /app/RAG-Server
+cd /app/apps/rag-server
 python3 -m uvicorn main:app --host 0.0.0.0 --port 8001 &
 RAG_PID=$!
 echo "RAG server started with PID $RAG_PID"
@@ -24,7 +24,7 @@ echo "========================================"
 echo "Starting FastAPI backend on port 8000..."
 echo "========================================"
 
-cd /app/backend
+cd /app/apps/api
 python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 echo "FastAPI backend started with PID $BACKEND_PID"

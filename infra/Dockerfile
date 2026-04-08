@@ -1,5 +1,4 @@
-# Combined Dockerfile for Frontend + Backend in single container
-# This runs both Express (frontend) and FastAPI (backend) on one Render service
+# Combined Dockerfile for the frontend, API, and RAG service
 
 # Start with Node.js base
 FROM node:20-alpine
@@ -31,24 +30,24 @@ WORKDIR /app
 
 # Copy package files first for better caching
 COPY package*.json ./
-COPY tsconfig.json ./
+COPY apps/frontend/package.json ./apps/frontend/package.json
 
 # Install Node.js dependencies
 RUN npm install
 
 # Copy Python requirements and install
-COPY backend/requirements.txt ./backend/requirements.txt
-COPY RAG-Server/requirements.txt ./RAG-Server/requirements.txt
-RUN pip3 install --no-cache-dir --break-system-packages -r backend/requirements.txt -r RAG-Server/requirements.txt
+COPY apps/api/requirements.txt ./apps/api/requirements.txt
+COPY apps/rag-server/requirements.txt ./apps/rag-server/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r apps/api/requirements.txt -r apps/rag-server/requirements.txt
 
 # Copy all source code
 COPY . .
 
 # Build Expo web app
-RUN npx expo export --platform web
+RUN npm run build:web --workspace apps/frontend
 
 # Copy and set permissions for startup script
-COPY start.sh /app/start.sh
+COPY infra/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 # Expose port (Render sets PORT env var, defaults to 8081)

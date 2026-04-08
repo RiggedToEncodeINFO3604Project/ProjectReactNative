@@ -1,10 +1,10 @@
 services:
   # Combined Frontend + Backend Service
-  # Runs both Express (frontend) and FastAPI (backend) in a single container
+  # Runs the frontend, API, and RAG service in a single container
   - type: web
     name: expo-scheduling
     runtime: docker
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./infra/Dockerfile
     # Health check for Render to verify service is ready
     # Required for proper WebSocket upgrade handling
     healthCheckPath: /health
