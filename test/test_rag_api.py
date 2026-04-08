@@ -36,6 +36,35 @@ class RagApiTests(unittest.TestCase):
         self.assertEqual(response.json()["status"], "ok")
         self.assertEqual(response.json()["service"], "rag-server")
 
+    def test_chat_endpoint_returns_answer_and_matched_sections(self):
+        with patch.object(
+            rag_main,
+            "chat",
+            new=AsyncMock(
+                return_value=SimpleNamespace(
+                    answer="Booking is available in the customer app.",
+                    matched_sections=["2. Customer FAQ"],
+                )
+            ),
+        ):
+            response = self.client.post(
+                "/api/chat",
+                json={
+                    "message": "How do I book an appointment?",
+                    "history": [{"role": "user", "text": "Hi"}],
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "answer": "Booking is available in the customer app.",
+                "matchedSections": ["2. Customer FAQ"],
+            },
+        )
+
+
 
 
 if __name__ == "__main__":
