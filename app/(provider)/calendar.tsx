@@ -65,10 +65,30 @@ export default function CalendarScreen() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      await Promise.all([loadBookings(), loadDeviceEvents()]);
+      const confirmedBookings = await loadBookings();
+      await loadDeviceEvents(confirmedBookings);
     } finally {
       setLoading(false);
     }
+  };
+
+  const hasBookingOverlap = (
+    event: any,
+    bookings: BookingWithDetails[],
+  ): boolean => {
+    const eventStart = new Date(event.startDate);
+    const eventEnd = new Date(event.endDate);
+    const eventDate = eventStart.toISOString().split("T")[0];
+
+    return bookings.some((booking) => {
+      const bookingDate = booking.date.split("T")[0];
+      if (bookingDate !== eventDate) return false;
+
+      const bookingStart = new Date(`${bookingDate}T${booking.start_time}:00`);
+      const bookingEnd = new Date(`${bookingDate}T${booking.end_time}:00`);
+
+      return eventStart < bookingEnd && eventEnd > bookingStart;
+    });
   };
 
   const loadBookings = async () => {
@@ -85,7 +105,7 @@ export default function CalendarScreen() {
     }
   };
 
-  const loadDeviceEvents = async () => {
+  const loadDeviceEvents = async (confirmedBookings: BookingWithDetails[]) => {
     try {
       const { status } = await Calendar.requestCalendarPermissionsAsync();
       if (status !== "granted") {
@@ -110,18 +130,21 @@ export default function CalendarScreen() {
         startDate,
         endDate,
       );
-      setDeviceEvents(fetched);
+      const filtered = fetched.filter((event) => {
+        const title = typeof event.title === "string" ? event.title : "";
+        if (title.startsWith("Booking:")) {
+          return false;
+        }
+        return !hasBookingOverlap(event, confirmedBookings);
+      });
+
+      setDeviceEvents(filtered);
 
       // Map events to busy times format and sync to backend
-      const busyTimes = fetched.map((event) => {
-        // Safely extract date and time components
+      const busyTimes = filtered.map((event) => {
         const startDate = new Date(event.startDate);
         const endDate = new Date(event.endDate);
-
-        // Format date as YYYY-MM-DD
         const date = startDate.toISOString().split("T")[0];
-
-        // Format times as HH:MM
         const start_time = startDate.toTimeString().slice(0, 5);
         const end_time = endDate.toTimeString().slice(0, 5);
 
@@ -141,7 +164,7 @@ export default function CalendarScreen() {
         // Don't show alert to user, just log the error
       }
 
-      return fetched;
+      return filtered;
     } catch (error) {
       console.log("Device calendar error:", error);
       return [];
@@ -196,7 +219,9 @@ export default function CalendarScreen() {
           {item.start_time} – {item.end_time}
         </Text>
         {item.customer_name ? (
-          <Text style={[styles.eventCustomer, { color: colours.textSecondary }]}>
+          <Text
+            style={[styles.eventCustomer, { color: colours.textSecondary }]}
+          >
             👤 {item.customer_name}
           </Text>
         ) : null}
@@ -205,9 +230,7 @@ export default function CalendarScreen() {
   };
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: colours.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: colours.background }]}>
       {/* Header with back button */}
       <View
         style={[
@@ -232,10 +255,7 @@ export default function CalendarScreen() {
           ]}
         >
           <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: colours.card },
-            ]}
+            style={[styles.modalContent, { backgroundColor: colours.card }]}
           >
             <Text style={[styles.modalTitle, { color: colours.text }]}>
               {selectedDateStr}
@@ -271,11 +291,16 @@ export default function CalendarScreen() {
                           { backgroundColor: extendedColours.inputBg },
                         ]}
                       >
-                        <Text style={[styles.eventTitle, { color: colours.text }]}>
+                        <Text
+                          style={[styles.eventTitle, { color: colours.text }]}
+                        >
                           Unavailable
                         </Text>
                         <Text
-                          style={[styles.eventTime, { color: colours.textMuted }]}
+                          style={[
+                            styles.eventTime,
+                            { color: colours.textMuted },
+                          ]}
                         >
                           {start} – {end}
                         </Text>
@@ -303,7 +328,9 @@ export default function CalendarScreen() {
                         { backgroundColor: extendedColours.inputBg },
                       ]}
                     >
-                      <Text style={[styles.eventTitle, { color: colours.text }]}>
+                      <Text
+                        style={[styles.eventTitle, { color: colours.text }]}
+                      >
                         {b.service_name}
                       </Text>
                       <Text
@@ -319,12 +346,7 @@ export default function CalendarScreen() {
 
             {selectedDayBookings.length === 0 &&
               selectedDayDeviceEvents.length === 0 && (
-                <Text
-                  style={[
-                    styles.modalEmpty,
-                    { color: colours.textMuted },
-                  ]}
-                >
+                <Text style={[styles.modalEmpty, { color: colours.textMuted }]}>
                   No events or bookings
                 </Text>
               )}
@@ -339,7 +361,11 @@ export default function CalendarScreen() {
       </Modal>
 
       {loading ? (
-        <ActivityIndicator size="large" color={colours.accent} style={{ marginTop: 50 }} />
+        <ActivityIndicator
+          size="large"
+          color={colours.accent}
+          style={{ marginTop: 50 }}
+        />
       ) : (
         <FlatList
           data={bookings}
@@ -393,9 +419,7 @@ export default function CalendarScreen() {
             </View>
           }
           ListEmptyComponent={
-            <Text
-              style={[styles.empty, { color: colours.textMuted }]}
-            >
+            <Text style={[styles.empty, { color: colours.textMuted }]}>
               No upcoming bookings
             </Text>
           }
