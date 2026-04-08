@@ -28,7 +28,7 @@ if exist "venv\Scripts\activate" (
     call venv\Scripts\activate
 ) else (
     echo Error: Virtual environment not found.
-    echo Run 'first setup.bat' first.
+    echo Run 'setup+update_dependances.bat' first.
     pause
     exit /b 1
 )
@@ -50,7 +50,7 @@ if %errorlevel% equ 0 (
     echo ============================================
     echo.
     echo Could not connect to Firebase.
-    echo Please check your firebase-credentials.json file.
+    echo Please check FIREBASE_CREDENTIALS in your .env file.
 )
 
 echo.
