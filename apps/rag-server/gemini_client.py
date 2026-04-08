@@ -1,11 +1,20 @@
 import asyncio
 import logging
 import os
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+# google-genai currently emits noisy pydantic field-shadowing warnings on import.
+warnings.filterwarnings(
+    "ignore",
+    message=r'Field name "(name|metadata|done|error)" shadows an attribute in parent "Operation";',
+    category=UserWarning,
+    module=r"pydantic\._internal\._fields",
+)
 import google.genai as genai
 from google.genai import types as genai_types
 

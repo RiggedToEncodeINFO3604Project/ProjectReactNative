@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import logging
 import os
 import time
@@ -38,10 +39,22 @@ allowed_origin_regex = os.getenv(
     r"^https?://(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$",
 )
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    log.info("========================================")
+    log.info("Skedulelt RAG API Server Starting")
+    log.info("Model: %s", MODEL)
+    log.info("CORS Origins: %s", allowed_origins)
+    log.info("CORS Origin Regex: %s", allowed_origin_regex)
+    log.info("========================================")
+    yield
+
 app = FastAPI(
     title="Skedulelt RAG API",
     description="RAG chatbot service for the Skedulelt app",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -193,17 +206,6 @@ async def validation_exception_handler(request: Request, exc):
             "details": exc.errors() if hasattr(exc, "errors") else str(exc),
         },
     )
-
-
-@app.on_event("startup")
-async def startup_event():
-    log.info("========================================")
-    log.info("Skedulelt RAG API Server Starting")
-    log.info("Model: %s", MODEL)
-    log.info("CORS Origins: %s", allowed_origins)
-    log.info("CORS Origin Regex: %s", allowed_origin_regex)
-    log.info("========================================")
-
 if __name__ == "__main__":
     import uvicorn
 
