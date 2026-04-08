@@ -2,10 +2,8 @@ import json
 import logging
 from typing import Dict, List, Optional, Set
 from fastapi import WebSocket, WebSocketDisconnect, Query, status
-from jose import JWTError, jwt
 
-from config import settings
-from firebase_db import get_database
+from auth import resolve_user_from_token
 
 log = logging.getLogger("skedulelt.websocket")
 
@@ -45,27 +43,15 @@ class WebSocketManager:
         # conversation_id -> set of user_ids subscribed
         self.conversation_subscribers: Dict[str, Set[str]] = {}
     
-    # Authenticate a WebSocket connection using JWT token
+    # Authenticate a WebSocket connection using a Firebase ID token
     async def authenticate(self, token: str) -> Optional[dict]:
         try:
-            payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-            user_id: str = payload.get("sub")
-            if user_id is None:
-                return None
-            
-            # Verify user exists in database
-            db = get_database()
-            user_doc = db.collection("users").document(user_id).get()
-            if not user_doc.exists:
-                return None
-            
-            user_data = user_doc.to_dict()
+            current_user = resolve_user_from_token(token)
             return {
-                "user_id": user_id,
-                "role": user_data.get("role", "Unknown")
+                "user_id": current_user.id,
+                "role": str(current_user.role),
             }
-            
-        except JWTError:
+        except Exception:
             return None
     
     # Accept a WebSocket connection after authentication

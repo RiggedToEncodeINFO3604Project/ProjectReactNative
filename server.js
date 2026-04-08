@@ -65,8 +65,8 @@ app.use("/ws", wsProxy);
 // ============================================
 
 /**
- * Proxy function that properly handles both JSON and FormData requests
- * Uses raw body to preserve multipart/form-data for login
+ * Proxy function that properly handles both JSON and multipart requests
+ * Uses raw body so auth and upload payloads pass through unchanged
  */
 function proxyToLocalService(req, res, targetPath, targetPort) {
   const chunks = [];
@@ -160,7 +160,7 @@ function proxyToLocalRag(req, res, targetPath) {
 // AUTH ROUTES PROXY
 // ============================================
 
-// Login endpoint - handles multipart/form-data
+// Login endpoint - handles Firebase ID token exchange
 app.post("/auth/login", (req, res) => {
   proxyToLocalBackend(req, res, "/auth/login");
 });
@@ -462,7 +462,7 @@ app.get("/ws-test", (req, res) => {
   res.json({
     status: "WebSocket endpoint available",
     websocketUrl: `/ws`,
-    instructions: "Connect to wss://<host>/ws?token=<jwt>",
+    instructions: "Connect to wss://<host>/ws?token=<firebase_id_token>",
     backendTarget: `ws://localhost:${BACKEND_PORT}/ws`,
   });
 });
