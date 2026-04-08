@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     # Firebase Configuration
     firebase_credentials: str = ""  # JSON string of Firebase service account
     
-    # JWT Configuration
-    secret_key: str
+    # Legacy JWT settings retained for compatibility with existing env files
+    secret_key: str = ""
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
