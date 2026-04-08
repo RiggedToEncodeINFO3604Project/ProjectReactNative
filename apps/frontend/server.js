@@ -7,31 +7,25 @@ const app = express();
 const PORT = process.env.PORT || 8081;
 const BACKEND_PORT = 8000;
 const RAG_PORT = 8001;
-const LOCAL_BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
+const HEALTHCHECK_TIMEOUT_MS = 3000;
 
 // ============================================
 // WEBSOCKET PROXY SETUP (Render-Compatible)
 // ============================================
 
-// Create WebSocket proxy middleware with Render-specific configuration
 const wsProxy = createProxyMiddleware({
   target: `http://localhost:${BACKEND_PORT}`,
   changeOrigin: true,
   ws: true,
-  // Preserve WebSocket headers for Render compatibility
   preserveHeaderKeyCase: true,
-  // Follow redirects
   followRedirects: true,
-  // Path rewrite not needed for /ws
   pathRewrite: null,
-  // Connection timeout for Render free tier (90s to avoid 100s limit)
   proxyTimeout: 90000,
   timeout: 90000,
   onError: (err, req, res) => {
     console.error("[WebSocket Proxy Error]:", err.message);
     console.error("[WebSocket Proxy Error] Request URL:", req?.url);
     console.error("[WebSocket Proxy Error] Headers:", req?.headers);
-    // Send error response if res is available (not a WebSocket upgrade)
     if (res && res.writeHead) {
       res.writeHead(502, { "Content-Type": "application/json" });
       res.end(
@@ -42,52 +36,53 @@ const wsProxy = createProxyMiddleware({
       );
     }
   },
-  onProxyReqWs: (proxyReq, req, socket, options, head) => {
+  onProxyReqWs: (proxyReq, req) => {
     console.log(`[WebSocket] Upgrading ${req.url}`);
     console.log(`[WebSocket] Target: localhost:${BACKEND_PORT}/ws`);
-
-    // Ensure proper headers for WebSocket upgrade
     proxyReq.setHeader("Host", `localhost:${BACKEND_PORT}`);
     proxyReq.setHeader("Connection", "Upgrade");
     proxyReq.setHeader("Upgrade", "websocket");
   },
-  onProxyResWs: (proxyRes, req, socket) => {
+  onProxyResWs: (proxyRes) => {
     console.log(`[WebSocket] Proxy response status:`, proxyRes.statusCode);
   },
   logLevel: process.env.NODE_ENV === "production" ? "info" : "debug",
 });
 
-// Use WebSocket proxy - must be registered before other routes
 app.use("/ws", wsProxy);
 
 // ============================================
-// PROXY TO LOCAL FASTAPI BACKEND (Port 8000)
+// GENERIC HTTP PROXY HELPERS
 // ============================================
 
-/**
- * Proxy function that properly handles both JSON and multipart requests
- * Uses raw body so auth and upload payloads pass through unchanged
- */
 function proxyToLocalService(req, res, targetPath, targetPort) {
   const chunks = [];
 
-  // Collect raw body data
   req.on("data", (chunk) => {
-    chunks.push(chunk);
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
+
+  req.on("error", (error) => {
+    console.error(`[Proxy Error] ${req.method} ${targetPath}:`, error.message);
+    if (!res.headersSent) {
+      res.status(400).json({
+        error: "Invalid request body",
+        details: error.message,
+      });
+    }
   });
 
   req.on("end", () => {
     const bodyData = Buffer.concat(chunks);
-
-    // Forward the original content-type header (important for FormData)
     const headers = {
       ...req.headers,
       host: `localhost:${targetPort}`,
     };
 
-    // Update content-length if we have body data
     if (bodyData.length > 0) {
-      headers["content-length"] = bodyData.length;
+      headers["content-length"] = String(bodyData.length);
+    } else {
+      delete headers["content-length"];
     }
 
     const options = {
@@ -95,36 +90,35 @@ function proxyToLocalService(req, res, targetPath, targetPort) {
       port: targetPort,
       path: targetPath,
       method: req.method,
-      headers: headers,
+      headers,
     };
 
     console.log(`[Proxy] ${req.method} ${targetPath} -> localhost:${targetPort}`);
-    console.log(`[Proxy] Content-Type: ${req.headers["content-type"]}`);
 
     const proxyReq = http.request(options, (proxyRes) => {
-      let data = Buffer.alloc(0);
+      const responseChunks = [];
 
       proxyRes.on("data", (chunk) => {
-        data = Buffer.concat([data, chunk]);
+        responseChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       });
 
       proxyRes.on("end", () => {
-        // Forward the status code and headers
-        res.status(proxyRes.statusCode);
+        const responseBody = Buffer.concat(responseChunks);
+        const excludedHeaders = new Set(["connection", "keep-alive"]);
 
-        // Copy relevant headers
-        if (proxyRes.headers["content-type"]) {
-          res.setHeader("Content-Type", proxyRes.headers["content-type"]);
-        }
-        if (proxyRes.headers["access-control-allow-origin"]) {
-          res.setHeader(
-            "Access-Control-Allow-Origin",
-            proxyRes.headers["access-control-allow-origin"],
-          );
+        for (const [headerName, headerValue] of Object.entries(
+          proxyRes.headers,
+        )) {
+          if (
+            headerValue === undefined ||
+            excludedHeaders.has(headerName.toLowerCase())
+          ) {
+            continue;
+          }
+          res.setHeader(headerName, headerValue);
         }
 
-        // Send the response body
-        res.send(data);
+        res.status(proxyRes.statusCode || 502).send(responseBody);
       });
     });
 
@@ -133,13 +127,14 @@ function proxyToLocalService(req, res, targetPath, targetPort) {
         `[Proxy Error] ${req.method} ${targetPath}:`,
         error.message,
       );
-      res.status(503).json({
-        error: "Backend service unavailable",
-        details: error.message,
-      });
+      if (!res.headersSent) {
+        res.status(503).json({
+          error: "Backend service unavailable",
+          details: error.message,
+        });
+      }
     });
 
-    // Write body data if present
     if (bodyData.length > 0) {
       proxyReq.write(bodyData);
     }
@@ -148,344 +143,131 @@ function proxyToLocalService(req, res, targetPath, targetPort) {
   });
 }
 
-function proxyToLocalBackend(req, res, targetPath) {
+function proxyToLocalBackend(req, res, targetPath = req.originalUrl) {
   return proxyToLocalService(req, res, targetPath, BACKEND_PORT);
 }
 
-function proxyToLocalRag(req, res, targetPath) {
+function proxyToLocalRag(req, res, targetPath = req.originalUrl) {
   return proxyToLocalService(req, res, targetPath, RAG_PORT);
 }
 
-// ============================================
-// AUTH ROUTES PROXY
-// ============================================
+function checkLocalServiceHealth(serviceName, targetPort, targetPath) {
+  return new Promise((resolve) => {
+    const request = http.request(
+      {
+        hostname: "localhost",
+        port: targetPort,
+        path: targetPath,
+        method: "GET",
+        timeout: HEALTHCHECK_TIMEOUT_MS,
+      },
+      (serviceResponse) => {
+        const chunks = [];
 
-// Login endpoint - handles Firebase ID token exchange
-app.post("/auth/login", (req, res) => {
-  proxyToLocalBackend(req, res, "/auth/login");
-});
+        serviceResponse.on("data", (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
 
-// Register customer
-app.post("/auth/register/customer", (req, res) => {
-  proxyToLocalBackend(req, res, "/auth/register/customer");
-});
+        serviceResponse.on("end", () => {
+          const rawBody = Buffer.concat(chunks).toString("utf8");
+          let body = rawBody;
 
-// Register provider
-app.post("/auth/register/provider", (req, res) => {
-  proxyToLocalBackend(req, res, "/auth/register/provider");
-});
+          try {
+            body = rawBody ? JSON.parse(rawBody) : null;
+          } catch {
+            // Keep raw string body for debugging.
+          }
 
-// ============================================
-// CUSTOMER ROUTES PROXY
-// ============================================
+          resolve({
+            service: serviceName,
+            ok:
+              (serviceResponse.statusCode || 500) >= 200 &&
+              (serviceResponse.statusCode || 500) < 300,
+            statusCode: serviceResponse.statusCode || 500,
+            body,
+          });
+        });
+      },
+    );
 
-// Search providers
-app.get("/customer/providers/search", (req, res) => {
-  proxyToLocalBackend(
-    req,
-    res,
-    `/customer/providers/search${req.url.replace("/customer/providers/search", "")}`,
-  );
-});
+    request.on("timeout", () => {
+      request.destroy(new Error("Timed out waiting for response"));
+    });
 
-// Get provider availability
-app.get("/customer/providers/:providerId/availability/:date", (req, res) => {
-  const { providerId, date } = req.params;
-  proxyToLocalBackend(
-    req,
-    res,
-    `/customer/providers/${providerId}/availability/${date}`,
-  );
-});
-
-// Get provider calendar
-app.get("/customer/providers/:providerId/calendar/:year/:month", (req, res) => {
-  const { providerId, year, month } = req.params;
-  proxyToLocalBackend(
-    req,
-    res,
-    `/customer/providers/${providerId}/calendar/${year}/${month}`,
-  );
-});
-
-// Create booking
-app.post("/customer/bookings", (req, res) => {
-  proxyToLocalBackend(req, res, "/customer/bookings");
-});
-
-// Get customer bookings
-app.get("/customer/bookings", (req, res) => {
-  proxyToLocalBackend(req, res, "/customer/bookings");
-});
-
-// Cancel booking
-app.delete("/customer/bookings/:bookingId", (req, res) => {
-  const { bookingId } = req.params;
-  proxyToLocalBackend(req, res, `/customer/bookings/${bookingId}`);
-});
-
-// ============================================
-// PROVIDER ROUTES PROXY
-// ============================================
-
-// Get provider services
-app.get("/provider/services", (req, res) => {
-  proxyToLocalBackend(req, res, "/provider/services");
-});
-
-// Add service
-app.post("/provider/services", (req, res) => {
-  proxyToLocalBackend(req, res, "/provider/services");
-});
-
-// Get availability
-app.get("/provider/availability", (req, res) => {
-  proxyToLocalBackend(req, res, "/provider/availability");
-});
-
-// Set availability
-app.post("/provider/availability", (req, res) => {
-  proxyToLocalBackend(req, res, "/provider/availability");
-});
-
-// Get pending bookings
-app.get("/provider/bookings/pending", (req, res) => {
-  proxyToLocalBackend(req, res, "/provider/bookings/pending");
-});
-
-// Get confirmed bookings
-app.get("/provider/bookings/confirmed", (req, res) => {
-  proxyToLocalBackend(req, res, "/provider/bookings/confirmed");
-});
-
-// Accept booking
-app.post("/provider/bookings/:bookingId/accept", (req, res) => {
-  const { bookingId } = req.params;
-  proxyToLocalBackend(req, res, `/provider/bookings/${bookingId}/accept`);
-});
-
-// Reject booking
-app.post("/provider/bookings/:bookingId/reject", (req, res) => {
-  const { bookingId } = req.params;
-  proxyToLocalBackend(req, res, `/provider/bookings/${bookingId}/reject`);
-});
-
-// Delete booking
-app.delete("/provider/bookings/:bookingId", (req, res) => {
-  const { bookingId } = req.params;
-  proxyToLocalBackend(req, res, `/provider/bookings/${bookingId}`);
-});
-
-// Reschedule booking
-app.put("/provider/bookings/:bookingId/reschedule", (req, res) => {
-  const { bookingId } = req.params;
-  proxyToLocalBackend(req, res, `/provider/bookings/${bookingId}/reschedule`);
-});
-
-// Get available slots for reschedule
-app.get("/provider/bookings/:bookingId/available-slots", (req, res) => {
-  const { bookingId } = req.params;
-  const queryString = req.url.split("?")[1] || "";
-  proxyToLocalBackend(
-    req,
-    res,
-    `/provider/bookings/${bookingId}/available-slots${queryString ? "?" + queryString : ""}`,
-  );
-});
-
-// Get customer snapshot
-app.get("/provider/customer/:customerId/snapshot", (req, res) => {
-  const { customerId } = req.params;
-  proxyToLocalBackend(req, res, `/provider/customer/${customerId}/snapshot`);
-});
-
-// ============================================
-// MESSAGING ROUTES PROXY
-// ============================================
-
-// List conversations
-app.get("/api/messaging/conversations", (req, res) => {
-  proxyToLocalBackend(req, res, "/api/messaging/conversations");
-});
-
-// Start conversation
-app.post(
-  "/api/messaging/conversations/start",
-  express.json(),
-  async (req, res) => {
-    try {
-      const targetUrl =
-        LOCAL_BACKEND_URL + "/api/messaging/conversations/start";
-      const headers = {
-        ...req.headers,
-        host: new URL(LOCAL_BACKEND_URL).host,
-      };
-      delete headers["content-length"];
-
-      const response = await fetch(targetUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(req.body),
+    request.on("error", (error) => {
+      resolve({
+        service: serviceName,
+        ok: false,
+        statusCode: 503,
+        error: error.message,
       });
+    });
 
-      const data = await response.text();
-      res.status(response.status).send(data);
-    } catch (error) {
-      console.error("Proxy error:", error);
-      res.status(500).json({ error: "Proxy error" });
-    }
-  },
-);
-
-// Get conversation details
-app.get("/api/messaging/conversations/:conversationId", (req, res) => {
-  const { conversationId } = req.params;
-  proxyToLocalBackend(
-    req,
-    res,
-    `/api/messaging/conversations/${conversationId}`,
-  );
-});
-
-// Get messages (with query params for pagination)
-app.get("/api/messaging/conversations/:conversationId/messages", (req, res) => {
-  const { conversationId } = req.params;
-  const queryString = req.url.split("?")[1] || "";
-  proxyToLocalBackend(
-    req,
-    res,
-    `/api/messaging/conversations/${conversationId}/messages${queryString ? "?" + queryString : ""}`,
-  );
-});
-
-// Send message
-app.post(
-  "/api/messaging/conversations/:conversationId/messages",
-  express.json(),
-  async (req, res) => {
-    try {
-      const { conversationId } = req.params;
-      const targetUrl =
-        LOCAL_BACKEND_URL +
-        `/api/messaging/conversations/${conversationId}/messages`;
-      const headers = {
-        ...req.headers,
-        host: new URL(LOCAL_BACKEND_URL).host,
-      };
-      delete headers["content-length"];
-
-      const response = await fetch(targetUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(req.body),
-      });
-
-      const data = await response.text();
-      res.status(response.status).send(data);
-    } catch (error) {
-      console.error("Proxy error:", error);
-      res.status(500).json({ error: "Proxy error" });
-    }
-  },
-);
-
-// Upload chat image
-app.post("/api/messaging/conversations/:conversationId/image-upload", (req, res) => {
-  const { conversationId } = req.params;
-  proxyToLocalBackend(
-    req,
-    res,
-    `/api/messaging/conversations/${conversationId}/image-upload`,
-  );
-});
-
-// Mark conversation as read
-app.post(
-  "/api/messaging/conversations/:conversationId/read",
-  express.json(),
-  async (req, res) => {
-    try {
-      const { conversationId } = req.params;
-      const targetUrl =
-        LOCAL_BACKEND_URL +
-        `/api/messaging/conversations/${conversationId}/read`;
-      const headers = {
-        ...req.headers,
-        host: new URL(LOCAL_BACKEND_URL).host,
-      };
-      delete headers["content-length"];
-
-      const response = await fetch(targetUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(req.body),
-      });
-
-      const data = await response.text();
-      res.status(response.status).send(data);
-    } catch (error) {
-      console.error("Proxy error:", error);
-      res.status(500).json({ error: "Proxy error" });
-    }
-  },
-);
+    request.end();
+  });
+}
 
 // ============================================
-// EXTERNAL RAG SERVER PROXY (Chatbot)
+// BACKEND AND RAG ROUTE PROXIES
 // ============================================
 
-// Proxy endpoint for chatbot - forwards to the local RAG FastAPI server
-app.post("/api/chat", express.json(), async (req, res) => {
+app.all(/^\/(?:auth|customer|provider)(?:\/.*)?$/, (req, res) => {
+  proxyToLocalBackend(req, res);
+});
+
+app.all(/^\/api\/messaging(?:\/.*)?$/, (req, res) => {
+  proxyToLocalBackend(req, res);
+});
+
+app.all("/api/chat", (req, res) => {
   proxyToLocalRag(req, res, "/api/chat");
 });
 
-app.get("/api/rag/health", (req, res) => {
+app.all("/api/rag/health", (req, res) => {
   proxyToLocalRag(req, res, "/api/health");
 });
 
 // ============================================
-// HEALTH CHECK (Required for Render)
+// HEALTH CHECKS
 // ============================================
 
-app.get("/health", (req, res) => {
-  res.json({
-    status: "healthy",
+app.get("/health", async (req, res) => {
+  const [backendHealth, ragHealth] = await Promise.all([
+    checkLocalServiceHealth("backend", BACKEND_PORT, "/health"),
+    checkLocalServiceHealth("rag", RAG_PORT, "/api/health"),
+  ]);
+
+  const allHealthy = backendHealth.ok && ragHealth.ok;
+
+  res.status(allHealthy ? 200 : 503).json({
+    status: allHealthy ? "healthy" : "degraded",
     service: "express",
     timestamp: new Date().toISOString(),
     websocket: {
       proxyEnabled: true,
       backendPort: BACKEND_PORT,
     },
-    rag: {
-      proxyEnabled: true,
-      ragPort: RAG_PORT,
+    services: {
+      backend: backendHealth,
+      rag: ragHealth,
     },
   });
 });
 
-// ============================================
-// WEBSOCKET TEST ENDPOINT
-// ============================================
-
-// Test endpoint to verify WebSocket proxy is accessible
 app.get("/ws-test", (req, res) => {
   res.json({
     status: "WebSocket endpoint available",
-    websocketUrl: `/ws`,
+    websocketUrl: "/ws",
     instructions: "Connect to wss://<host>/ws?token=<firebase_id_token>",
     backendTarget: `ws://localhost:${BACKEND_PORT}/ws`,
   });
 });
 
 // ============================================
-// SERVE STATIC FILES (after API routes)
+// SERVE STATIC FILES
 // ============================================
 
 app.use(express.static(path.join(__dirname, "dist")));
-
-// ============================================
-// SERVE REACT APP FOR ALL OTHER ROUTES
-// ============================================
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
@@ -496,34 +278,31 @@ app.get("*", (req, res) => {
 // ============================================
 
 const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`========================================`);
+  console.log("========================================");
   console.log(`Express server running on port ${PORT}`);
-  console.log(`Proxying API requests to localhost:${BACKEND_PORT}`);
+  console.log(`Proxying backend requests to localhost:${BACKEND_PORT}`);
   console.log(`Proxying RAG requests to localhost:${RAG_PORT}`);
-  console.log(`WebSocket proxy enabled on /ws`);
+  console.log("WebSocket proxy enabled on /ws");
   console.log(`WebSocket target: ws://localhost:${BACKEND_PORT}/ws`);
-  console.log(`========================================`);
+  console.log("========================================");
 });
 
-// Handle WebSocket upgrade events (Render-compatible)
 server.on("upgrade", (request, socket, head) => {
   console.log(`[WebSocket Upgrade] Request received for ${request.url}`);
 
-  // Log essential headers for debugging
   const essentialHeaders = {
     upgrade: request.headers.upgrade,
     connection: request.headers.connection,
     origin: request.headers.origin,
     host: request.headers.host,
   };
-  console.log(`[WebSocket Upgrade] Essential headers:`, essentialHeaders);
+  console.log("[WebSocket Upgrade] Essential headers:", essentialHeaders);
 
   if (request.url.startsWith("/ws")) {
-    console.log(`[WebSocket Upgrade] Routing to backend proxy`);
+    console.log("[WebSocket Upgrade] Routing to backend proxy");
 
-    // Set a timeout for the upgrade to prevent hanging
     const upgradeTimeout = setTimeout(() => {
-      console.error(`[WebSocket Upgrade] Timeout after 10s`);
+      console.error("[WebSocket Upgrade] Timeout after 10s");
       socket.write("HTTP/1.1 504 Gateway Timeout\r\n\r\n");
       socket.destroy();
     }, 10000);
@@ -532,21 +311,21 @@ server.on("upgrade", (request, socket, head) => {
       clearTimeout(upgradeTimeout);
 
       if (err) {
-        console.error(`[WebSocket Upgrade] Error:`, err.message);
-        // Send proper HTTP error response before destroying
+        console.error("[WebSocket Upgrade] Error:", err.message);
         try {
           socket.write("HTTP/1.1 502 Bad Gateway\r\n\r\n");
-        } catch (e) {
-          // Socket may already be closed
+        } catch {
+          // Socket may already be closed.
         }
         socket.destroy();
       } else {
-        console.log(`[WebSocket Upgrade] Successfully upgraded`);
+        console.log("[WebSocket Upgrade] Successfully upgraded");
       }
     });
-  } else {
-    console.log(`[WebSocket Upgrade] No route for ${request.url}`);
-    socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
-    socket.destroy();
+    return;
   }
+
+  console.log(`[WebSocket Upgrade] No route for ${request.url}`);
+  socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+  socket.destroy();
 });
