@@ -1,252 +1,106 @@
 """
-Script to create test client records (bookings) for testing the customer snapshot feature.
+Orchestrate reconstruction of the non-identity Firestore test collections.
 
-This version uses the same firebase setup helpers as create_test_users.py
-so it can be called from create test data.bat.
+Each collection's create logic now lives in its own rebuild script under
+backend/firestore_collections/.
 """
+
 import sys
-import uuid
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
 
-# Add parent directory to path for imports (same pattern as other scripts)
-sys.path.insert(0, str(Path(__file__).parent))
-
-from firebase_db import initialize_firebase, get_database
+from firestore_collections.common import init_database
+from firestore_collections.rebuild_availability import rebuild_availability
+from firestore_collections.rebuild_client_records import rebuild_client_records
+from firestore_collections.rebuild_conversations import rebuild_conversations
+from firestore_collections.rebuild_customer_notes import rebuild_customer_notes
+from firestore_collections.rebuild_customer_tags import rebuild_customer_tags
+from firestore_collections.rebuild_messages import rebuild_messages
+from firestore_collections.rebuild_provider_busy_times import (
+    rebuild_provider_busy_times,
+)
+from firestore_collections.rebuild_provider_tagging_rules import (
+    rebuild_provider_tagging_rules,
+)
+from firestore_collections.rebuild_services import rebuild_services
+from firestore_collections.seed_helpers import get_first, require_customer_context, require_provider_context
 
 
 def create_test_bookings():
-    """Create test bookings and related data for snapshot testing"""
     try:
-        initialize_firebase()
-        db = get_database()
+        db = init_database()
 
         print("=" * 60)
-        print("  Customer Snapshot Testing - Sample Data Creation")
+        print("  Test Data Creation")
         print("=" * 60)
         print()
 
-        # Step 1: Get test customer
-        print("[1/5] Retrieving test customer...")
-        customers = db.collection("customers").where("name", "==", "Test Customer").get()
-        test_customer = None
-        for doc in customers:
-            test_customer = doc.to_dict()
-            test_customer["_id"] = doc.id
-            break
-
-        if not test_customer:
-            print("  ❌ Test customer not found. Please run create_test_users.py first.")
-            return False
-
-        customer_id = test_customer["_id"]
-        customer_name = test_customer.get("name", "<unknown>")
-        print(f"  ✓ Found: {customer_name} (ID: {customer_id})")
+        print("[1/9] Rebuilding services...")
+        rebuild_services(db)
         print()
 
-        # Step 2: Get test provider
-        print("[2/5] Retrieving test provider...")
-        providers = db.collection("providers").where("provider_name", "==", "Test Provider").get()
-        test_provider = None
-        for doc in providers:
-            test_provider = doc.to_dict()
-            test_provider["_id"] = doc.id
-            break
-
-        if not test_provider:
-            print("  ❌ Test provider not found. Please run create_test_users.py first.")
-            return False
-
-        provider_id = test_provider["_id"]
-        provider_name = test_provider.get("provider_name", "<unknown>")
-        print(f"  ✓ Found: {provider_name} (ID: {provider_id})")
+        print("[2/9] Rebuilding availability...")
+        rebuild_availability(db)
         print()
 
-        # Step 3: Create/verify services
-        print("[3/5] Setting up services...")
-        services_docs = db.collection("services").where("provider_id", "==", provider_id).get()
-
-        service_ids = []
-        # Build a map of service name -> document for quick lookup
-        service_map = {}
-        if services_docs and len(services_docs) > 0:
-            print(f"  ✓ Found {len(services_docs)} existing service(s)")
-            for doc in services_docs:
-                sd = doc.to_dict()
-                name = sd.get("name") or sd.get("service_name") or ""
-                service_map[name.lower()] = {"id": doc.id, "data": sd}
-            service_ids = [doc.id for doc in services_docs]
-            print("  Existing services:")
-            for k, v in service_map.items():
-                print(f"    • {v['data'].get('name','<no-name>')} (id={v['id']})")
-        else:
-            print("  Creating new services...")
-            service_names = [
-                ("Haircut", "Professional haircut service", 35.00),
-                ("Hair Styling", "Complete hair styling and treatment", 55.00),
-                ("Beard Trim", "Precise beard trimming and shaping", 25.00),
-            ]
-
-            for service_name, description, price in service_names:
-                service_id = str(uuid.uuid4())
-                db.collection("services").document(service_id).set(
-                    {
-                        "_id": service_id,
-                        "provider_id": provider_id,
-                        "name": service_name,
-                        "description": description,
-                        "price": price,
-                        "created_at": datetime.now(timezone.utc),
-                    }
-                )
-                service_ids.append(service_id)
-                service_map[service_name.lower()] = {"id": service_id, "data": {"name": service_name, "description": description, "price": price}}
-                print(f"    • {service_name} - ${price}")
-
+        print("[3/9] Rebuilding provider busy times...")
+        rebuild_provider_busy_times(db)
         print()
 
-        # Step 4: Create sample bookings (client records)
-        print("[4/5] Creating sample bookings...")
-
-        bookings_created = 0
-        booking_dates = [
-            (datetime.now(timezone.utc) - timedelta(days=90), "Haircut"),
-            (datetime.now(timezone.utc) - timedelta(days=60), "Hair Styling"),
-            (datetime.now(timezone.utc) - timedelta(days=30), "Beard Trim"),
-            (datetime.now(timezone.utc) - timedelta(days=15), "Haircut"),
-            (datetime.now(timezone.utc) - timedelta(days=7), "Hair Styling"),
-        ]
-
-        service_map = {
-            "Haircut": 35.00,
-            "Hair Styling": 55.00,
-            "Beard Trim": 25.00,
-        }
-
-        for booking_date, service_name in booking_dates:
-            svc_key = service_name.lower()
-            svc_entry = service_map.get(svc_key)
-
-            # If service does not exist in the provider's services, create it now
-            if not svc_entry:
-                print(f"  - Service '{service_name}' not found; creating new service for provider")
-                new_service_id = str(uuid.uuid4())
-                db.collection("services").document(new_service_id).set(
-                    {
-                        "_id": new_service_id,
-                        "provider_id": provider_id,
-                        "name": service_name,
-                        "description": f"Auto-created service: {service_name}",
-                        "price": service_map.get(service_name, 0.0) if isinstance(service_map, dict) else 0.0,
-                        "created_at": datetime.now(timezone.utc),
-                    }
-                )
-                svc_entry = {"id": new_service_id, "data": {"name": service_name}}
-                service_map[svc_key] = svc_entry
-                service_ids.append(new_service_id)
-
-            booking_id = str(uuid.uuid4())
-            db.collection("client_records").document(booking_id).set(
-                {
-                    "_id": booking_id,
-                    "customer_id": customer_id,
-                    "service_id": svc_entry["id"],
-                    "date": booking_date,
-                    "start_time": "14:00",
-                    "end_time": "14:30",
-                    "cost": service_map.get(service_name.lower(), {}).get("data", {}).get("price", service_map.get(service_name, 0.0)) if isinstance(service_map.get(service_name.lower(), {}), dict) else 0.0,
-                    "status": "completed",
-                    "created_at": datetime.now(timezone.utc),
-                }
-            )
-            bookings_created += 1
-            print(f"  ✓ {booking_date.strftime('%Y-%m-%d')}: {service_name}")
-
-        print(f"  Total bookings created: {bookings_created}")
+        print("[4/9] Rebuilding provider tagging rules...")
+        rebuild_provider_tagging_rules(db)
         print()
 
-        # Step 5: Create sample tags and notes
-        print("[5/5] Creating sample tags and notes...")
-
-        tags_data = [
-            ("VIP Customer", "#f0c85a"),
-            ("Loyal Client", "#34C759"),
-            ("Prefers Evenings", "#007AFF"),
-        ]
-
-        tags_created = 0
-        for tag_name, tag_color in tags_data:
-            existing_tags = db.collection("customer_tags").where("customer_id", "==", customer_id).where("provider_id", "==", provider_id).where("tag", "==", tag_name).get()
-            if not existing_tags or len(existing_tags) == 0:
-                tag_id = str(uuid.uuid4())
-                db.collection("customer_tags").document(tag_id).set(
-                    {
-                        "_id": tag_id,
-                        "customer_id": customer_id,
-                        "provider_id": provider_id,
-                        "tag": tag_name,
-                        "color": tag_color,
-                        "created_at": datetime.now(timezone.utc),
-                    }
-                )
-                tags_created += 1
-                print(f"  ✓ Tag: {tag_name}")
-
-        notes_data = [
-            "Prefers hot water wash before service",
-            "Always books on Friday afternoons",
-            "Allergic to certain hair products - use hypoallergenic line",
-            "Likes to chat during appointments - friendly customer",
-        ]
-
-        notes_created = 0
-        for note_text in notes_data:
-            existing_notes = db.collection("customer_notes").where("customer_id", "==", customer_id).where("provider_id", "==", provider_id).where("note", "==", note_text).get()
-            if not existing_notes or len(existing_notes) == 0:
-                note_id = str(uuid.uuid4())
-                now = datetime.now(timezone.utc)
-                db.collection("customer_notes").document(note_id).set(
-                    {
-                        "_id": note_id,
-                        "customer_id": customer_id,
-                        "provider_id": provider_id,
-                        "note": note_text,
-                        "created_at": now,
-                        "updated_at": now,
-                    }
-                )
-                notes_created += 1
-                print(f"  ✓ Note: {note_text}")
-
+        print("[5/9] Rebuilding client records...")
+        rebuild_client_records(db)
         print()
+
+        print("[6/9] Rebuilding customer tags...")
+        rebuild_customer_tags(db)
+        print()
+
+        print("[7/9] Rebuilding customer notes...")
+        rebuild_customer_notes(db)
+        print()
+
+        print("[8/9] Rebuilding conversations...")
+        rebuild_conversations(db)
+        print()
+
+        print("[9/9] Rebuilding messages...")
+        rebuild_messages(db)
+        print()
+
+        customer_context = require_customer_context(db)
+        provider_context = require_provider_context(db)
+        conversation_doc = get_first(
+            db.collection("conversations")
+            .where("customer_id", "==", customer_context["user_id"])
+            .where("provider_id", "==", provider_context["user_id"])
+            .limit(1)
+            .get()
+        )
+
         print("=" * 60)
-        print("  ✓ Test Data Created Successfully!")
+        print("  Test Data Created Successfully")
         print("=" * 60)
         print()
-        print("📋 TEST SUMMARY:")
-        print(f"   Customer: {customer_name} (ID: {customer_id})")
-        print(f"   Provider: {provider_name} (ID: {provider_id})")
-        print(f"   Bookings Created: {bookings_created}")
-        print(f"   Tags Created: {tags_created}")
-        print(f"   Notes Created: {notes_created}")
+        print("Test summary:")
+        print(f"  Customer ID: {customer_context['profile_id']}")
+        print(f"  Provider ID: {provider_context['profile_id']}")
+        print(f"  Conversation ID: {conversation_doc.id if conversation_doc else 'N/A'}")
         print()
-        print("🔗 Test the Snapshot Feature:")
-        print(f"   http://localhost:8001/snapshot?customerId={customer_id}")
+        print("Provider snapshot endpoint:")
+        print(
+            f"  GET http://localhost:8000/provider/customer/{customer_context['profile_id']}/snapshot"
+        )
         print()
-        print("Or test via API:")
-        print(f"   GET http://localhost:8001/provider/customer/{customer_id}/snapshot")
-        print("   (Requires valid provider auth token)")
-        print()
-
         return True
-
-    except Exception as e:
-        print(f"  ❌ Error: {e}")
+    except Exception as exc:
+        print(f"  [ERROR] {exc}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
 if __name__ == "__main__":
-    success = create_test_bookings()
-    sys.exit(0 if success else 1)
+    sys.exit(0 if create_test_bookings() else 1)

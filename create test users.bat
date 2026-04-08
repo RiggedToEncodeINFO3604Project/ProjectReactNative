@@ -12,7 +12,7 @@ if exist "venv\Scripts\activate" (
     call venv\Scripts\activate
 ) else (
     echo Error: Virtual environment not found.
-    echo Run 'first setup.bat' first.
+    echo Run 'setup+update_dependances.bat' first.
     pause
     exit /b 1
 )
@@ -21,6 +21,13 @@ echo.
 echo Creating test accounts...
 echo.
 python create_test_users.py
+if errorlevel 1 (
+    echo.
+    echo Test user creation failed.
+    echo.
+    pause
+    exit /b 1
+)
 
 echo.
 pause
