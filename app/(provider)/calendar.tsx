@@ -7,6 +7,11 @@ import {
 import { useTheme } from "@/context/ThemeContext";
 import { getConfirmedBookings, syncBusyTimes } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
+import {
+  formatDateTimeTime,
+  formatLocalDate,
+  formatStoredTimeRange,
+} from "@/utils/time";
 import * as Calendar from "expo-calendar";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -130,21 +135,44 @@ export default function CalendarScreen() {
         startDate,
         endDate,
       );
-      const filtered = fetched.filter((event) => {
-        const title = typeof event.title === "string" ? event.title : "";
-        if (title.startsWith("Booking:")) {
-          return false;
-        }
-        return !hasBookingOverlap(event, confirmedBookings);
+
+      // cross-referencing against confirmed bookings to avoid showing app bookings as "Unavailable" (cause they were exported to device calendar and would echo back)
+      const confirmedBookings = await getConfirmedBookings();
+
+      const filtered = fetched.filter((deviceEvent) => {
+        // skip events exported to device calendarwhen accepting a booking (all bookings made should start with "Booking:")
+        if (deviceEvent.title?.startsWith("Booking:")) return false;
+
+        // skip if the device event's time overlaps with any confirmed booking
+        const deviceStart = new Date(deviceEvent.startDate).getTime();
+        const deviceEnd = new Date(deviceEvent.endDate).getTime();
+        const deviceDate = formatLocalDate(new Date(deviceEvent.startDate));
+
+        const overlaps = confirmedBookings.some((booking) => {
+          if (!booking.date.startsWith(deviceDate)) return false;
+
+          const bookingDate = booking.date.split("T")[0];
+          const bookingStart = new Date(
+            `${bookingDate}T${booking.start_time}:00`,
+          ).getTime();
+          const bookingEnd = new Date(
+            `${bookingDate}T${booking.end_time}:00`,
+          ).getTime();
+
+          return deviceStart < bookingEnd && deviceEnd > bookingStart;
+        });
+
+        return !overlaps;
       });
 
       setDeviceEvents(filtered);
 
-      // Map events to busy times format and sync to backend
       const busyTimes = filtered.map((event) => {
         const startDate = new Date(event.startDate);
         const endDate = new Date(event.endDate);
-        const date = startDate.toISOString().split("T")[0];
+
+        const date = formatLocalDate(startDate);
+
         const start_time = startDate.toTimeString().slice(0, 5);
         const end_time = endDate.toTimeString().slice(0, 5);
 
@@ -155,13 +183,11 @@ export default function CalendarScreen() {
         };
       });
 
-      // Sync busy times to Firebase (overwrites existing ones)
       try {
         await syncBusyTimes(busyTimes);
         console.log("Busy times synced successfully");
       } catch (syncError) {
         console.error("Failed to sync busy times:", syncError);
-        // Don't show alert to user, just log the error
       }
 
       return filtered;
@@ -181,7 +207,7 @@ export default function CalendarScreen() {
       };
     });
     deviceEvents.forEach((event) => {
-      const dateKey = event.startDate.split("T")[0];
+      const dateKey = formatLocalDate(new Date(event.startDate));
       if (!marks[dateKey]) {
         marks[dateKey] = {
           marked: true,
@@ -216,7 +242,7 @@ export default function CalendarScreen() {
           {dateDisplay}
         </Text>
         <Text style={[styles.eventTime, { color: colours.textMuted }]}>
-          {item.start_time} – {item.end_time}
+          {formatStoredTimeRange(item.start_time, item.end_time)}
         </Text>
         {item.customer_name ? (
           <Text
@@ -271,18 +297,8 @@ export default function CalendarScreen() {
                 </Text>
                 <ScrollView style={{ maxHeight: 150 }}>
                   {selectedDayDeviceEvents.map((e, i) => {
-                    const timeOptions = {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    } as const;
-                    const start = new Date(e.startDate).toLocaleTimeString(
-                      [],
-                      timeOptions,
-                    );
-                    const end = new Date(e.endDate).toLocaleTimeString(
-                      [],
-                      timeOptions,
-                    );
+                    const start = formatDateTimeTime(e.startDate);
+                    const end = formatDateTimeTime(e.endDate);
                     return (
                       <View
                         key={i}
@@ -302,7 +318,7 @@ export default function CalendarScreen() {
                             { color: colours.textMuted },
                           ]}
                         >
-                          {start} – {end}
+                          {start} - {end}
                         </Text>
                       </View>
                     );
@@ -336,7 +352,7 @@ export default function CalendarScreen() {
                       <Text
                         style={[styles.eventTime, { color: colours.textMuted }]}
                       >
-                        {b.start_time} – {b.end_time}
+                        {formatStoredTimeRange(b.start_time, b.end_time)}
                       </Text>
                     </View>
                   ))}
@@ -393,8 +409,9 @@ export default function CalendarScreen() {
                   const dayBookings = bookings.filter((b) =>
                     b.date.startsWith(day.dateString),
                   );
-                  const dayDeviceEvents = deviceEvents.filter((e) =>
-                    e.startDate.startsWith(day.dateString),
+                  const dayDeviceEvents = deviceEvents.filter(
+                    (e) =>
+                      formatLocalDate(new Date(e.startDate)) === day.dateString,
                   );
                   setSelectedDayBookings(dayBookings);
                   setSelectedDayDeviceEvents(dayDeviceEvents);

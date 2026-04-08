@@ -1,4 +1,3 @@
-from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List
 import logging
@@ -14,11 +13,14 @@ from services.messaging_service import (
     verify_user_in_conversation,
     get_conversation_by_id,
     mark_conversation_as_read,
+    mark_message_as_read,
 )
+from services.notification_service import send_chat_push_notification
 from websocket_manager import websocket_manager
 
 
 from auth import get_current_user
+from services.datetime_utils import utc_now
 
 log = logging.getLogger("skedulelt.messaging")
 
@@ -201,7 +203,7 @@ async def send_message_endpoint(
             "message_type": request.message_type,
             "image_url": request.image_url,
             "thumbnail_url": None,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": utc_now().isoformat(),
             "read": False,
             "status": "sent"
         }
@@ -212,13 +214,32 @@ async def send_message_endpoint(
             message=message_data,
             exclude_user_id=current_user.id  # Don't send to sender (they already have the message)
         )
+
+        conversation = get_conversation_by_id(conversation_id)
+        if conversation:
+            if current_user.role == UserRole.CUSTOMER:
+                recipient_id = conversation.get("provider_id")
+                recipient_role = UserRole.PROVIDER.value
+                sender_name = conversation.get("customer_name") or "Customer"
+            else:
+                recipient_id = conversation.get("customer_id")
+                recipient_role = UserRole.CUSTOMER.value
+                sender_name = conversation.get("provider_name") or "Provider"
+
+            if recipient_id and not websocket_manager.is_user_online(recipient_id):
+                send_chat_push_notification(
+                    recipient_user_id=recipient_id,
+                    sender_name=sender_name,
+                    conversation_id=conversation_id,
+                    recipient_role=recipient_role,
+                    message_preview=filtered_content,
+                    message_type=request.message_type,
+                )
         
-        # TODO: Send push notification to recipient if not online
-        # - Get recipient_id from conversation
-        # - Check if recipient has active WebSocket connection
-        # - If not, send Expo push notification
-        
-        return {"message_id": message_id}
+        return {
+            "message_id": message_id,
+            "filtered_content": filtered_content,
+        }
     
     except HTTPException:
         raise
@@ -300,7 +321,6 @@ async def mark_message_read(
                 detail="You are not a participant in this conversation"
             )
         
-        from backend.services.messaging_service import mark_message_as_read
         success = mark_message_as_read(
             conversation_id=conversation_id,
             message_id=message_id,

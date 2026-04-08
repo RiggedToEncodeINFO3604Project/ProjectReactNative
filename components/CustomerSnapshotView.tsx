@@ -1,4 +1,13 @@
 import { useTheme } from "@/context/ThemeContext";
+//fixing stuff for tests
+import {
+  createCustomerNote,
+  createCustomerTag,
+  deleteCustomerNote,
+  deleteCustomerTag,
+  updateCustomerNote,
+  updateCustomerTag,
+} from "@/services/schedulingApi";
 import { CustomerSnapshot } from "@/types/scheduling";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
@@ -150,7 +159,6 @@ export default function CustomerSnapshotView({
     try {
       if (tagEditMode && selectedTag) {
         // Update tag
-        const { updateCustomerTag } = await import("@/services/schedulingApi");
         const tagData = {
           tag: tagText,
           color: tagColor,
@@ -159,7 +167,6 @@ export default function CustomerSnapshotView({
         onTagUpdated?.();
       } else {
         // Create tag
-        const { createCustomerTag } = await import("@/services/schedulingApi");
         await createCustomerTag(snapshot.customer_id, {
           tag: tagText,
           color: tagColor,
@@ -181,7 +188,6 @@ export default function CustomerSnapshotView({
 
   const handleDeleteTag = async (tagId: string) => {
     try {
-      const { deleteCustomerTag } = await import("@/services/schedulingApi");
       await deleteCustomerTag(tagId);
       onTagDeleted?.();
       setTagModalVisible(false);
@@ -217,12 +223,10 @@ export default function CustomerSnapshotView({
     try {
       if (noteEditMode && selectedNote) {
         // Update note
-        const { updateCustomerNote } = await import("@/services/schedulingApi");
         await updateCustomerNote(selectedNote.id, { note: noteText });
         onNoteUpdated?.();
       } else {
         // Create note
-        const { createCustomerNote } = await import("@/services/schedulingApi");
         await createCustomerNote(snapshot.customer_id, { note: noteText });
         onNoteAdded?.();
       }
@@ -241,7 +245,6 @@ export default function CustomerSnapshotView({
 
   const handleDeleteNote = async (noteId: string) => {
     try {
-      const { deleteCustomerNote } = await import("@/services/schedulingApi");
       await deleteCustomerNote(noteId);
       onNoteDeleted?.();
       setNoteModalVisible(false);

@@ -121,6 +121,9 @@ class WebSocketManager:
                 del self.active_connections[user_id]
         
         log.info(f"WebSocket disconnected: User {user_id}. Remaining connections: {len(self.active_connections.get(user_id, []))}")
+
+    def is_user_online(self, user_id: str) -> bool:
+        return bool(self.active_connections.get(user_id))
     
     # Add a user as a subscriber to a conversation
     def _add_conversation_subscriber(self, conversation_id: str, user_id: str):

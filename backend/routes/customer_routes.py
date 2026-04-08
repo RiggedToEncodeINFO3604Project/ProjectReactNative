@@ -9,6 +9,11 @@ from firebase_db import get_database
 import uuid
 from datetime import datetime, timedelta
 from services.availability_service import slot_applies_to_date, slot_applies_to_service
+from services.datetime_utils import (
+    format_schedule_date,
+    normalize_firestore_datetime,
+    parse_schedule_date,
+)
 
 router = APIRouter(prefix="/customer", tags=["customer"])
 
@@ -140,7 +145,7 @@ async def get_provider_availability(
     
     # Parse date
     try:
-        target_date = datetime.strptime(date, "%Y-%m-%d")
+        target_date = parse_schedule_date(date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
@@ -186,8 +191,7 @@ async def get_provider_availability(
                 booking_data = doc.to_dict()
                 booking_date = booking_data["date"]
                 # Strip timezone info if present
-                if hasattr(booking_date, 'tzinfo') and booking_date.tzinfo is not None:
-                    booking_date = booking_date.replace(tzinfo=None)
+                booking_date = normalize_firestore_datetime(booking_date)
                 # Filter by date range
                 if start_of_day <= booking_date < end_of_day:
                     if booking_data["status"] == "confirmed":  # Only confirmed bookings block availability
@@ -278,8 +282,7 @@ async def get_provider_calendar(
                 booking_data = doc.to_dict()
                 booking_date = booking_data["date"]
                 # Strip timezone info if present
-                if hasattr(booking_date, 'tzinfo') and booking_date.tzinfo is not None:
-                    booking_date = booking_date.replace(tzinfo=None)
+                booking_date = normalize_firestore_datetime(booking_date)
                 # Filter by date range
                 if start_of_month <= booking_date < next_month:
                     if booking_data["status"] in ["pending", "confirmed"]:
@@ -288,7 +291,7 @@ async def get_provider_calendar(
     # Group bookings by date
     bookings_by_date = {}
     for booking in bookings:
-        date_str = booking["date"].strftime("%Y-%m-%d")
+        date_str = format_schedule_date(booking["date"])
         if date_str not in bookings_by_date:
             bookings_by_date[date_str] = []
         bookings_by_date[date_str].append(booking)
@@ -386,7 +389,7 @@ async def create_booking(
     
     # Parse date
     try:
-        booking_date = datetime.strptime(booking_request.date, "%Y-%m-%d")
+        booking_date = parse_schedule_date(booking_request.date)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
@@ -442,8 +445,7 @@ async def create_booking(
         booking_data = doc.to_dict()
         booking_data_date = booking_data["date"]
         # Strip timezone info if present
-        if hasattr(booking_data_date, 'tzinfo') and booking_data_date.tzinfo is not None:
-            booking_data_date = booking_data_date.replace(tzinfo=None)
+        booking_data_date = normalize_firestore_datetime(booking_data_date)
         # Filter by date
         if not (start_of_day <= booking_data_date < end_of_day):
             continue
@@ -508,7 +510,7 @@ async def get_my_bookings(current_user: UserInDB = Depends(get_current_customer)
         
         result.append({
             "booking_id": booking_doc.id,
-            "date": booking_data["date"].isoformat(),
+            "date": format_schedule_date(booking_data["date"]),
             "start_time": booking_data["start_time"],
             "end_time": booking_data["end_time"],
             "cost": booking_data["cost"],

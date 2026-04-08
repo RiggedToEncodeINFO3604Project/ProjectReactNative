@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cancelBooking, getMyBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
+import { formatStoredTimeRange } from "@/utils/time";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -16,15 +17,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-// to convert the 24hr time string to 12hr format
-const formatTime = (time: string) => {
-  const [hourStr, minuteStr] = time.split(":");
-  const hour = parseInt(hourStr, 10);
-  const period = hour >= 12 ? "PM" : "AM";
-  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-  return `${hour12}:${minuteStr} ${period}`;
-};
 
 // groups a flat bookings array the sorts chronologically by day
 const groupByDay = (bookings: BookingWithDetails[]) => {
@@ -189,7 +181,7 @@ export default function MyBookingsScreen() {
       <View style={styles.bookingDetails}>
         <Text style={[styles.detailText, { color: colours.textMuted }]}>
           {/* time displayed in 12hr format */}
-          🕐 {formatTime(item.start_time)} – {formatTime(item.end_time)}
+          🕐 {formatStoredTimeRange(item.start_time, item.end_time)}
         </Text>
         <Text style={[styles.detailText, { color: colours.accent }]}>
           ${item.cost}

@@ -1,30 +1,12 @@
+/** @type {import('jest').Config} */
 module.exports = {
-  preset: "react-native",
+  preset: 'jest-expo',
+  setupFiles: ['./jest.setup.js'],
   moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/$1",
-  },
-  transform: {
-    "^.+\\.[tj]sx?$": "babel-jest",
+    '^@/(.*)$': '<rootDir>/$1',
   },
   transformIgnorePatterns: [
-    "node_modules/(?!(" +
-      "(jest-)?react-native|" +
-      "@react-native(-community)?|" +
-      "expo(nent)?|" +
-      "@expo(nent)?/.*|" +
-      "expo-calendar|" +
-      "expo-constants|" +
-      "expo-router|" +
-      "react-native-calendars|" +
-      "react-native-swipe-gestures|" +
-      "@expo/vector-icons|" +
-      "react-navigation|" +
-      "@react-navigation/.*" +
-      "))",
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)',
   ],
-  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
-  setupFiles: [
-    "<rootDir>/jest.setup.js",
-    "<rootDir>/node_modules/react-native/jest/setup.js",
-  ],
+  testMatch: ['**/__tests__/**/*.test.[jt]s?(x)'],
 };

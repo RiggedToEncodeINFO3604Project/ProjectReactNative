@@ -4,7 +4,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { searchProviders } from "@/services/schedulingApi";
 import { ProviderSearchResult } from "@/types/scheduling";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -26,11 +26,17 @@ export default function SearchProvidersScreen() {
   const [providers, setProviders] = useState<ProviderSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleSearch = async () => {
+  const sortProvidersById = (results: ProviderSearchResult[]) =>
+    [...results].sort((a, b) =>
+      a.id.localeCompare(b.id, undefined, { numeric: true }),
+    );
+
+  const loadProviders = async (query?: string) => {
     setLoading(true);
     try {
-      const results = await searchProviders(searchQuery || null, null);
-      setProviders(results);
+      const trimmedQuery = query?.trim() ?? "";
+      const results = await searchProviders(trimmedQuery || null, null);
+      setProviders(sortProvidersById(results));
     } catch (error: any) {
       Alert.alert(
         "Error",
@@ -39,6 +45,14 @@ export default function SearchProvidersScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    loadProviders();
+  }, []);
+
+  const handleSearch = async () => {
+    await loadProviders(searchQuery);
   };
 
   const handleProviderPress = (provider: ProviderSearchResult) => {
