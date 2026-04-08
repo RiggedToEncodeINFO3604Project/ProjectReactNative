@@ -126,7 +126,7 @@ async def websocket_health_check():
 @app.websocket("/ws")
 async def websocket_endpoint(
     websocket: WebSocket,
-    token: str = Query(..., description="JWT access token for authentication")
+    token: str = Query(..., description="Firebase ID token for authentication")
 ):
     client_host = websocket.client.host if websocket.client else "unknown"
     client_port = websocket.client.port if websocket.client else "unknown"

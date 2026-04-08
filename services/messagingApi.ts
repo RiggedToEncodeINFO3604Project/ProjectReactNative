@@ -424,7 +424,7 @@ export class MessagingWebSocket {
 
   /**
    * Connect to the WebSocket server
-   * @param token - JWT authentication token
+   * @param token - Firebase ID token
    */
   connect(token: string): void {
     if (this.ws?.readyState === WebSocket.OPEN) {

@@ -28,7 +28,9 @@ class User(UserBase):
 
 
 class UserInDB(User):
-    password: str
+    password: Optional[str] = None
+    firebase_uid: Optional[str] = None
+    auth_provider: Optional[str] = None
 
 
 class Token(BaseModel):

@@ -37,4 +37,16 @@ echo RAG server started!
 echo.
 
 echo [3/3] Starting Frontend Server...
+if not exist "node_modules\expo\bin\cli" (
+    echo Error: Frontend dependencies are missing.
+    echo Run 'setup+update_dependances.bat' first.
+    pause
+    exit /b 1
+)
+if not exist "node_modules\@expo\cli" (
+    echo Error: Expo CLI dependency is missing from node_modules.
+    echo Run 'npm install' or 'setup+update_dependances.bat' to repair the frontend install.
+    pause
+    exit /b 1
+)
 npx expo start

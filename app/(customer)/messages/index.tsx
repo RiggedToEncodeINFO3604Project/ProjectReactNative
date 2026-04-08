@@ -10,6 +10,7 @@ import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { getConversations, messagingSocket } from "@/services/messagingApi";
+import { getValidAuthToken } from "@/services/schedulingApi";
 import { Conversation, ConversationPreview, Message } from "@/types/scheduling";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -140,21 +141,35 @@ export default function MessagesScreen() {
 
   // Initialize WebSocket and fetch data on mount
   useEffect(() => {
+    let isCancelled = false;
+
     fetchConversations();
 
-    if (token) {
-      // Set up WebSocket callbacks
+    const connectSocket = async () => {
+      if (!token) {
+        return;
+      }
+
+      const freshToken = await getValidAuthToken();
+      if (!freshToken || isCancelled) {
+        return;
+      }
+
       messagingSocket.setCallbacks({
         onMessageReceived: handleNewMessage,
         onConnectionChange: handleConnectionChange,
         onError: (error) => console.error("WebSocket error:", error),
       });
 
-      // Connect WebSocket
-      messagingSocket.connect(token);
-    }
+      messagingSocket.connect(freshToken);
+    };
+
+    connectSocket().catch((error) => {
+      console.error("Error connecting messaging socket:", error);
+    });
 
     return () => {
+      isCancelled = true;
       // Cleanup WebSocket on unmount
       messagingSocket.disconnect();
     };

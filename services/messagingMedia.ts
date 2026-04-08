@@ -1,6 +1,6 @@
-import { FirebaseApp, getApps, initializeApp } from "firebase/app";
 import { getDownloadURL, getStorage, ref, uploadBytes } from "firebase/storage";
 import { Platform } from "react-native";
+import { getFirebaseApp } from "@/services/firebaseClient";
 
 export interface SelectedMessageImage {
   file?: Blob;
@@ -8,30 +8,6 @@ export interface SelectedMessageImage {
   name: string;
   uri?: string;
 }
-
-const getFirebaseConfig = () => ({
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  databaseURL: process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL,
-});
-
-const getFirebaseApp = (): FirebaseApp | null => {
-  const existingApps = getApps();
-  if (existingApps.length > 0) {
-    return existingApps[0];
-  }
-
-  const config = getFirebaseConfig();
-  if (!config.apiKey || !config.projectId || !config.storageBucket) {
-    return null;
-  }
-
-  return initializeApp(config);
-};
 
 const sanitizeFileName = (value: string): string =>
   value.replace(/[^a-zA-Z0-9._-]/g, "-");
