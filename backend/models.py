@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, model_validator
 from typing import Dict, Optional, List, Literal
 from datetime import datetime
 from enum import Enum
@@ -242,9 +242,22 @@ class Conversation(ConversationBase):
 
 
 class SendMessageRequest(BaseModel):
-    content: str = Field(..., min_length=1, max_length=2000)
+    content: str = Field(default="", max_length=2000)
     message_type: MessageType = MessageType.TEXT
     image_url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_payload(self):
+        self.content = (self.content or "").strip()
+        self.image_url = ((self.image_url or "").strip() or None)
+
+        if self.message_type == MessageType.TEXT and not self.content:
+            raise ValueError("Text messages must include content")
+
+        if self.message_type == MessageType.IMAGE and not self.image_url:
+            raise ValueError("Image messages must include image_url")
+
+        return self
 
 
 class StartConversationRequest(BaseModel):

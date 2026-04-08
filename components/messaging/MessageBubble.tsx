@@ -180,7 +180,19 @@ export function MessageBubble({
         />
 
         {isImage && message.image_url ? (
-          <Image source={{ uri: message.image_url }} style={styles.image} />
+          <View style={styles.imageContent}>
+            <Image source={{ uri: message.image_url }} style={styles.image} />
+            {!!message.content?.trim() && (
+              <Text
+                style={[
+                  styles.imageCaption,
+                  { color: bubbleColor === otherBubbleColor ? "#000" : "#fff" },
+                ]}
+              >
+                {message.content.trim()}
+              </Text>
+            )}
+          </View>
         ) : (
           <HighlightedText
             text={message.content}
@@ -339,6 +351,15 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     resizeMode: "cover",
+  },
+  imageContent: {
+    gap: 8,
+  },
+  imageCaption: {
+    fontSize: 14,
+    lineHeight: 20,
+    paddingHorizontal: 8,
+    paddingBottom: 4,
   },
   footer: {
     flexDirection: "row",

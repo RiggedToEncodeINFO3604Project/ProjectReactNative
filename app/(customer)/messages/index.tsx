@@ -33,13 +33,20 @@ function toConversationPreview(
   const otherUserAvatar = conversation.provider_avatar;
   const unreadCount = conversation.unread_count;
 
+  const lastMessageContent =
+    conversation.last_message?.message_type === "image"
+      ? conversation.last_message.content?.trim()
+        ? `Photo: ${conversation.last_message.content.trim()}`
+        : "Photo"
+      : conversation.last_message?.content;
+
   return {
     id: conversation.id,
     other_user_name: otherUserName,
     other_user_avatar: otherUserAvatar,
     other_user_id: conversation.provider_id,
     other_user_role: "Provider",
-    last_message_content: conversation.last_message?.content,
+    last_message_content: lastMessageContent,
     last_message_time: conversation.last_message?.created_at,
     unread_count: unreadCount,
     is_last_message_from_me:
@@ -110,9 +117,18 @@ export default function MessagesScreen() {
 
   // Handle connection state change
   const handleConnectionChange = useCallback(
-    (state: "connected" | "disconnected" | "connecting" | "reconnecting") => {
+    (
+      state:
+        | "connected"
+        | "disconnected"
+        | "connecting"
+        | "reconnecting"
+        | "fallback_polling",
+    ) => {
       if (state === "reconnecting") {
         setConnectionState("connecting");
+      } else if (state === "fallback_polling") {
+        setConnectionState("disconnected");
       } else {
         setConnectionState(
           state as "connected" | "disconnected" | "connecting",
