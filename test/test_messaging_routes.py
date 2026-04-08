@@ -116,6 +116,66 @@ class MessagingRoutesTests(unittest.TestCase):
             message_type="text",
         )
 
+    def test_send_image_message_allows_empty_content(self):
+        with (
+            patch.object(
+                messaging_routes,
+                "verify_user_in_conversation",
+                return_value=True,
+            ),
+            patch.object(
+                messaging_routes,
+                "send_message",
+                return_value=("message-image-1", ""),
+            ) as send_message_mock,
+            patch.object(
+                messaging_routes,
+                "get_conversation_by_id",
+                return_value={
+                    "provider_id": "provider-9",
+                    "customer_name": "Ava Customer",
+                    "provider_name": "Kai Provider",
+                },
+            ),
+            patch.object(
+                messaging_routes.websocket_manager,
+                "broadcast_to_conversation",
+                new=AsyncMock(),
+            ),
+            patch.object(
+                messaging_routes.websocket_manager,
+                "is_user_online",
+                return_value=True,
+            ),
+            patch.object(
+                messaging_routes,
+                "send_chat_push_notification",
+            ) as push_mock,
+        ):
+            response = self.client.post(
+                "/api/messaging/conversations/conv-1/messages",
+                json={
+                    "content": "",
+                    "message_type": "image",
+                    "image_url": "https://example.com/image.jpg",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"message_id": "message-image-1", "filtered_content": ""},
+        )
+        send_message_mock.assert_called_once_with(
+            conversation_id="conv-1",
+            sender_id="customer-1",
+            sender_role=UserRole.CUSTOMER,
+            content="",
+            message_type="image",
+            image_url="https://example.com/image.jpg",
+        )
+        push_mock.assert_not_called()
+
     def test_mark_conversation_read_broadcasts_status_update(self):
         with (
             patch.object(
