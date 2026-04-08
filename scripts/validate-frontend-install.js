@@ -1,6 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 
+const REPO_ROOT = process.cwd();
+const FRONTEND_ROOT = path.join(REPO_ROOT, "apps", "frontend");
+
 function fail(message) {
   console.error(`Error: ${message}`);
   process.exit(1);
@@ -92,7 +95,7 @@ function isPlaceholderValue(value) {
 }
 
 function validateFirebaseEnvironment() {
-  const envPath = path.join(process.cwd(), ".env");
+  const envPath = path.join(REPO_ROOT, ".env");
   if (!fs.existsSync(envPath)) {
     warn(".env was not found. Skipping Firebase environment validation.");
     return;
@@ -150,11 +153,15 @@ function ensurePackageDependenciesInstalled(name) {
     }
   }
 
-  walk(name, process.cwd());
+  walk(name, FRONTEND_ROOT);
 }
 
-if (!fs.existsSync("package.json")) {
+if (!fs.existsSync(path.join(REPO_ROOT, "package.json"))) {
   fail("package.json was not found in the project root.");
+}
+
+if (!fs.existsSync(path.join(FRONTEND_ROOT, "package.json"))) {
+  fail("apps/frontend/package.json was not found.");
 }
 
 [

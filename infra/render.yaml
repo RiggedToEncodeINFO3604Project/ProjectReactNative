@@ -1,0 +1,33 @@
+services:
+  # Combined Frontend + Backend Service
+  # Runs the frontend, API, and RAG service in a single container
+  - type: web
+    name: expo-scheduling
+    runtime: docker
+    dockerfilePath: ./infra/Dockerfile
+    # Health check for Render to verify service is ready
+    # Required for proper WebSocket upgrade handling
+    healthCheckPath: /health
+    # Combined service needs all environment variables
+    envVars:
+      # Frontend API URL (must be HTTPS for production)
+      - key: EXPO_PUBLIC_API_URL
+        value: http://localhost:8000
+
+      # MongoDB Configuration (for FastAPI backend)
+      - key: MONGODB_URL
+        sync: false
+      - key: DATABASE_NAME
+        value: scheduling_db
+      - key: SECRET_KEY
+        generateValue: true
+
+      # Gemini API (used by the local RAG server in this same container)
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: EXPO_PUBLIC_GEMINI_API_KEY
+        sync: false
+
+      # Node environment
+      - key: NODE_ENV
+        value: production

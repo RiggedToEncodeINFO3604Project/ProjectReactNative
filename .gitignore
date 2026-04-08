@@ -3,12 +3,15 @@
 # dependencies
 node_modules/
 plans/
+apps/frontend/node_modules/
 
 # Expo
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+apps/frontend/.expo/
+apps/frontend/dist/
 
 # Native
 .kotlin/
@@ -50,18 +53,16 @@ app-example
 # Backend
 __pycache__/
 *.py[cod]
-backend/venv/
-backend/.env
-backend/**/__pycache__/
-backend/__pycache__/
-backend/routes/__pycache__/
-backend/**/*.pyc
-backend/*.pyc
-backend/*.db
-RAG-Server/venv/
-RAG-Server/.env
-RAG-Server/__pycache__/
-RAG-Server/**/__pycache__/
-RAG-Server/**/*.pyc
-RAG-Server/*.pyc
+apps/api/venv/
+apps/api/.env
+apps/api/**/__pycache__/
+apps/api/**/*.pyc
+apps/api/*.pyc
+apps/api/*.db
+apps/rag-server/venv/
+apps/rag-server/.env
+apps/rag-server/__pycache__/
+apps/rag-server/**/__pycache__/
+apps/rag-server/**/*.pyc
+apps/rag-server/*.pyc
 
