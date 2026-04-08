@@ -22,11 +22,16 @@ import {
   messagingSocket,
   sendMessage,
 } from "@/services/messagingApi";
+import {
+  pickMessageImageFromDevice,
+  uploadMessagingImage,
+} from "@/services/messagingMedia";
 import { Conversation, Message, MessageStatus } from "@/types/scheduling";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -110,6 +115,26 @@ const replaceOptimisticMessage = (
 
 const getRenderKey = (message: Message, index: number): string =>
   `${message.id}-${message.created_at}-${index}`;
+
+const buildOptimisticMessage = (
+  conversationId: string,
+  senderId: string,
+  senderRole: "Customer" | "Provider",
+  content: string,
+  messageType: "text" | "image",
+  imageUrl?: string,
+): Message => ({
+  id: `temp-${Date.now()}`,
+  conversation_id: conversationId,
+  sender_id: senderId,
+  sender_role: senderRole,
+  content,
+  message_type: messageType,
+  image_url: imageUrl,
+  created_at: new Date().toISOString(),
+  read: false,
+  status: "sending",
+});
 
 export default function ChatScreen() {
   const { token, user } = useAuth();
@@ -430,48 +455,54 @@ export default function ChatScreen() {
   }, [searchResults.length]);
 
   // Handle sending a message
-  const handleSendMessage = useCallback(
-    async (content: string) => {
-      if (!conversationId || !content.trim()) return;
+  const submitMessage = useCallback(
+    async ({
+      content,
+      imageUrl,
+      messageType,
+    }: {
+      content: string;
+      imageUrl?: string;
+      messageType: "text" | "image";
+    }) => {
+      if (!conversationId) return;
+      if (messageType === "text" && !content.trim()) return;
+      if (messageType === "image" && !imageUrl?.trim()) return;
 
       const trimmedContent = content.trim();
-      const tempId = `temp-${Date.now()}`;
-
-      // Optimistic update - start with "sending" status
-      const optimisticMessage: Message = {
-        id: tempId,
-        conversation_id: conversationId,
-        sender_id: currentUserId,
-        sender_role: user?.role || "Customer",
-        content: trimmedContent,
-        message_type: "text",
-        created_at: new Date().toISOString(),
-        read: false,
-        status: "sending",
-      };
+      const optimisticMessage = buildOptimisticMessage(
+        conversationId,
+        currentUserId,
+        user?.role || "Customer",
+        trimmedContent,
+        messageType,
+        imageUrl?.trim(),
+      );
+      const tempId = optimisticMessage.id;
 
       setMessages((prev) => [...prev, optimisticMessage]);
       setIsSending(true);
 
       try {
-        // Send the message to the server
         const response = await sendMessage(conversationId, {
           content: trimmedContent,
-          message_type: "text",
+          message_type: messageType,
+          image_url: imageUrl?.trim(),
         });
 
-        // Update message status to "sent" on success
         setMessages((prev) =>
           replaceOptimisticMessage(prev, tempId, {
             ...optimisticMessage,
             id: response.message_id || tempId,
-            content: response.filtered_content ?? optimisticMessage.content,
+            content:
+              messageType === "text"
+                ? (response.filtered_content ?? optimisticMessage.content)
+                : optimisticMessage.content,
             status: "sent" as MessageStatus,
           }),
         );
       } catch (error) {
         console.error("Error sending message:", error);
-        // Update message status to "failed" on error (instead of removing it)
         setMessages((prev) =>
           prev.map((m) =>
             m.id === tempId ? { ...m, status: "failed" as MessageStatus } : m,
@@ -483,6 +514,53 @@ export default function ChatScreen() {
     },
     [conversationId, currentUserId, user?.role],
   );
+
+  const handleSendMessage = useCallback(
+    async (content: string) => {
+      await submitMessage({ content, messageType: "text" });
+    },
+    [submitMessage],
+  );
+
+  const handleSendImageUrl = useCallback(
+    async (imageUrl: string, caption?: string) => {
+      await submitMessage({
+        content: caption ?? "",
+        imageUrl,
+        messageType: "image",
+      });
+    },
+    [submitMessage],
+  );
+
+  const handleSendImageFile = useCallback(async () => {
+    if (!conversationId || !currentUserId) return;
+
+    try {
+      setIsSending(true);
+      const selectedImage = await pickMessageImageFromDevice();
+      if (!selectedImage) {
+        setIsSending(false);
+        return;
+      }
+
+      const imageUrl = await uploadMessagingImage(
+        selectedImage,
+        conversationId,
+        currentUserId,
+      );
+
+      await submitMessage({
+        content: "",
+        imageUrl,
+        messageType: "image",
+      });
+    } catch (error) {
+      console.error("Error sending image:", error);
+      Alert.alert("Unable to send image", "Please try again.");
+      setIsSending(false);
+    }
+  }, [conversationId, currentUserId, submitMessage]);
 
   // Handle retry for failed messages
   const handleRetryMessage = useCallback(
@@ -505,6 +583,7 @@ export default function ChatScreen() {
         const response = await sendMessage(conversationId, {
           content: failedMessage.content,
           message_type: failedMessage.message_type,
+          image_url: failedMessage.image_url,
         });
 
         // Update status to "sent" on success
@@ -635,7 +714,12 @@ export default function ChatScreen() {
       )}
 
       {/* Message Input */}
-      <MessageInput onSend={handleSendMessage} disabled={isSending} />
+      <MessageInput
+        onSend={handleSendMessage}
+        onSendImageFile={handleSendImageFile}
+        onSendImageUrl={handleSendImageUrl}
+        disabled={isSending}
+      />
     </View>
   );
 }
