@@ -184,7 +184,20 @@ const extractFirebaseErrorMessage = (
     (error as { message?: string })?.message ||
     fallback;
 
+  const normalizedCode = rawCode.toLowerCase();
+
+  if (
+    normalizedCode.includes("requests-to-this-api-identitytoolkit-method") ||
+    normalizedCode.includes("identitytoolkit.googleapis.com") ||
+    normalizedCode.includes("authenticationservice.signinwithpassword")
+  ) {
+    return "Firebase Email/Password sign-in is blocked for the configured Web API key. Update EXPO_PUBLIC_FIREBASE_API_KEY with the Firebase Web app key from Firebase Console, then confirm Email/Password is enabled in Authentication.";
+  }
+
   switch (rawCode) {
+    case "auth/invalid-api-key":
+    case "API_KEY_INVALID":
+      return "Firebase authentication is using an invalid Web API key. Update EXPO_PUBLIC_FIREBASE_API_KEY from your Firebase Web app config.";
     case "auth/invalid-credential":
     case "auth/wrong-password":
     case "auth/user-not-found":

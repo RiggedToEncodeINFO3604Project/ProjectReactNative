@@ -6,6 +6,10 @@ function fail(message) {
   process.exit(1);
 }
 
+function warn(message) {
+  console.warn(`Warning: ${message}`);
+}
+
 function packagePath(name) {
   return path.join("node_modules", ...name.split("/"));
 }
@@ -51,6 +55,75 @@ function readPackageJson(name) {
     fail(`${name} package.json was not found.`);
   }
   return JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+}
+
+function parseEnvFile(envPath) {
+  const env = {};
+  if (!fs.existsSync(envPath)) {
+    return env;
+  }
+
+  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
+    env[key] = value;
+  }
+
+  return env;
+}
+
+function isPlaceholderValue(value) {
+  if (!value) {
+    return true;
+  }
+
+  return /your-|example|placeholder|changeme/i.test(value);
+}
+
+function validateFirebaseEnvironment() {
+  const envPath = path.join(process.cwd(), ".env");
+  if (!fs.existsSync(envPath)) {
+    warn(".env was not found. Skipping Firebase environment validation.");
+    return;
+  }
+
+  const env = parseEnvFile(envPath);
+  const requiredFirebaseKeys = [
+    "EXPO_PUBLIC_FIREBASE_API_KEY",
+    "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN",
+    "EXPO_PUBLIC_FIREBASE_PROJECT_ID",
+    "EXPO_PUBLIC_FIREBASE_APP_ID",
+  ];
+
+  for (const key of requiredFirebaseKeys) {
+    const value = env[key];
+    if (isPlaceholderValue(value)) {
+      fail(
+        `${key} is missing or still set to a placeholder in .env. Copy the full Firebase Web config from Firebase Console > Project settings > Your apps.`,
+      );
+    }
+  }
+
+  const firebaseApiKey = env.EXPO_PUBLIC_FIREBASE_API_KEY;
+  const geminiApiKey =
+    env.EXPO_PUBLIC_GEMINI_API_KEY || env.GEMINI_API_KEY || "";
+
+  if (firebaseApiKey && geminiApiKey && firebaseApiKey === geminiApiKey) {
+    warn(
+      "EXPO_PUBLIC_FIREBASE_API_KEY matches the Gemini API key. Firebase Authentication should use the Firebase Web API key from your Firebase app config, not your Gemini key.",
+    );
+  }
 }
 
 function ensurePackageDependenciesInstalled(name) {
@@ -101,5 +174,6 @@ if (!fs.existsSync("package.json")) {
 
 ensurePackageDependenciesInstalled("expo-router");
 ensurePackageDependenciesInstalled("abort-controller");
+validateFirebaseEnvironment();
 
 console.log("Frontend dependency validation passed.");
