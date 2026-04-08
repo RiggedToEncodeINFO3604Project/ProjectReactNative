@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-cd /d "%~dp0"
+cd /d "%~dp0\.."
 
 rem Require elevation for a consistent environment on Windows.
 net session >nul 2>&1
@@ -52,15 +52,15 @@ if errorlevel 1 (
 echo.
 
 echo [3/8] Preparing backend virtual environment...
-if not exist "backend" (
+if not exist "apps\api" (
     echo Error: Backend folder was not found.
     goto :fail
 )
 
-pushd "backend" >nul
+pushd "apps\api" >nul
 
 if not exist "requirements.txt" (
-    echo Error: backend\requirements.txt was not found.
+    echo Error: apps\api\requirements.txt was not found.
     popd >nul
     goto :fail
 )
@@ -107,15 +107,15 @@ echo.
 echo [5/8] Preparing RAG virtual environment...
 popd >nul
 
-if not exist "RAG-Server" (
-    echo Error: RAG-Server folder was not found.
+if not exist "apps\rag-server" (
+    echo Error: apps\rag-server folder was not found.
     goto :fail
 )
 
-pushd "RAG-Server" >nul
+pushd "apps\rag-server" >nul
 
 if not exist "requirements.txt" (
-    echo Error: RAG-Server\requirements.txt was not found.
+    echo Error: apps\rag-server\requirements.txt was not found.
     popd >nul
     goto :fail
 )
@@ -182,7 +182,7 @@ if not exist ".env" (
 echo.
 
 echo [8/8] Testing Firebase connection when available...
-pushd "backend" >nul
+pushd "apps\api" >nul
 if exist "test_firebase_connection.py" (
     call "venv\Scripts\python.exe" test_firebase_connection.py
     if errorlevel 1 (
@@ -202,7 +202,7 @@ echo ============================================
 echo   Setup completed successfully
 echo ============================================
 echo.
-echo You can now run "start server.bat" to start the application.
+echo You can now run "scripts\start server.bat" to start the application.
 echo.
 echo Test accounts:
 echo   Customer: testc@test.com / 123456
@@ -222,6 +222,11 @@ exit /b 0
 :verify_frontend_install
 if not exist "package.json" (
     echo Error: package.json was not found in the project root.
+    exit /b 1
+)
+
+if not exist "apps\frontend\package.json" (
+    echo Error: apps\frontend\package.json was not found.
     exit /b 1
 )
 

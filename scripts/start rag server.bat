@@ -1,19 +1,19 @@
 @echo off
-cd /d "%~dp0"
+cd /d "%~dp0\.."
 
 echo ============================================
 echo   Starting RAG Server
 echo ============================================
 echo.
 
-cd RAG-Server
+cd apps\rag-server
 
 if exist "venv\Scripts\activate" (
     call venv\Scripts\activate
     echo Virtual environment activated.
 ) else (
     echo Warning: RAG virtual environment not found.
-    echo Run 'setup+update_dependances.bat' first.
+    echo Run 'scripts\setup+update_dependances.bat' first.
     pause
     exit /b 1
 )

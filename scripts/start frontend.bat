@@ -1,5 +1,5 @@
 @echo off
-cd /d "%~dp0"
+cd /d "%~dp0\.."
 
 echo ============================================
 echo   Starting Frontend Server
@@ -24,4 +24,4 @@ if not exist "node_modules\@expo\cli" (
 
 echo Starting Expo development server...
 echo.
-npx expo start --clear
+call npm run frontend:clear

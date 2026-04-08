@@ -1,5 +1,5 @@
 @echo off
-cd /d "%~dp0"
+cd /d "%~dp0\.."
 
 echo ============================================
 echo   Reset Firebase Firestore Database
@@ -21,13 +21,13 @@ echo.
 echo Deleting all documents from collections...
 echo.
 
-cd backend
+cd apps\api
 
 if exist "venv\Scripts\activate" (
     call venv\Scripts\activate
 ) else (
     echo Error: Virtual environment not found.
-    echo Run 'setup+update_dependances.bat' first.
+    echo Run 'scripts\setup+update_dependances.bat' first.
     pause
     exit /b 1
 )
