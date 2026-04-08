@@ -149,7 +149,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [hasHydratedMessages, setHasHydratedMessages] = useState(false);
   const [connectionState, setConnectionState] = useState<
     "connected" | "disconnected" | "connecting"
@@ -478,7 +478,6 @@ export default function ChatScreen() {
       const tempId = optimisticMessage.id;
 
       setMessages((prev) => [...prev, optimisticMessage]);
-      setIsSending(true);
 
       try {
         const response = await sendMessage(conversationId, {
@@ -505,8 +504,6 @@ export default function ChatScreen() {
             m.id === tempId ? { ...m, status: "failed" as MessageStatus } : m,
           ),
         );
-      } finally {
-        setIsSending(false);
       }
     },
     [conversationId, currentUserId, user?.role],
@@ -534,13 +531,12 @@ export default function ChatScreen() {
     if (!conversationId || !currentUserId) return;
 
     try {
-      setIsSending(true);
       const selectedImage = await pickMessageImageFromDevice();
       if (!selectedImage) {
-        setIsSending(false);
         return;
       }
 
+      setIsUploadingImage(true);
       const imageUrl = await uploadMessagingImage(
         selectedImage,
         conversationId,
@@ -554,8 +550,12 @@ export default function ChatScreen() {
       });
     } catch (error) {
       console.error("Error sending image:", error);
-      Alert.alert("Unable to send image", "Please try again.");
-      setIsSending(false);
+      Alert.alert(
+        "Unable to send image",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setIsUploadingImage(false);
     }
   }, [conversationId, currentUserId, submitMessage]);
 
@@ -720,7 +720,8 @@ export default function ChatScreen() {
         onSend={handleSendMessage}
         onSendImageFile={handleSendImageFile}
         onSendImageUrl={handleSendImageUrl}
-        disabled={isSending}
+        attachmentDisabled={isUploadingImage}
+        isUploadingImage={isUploadingImage}
       />
     </View>
   );
