@@ -30,10 +30,26 @@ elif LOCAL_ENV_PATH.exists():
 
 log = logging.getLogger("skedulelt.gemini")
 
-MODEL = os.environ.get("RAG_MODEL", "gemma-3-27b-it")
+DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_FALLBACK_MODELS = (
+    "gemini-3.1-flash-preview",
+    "gemini-3-flash-preview",
+    "gemma-4-26b-a4b-it",
+)
+MODEL = os.environ.get("RAG_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+FALLBACK_MODELS = tuple(
+    model.strip()
+    for model in os.environ.get(
+        "RAG_FALLBACK_MODELS",
+        ",".join(DEFAULT_FALLBACK_MODELS),
+    ).split(",")
+    if model.strip()
+)
+MODEL_CHAIN = tuple(dict.fromkeys((MODEL, *FALLBACK_MODELS)))
+FAST_THINKING_LEVEL = os.environ.get("RAG_THINKING_LEVEL", "minimal").strip() or "minimal"
+FAST_THINKING_BUDGET = int(os.environ.get("RAG_THINKING_BUDGET", "0"))
 
 MAX_RETRIES = 4
-BASE_DELAY_SECONDS = 2
 
 _executor = ThreadPoolExecutor(max_workers=4)
 _queue: asyncio.Queue | None = None
@@ -80,6 +96,29 @@ def _get_queue() -> asyncio.Queue:
     return _queue
 
 
+def _build_generation_config(model_name: str) -> genai_types.GenerateContentConfig | None:
+    if not model_name.startswith("gemini-"):
+        return None
+
+    thinking_fields = getattr(genai_types.ThinkingConfig, "model_fields", {})
+
+    if model_name.startswith("gemini-3") and "thinking_level" in thinking_fields:
+        return genai_types.GenerateContentConfig(
+            thinking_config=genai_types.ThinkingConfig(
+                thinking_level=FAST_THINKING_LEVEL,
+            )
+        )
+
+    if "thinking_budget" in thinking_fields:
+        return genai_types.GenerateContentConfig(
+            thinking_config=genai_types.ThinkingConfig(
+                thinking_budget=FAST_THINKING_BUDGET,
+            )
+        )
+
+    return None
+
+
 async def _ensure_worker() -> None:
     global _worker_task
     if _worker_task is None or _worker_task.done():
@@ -107,36 +146,31 @@ async def _call_with_retry(
 ) -> str:
     last_error: Exception | None = None
 
-    for attempt in range(MAX_RETRIES + 1):
-        try:
-            response = await loop.run_in_executor(
-                _executor,
-                lambda: _get_client().models.generate_content(
-                    model=MODEL,
-                    contents=contents,
-                ),
-            )
-            return response.text or ""
-        except Exception as exc:
-            last_error = exc
-            lowered_message = str(exc).lower()
-            if "client has been closed" in lowered_message and attempt < MAX_RETRIES:
-                log.warning("[Queue] Gemini client closed unexpectedly. Recreating client.")
-                _reset_client()
-                continue
-
-            status_code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
-            if status_code == 429 and attempt < MAX_RETRIES:
-                delay = BASE_DELAY_SECONDS * (2**attempt)
-                log.warning(
-                    "[Queue] 429 retry %s/%s in %ss",
-                    attempt + 1,
-                    MAX_RETRIES,
-                    delay,
+    for model_name in MODEL_CHAIN:
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                response = await loop.run_in_executor(
+                    _executor,
+                    lambda: _get_client().models.generate_content(
+                        model=model_name,
+                        contents=contents,
+                        config=_build_generation_config(model_name),
+                    ),
                 )
-                await asyncio.sleep(delay)
-                continue
-            raise
+                return response.text or ""
+            except Exception as exc:
+                last_error = exc
+                lowered_message = str(exc).lower()
+                if "client has been closed" in lowered_message and attempt < MAX_RETRIES:
+                    log.warning("[Queue] Gemini client closed unexpectedly. Recreating client.")
+                    _reset_client()
+                    continue
+
+                status_code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+                if status_code == 429:
+                    log.warning("[Queue] Rate limit on %s. Trying next model.", model_name)
+                    break
+                raise
 
     if last_error is not None:
         raise last_error
