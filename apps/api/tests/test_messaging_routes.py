@@ -205,6 +205,62 @@ class MessagingRoutesTests(unittest.TestCase):
             conversation_id="conv-1",
             user_role=UserRole.CUSTOMER,
         )
+
+    def test_upload_message_image_returns_backend_url(self):
+        with (
+            patch.object(
+                messaging_routes,
+                "verify_user_in_conversation",
+                return_value=True,
+            ),
+            patch.object(
+                messaging_routes,
+                "upload_message_image",
+                return_value="https://example.com/message-image.jpg",
+            ) as upload_mock,
+        ):
+            response = self.client.post(
+                "/api/messaging/conversations/conv-1/image-upload",
+                json={
+                    "file_name": "style.png",
+                    "content_type": "image/png",
+                    "data_base64": "ZmFrZS1pbWFnZQ==",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"image_url": "https://example.com/message-image.jpg"},
+        )
+        upload_mock.assert_called_once_with(
+            conversation_id="conv-1",
+            sender_id="customer-1",
+            file_bytes=b"fake-image",
+            file_name="style.png",
+            content_type="image/png",
+        )
+
+    def test_upload_message_image_rejects_non_images(self):
+        with patch.object(
+            messaging_routes,
+            "verify_user_in_conversation",
+            return_value=True,
+        ):
+            response = self.client.post(
+                "/api/messaging/conversations/conv-1/image-upload",
+                json={
+                    "file_name": "notes.txt",
+                    "content_type": "text/plain",
+                    "data_base64": "aGVsbG8=",
+                },
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["detail"],
+            "Only image uploads are supported",
+        )
         
 if __name__ == "__main__":
     unittest.main()

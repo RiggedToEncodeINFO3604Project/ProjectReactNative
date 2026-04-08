@@ -9,6 +9,7 @@ import { getExtendedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { useCallback, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -25,6 +26,8 @@ interface MessageInputProps {
   onSendImageFile?: () => Promise<void> | void;
   onSendImageUrl?: (imageUrl: string, caption?: string) => Promise<void> | void;
   disabled?: boolean;
+  attachmentDisabled?: boolean;
+  isUploadingImage?: boolean;
 }
 
 export function MessageInput({
@@ -32,6 +35,8 @@ export function MessageInput({
   onSendImageFile,
   onSendImageUrl,
   disabled = false,
+  attachmentDisabled = false,
+  isUploadingImage = false,
 }: MessageInputProps) {
   const { isDarkMode, colours: theme } = useTheme();
   const extendedColours = getExtendedColours(isDarkMode);
@@ -48,7 +53,10 @@ export function MessageInput({
   const isEmpty = text.trim().length === 0;
   const canSend = !isEmpty && !disabled;
   const canSendImageUrl =
-    !!imageUrl.trim() && !disabled && typeof onSendImageUrl === "function";
+    !!imageUrl.trim() &&
+    !disabled &&
+    !attachmentDisabled &&
+    typeof onSendImageUrl === "function";
 
   const handleSend = () => {
     if (!canSend) return;
@@ -132,6 +140,25 @@ export function MessageInput({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
+      {isUploadingImage ? (
+        <View
+          style={[
+            styles.uploadingBanner,
+            {
+              backgroundColor: isDarkMode
+                ? extendedColours.cardAlt
+                : extendedColours.background,
+              borderTopColor: extendedColours.borderAlt,
+            },
+          ]}
+        >
+          <ActivityIndicator size="small" color={theme.tint} />
+          <Text style={[styles.uploadingText, { color: theme.text }]}>
+            Uploading image...
+          </Text>
+        </View>
+      ) : null}
+
       <View
         style={[
           styles.container,
@@ -145,7 +172,16 @@ export function MessageInput({
         <Pressable
           onPress={toggleEmojiPicker}
           disabled={disabled}
-          style={[styles.iconButton, disabled && styles.disabledButton]}
+          style={[
+            styles.iconButton,
+            {
+              backgroundColor: isDarkMode
+                ? extendedColours.cardAlt
+                : extendedColours.background,
+              borderColor: extendedColours.borderAlt,
+            },
+            disabled && styles.disabledButton,
+          ]}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Text style={styles.emojiButtonText}>😊</Text>
@@ -155,14 +191,23 @@ export function MessageInput({
         {(onSendImageFile || onSendImageUrl) && (
           <Pressable
             onPress={() => setShowAttachmentModal(true)}
-            disabled={disabled}
-            style={[styles.iconButton, disabled && styles.disabledButton]}
+            disabled={disabled || attachmentDisabled}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: isDarkMode
+                  ? extendedColours.cardAlt
+                  : extendedColours.background,
+                borderColor: extendedColours.borderAlt,
+              },
+              (disabled || attachmentDisabled) && styles.disabledButton,
+            ]}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <IconSymbol
               name="paperclip"
               size={24}
-              color={disabled ? theme.icon : theme.icon}
+              color={disabled || attachmentDisabled ? theme.icon : theme.text}
             />
           </Pressable>
         )}
@@ -255,9 +300,10 @@ export function MessageInput({
                   closeAttachmentModal();
                   onSendImageFile();
                 }}
-                disabled={disabled}
+                disabled={disabled || attachmentDisabled}
                 style={[
                   styles.attachmentAction,
+                  (disabled || attachmentDisabled) && styles.disabledButton,
                   {
                     backgroundColor: isDarkMode
                       ? extendedColours.cardAlt
@@ -362,12 +408,28 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderTopWidth: 1,
   },
+  uploadingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+    borderTopWidth: 1,
+  },
+  uploadingText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
   iconButton: {
     padding: 8,
     marginRight: 4,
     justifyContent: "center",
     alignItems: "center",
     height: 44,
+    width: 44,
+    borderRadius: 22,
+    borderWidth: 1,
   },
   emojiButtonText: {
     fontSize: 24,

@@ -1,9 +1,12 @@
+import base64
+import binascii
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List
 import logging
 
 from models import (
-    User, UserRole, Conversation, Message, SendMessageRequest, StartConversationRequest
+    User, UserRole, Conversation, Message, SendMessageRequest, StartConversationRequest,
+    MessageImageUploadRequest
 )
 from services.messaging_service import (
     get_or_create_conversation,
@@ -16,6 +19,7 @@ from services.messaging_service import (
     mark_message_as_read,
 )
 from services.notification_service import send_chat_push_notification
+from services.firebase_storage_service import upload_message_image
 from websocket_manager import websocket_manager
 
 
@@ -250,6 +254,61 @@ async def send_message_endpoint(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to send message: {str(e)}"
+        )
+
+
+@router.post("/conversations/{conversation_id}/image-upload", response_model=dict)
+async def upload_message_image_endpoint(
+    conversation_id: str,
+    request: MessageImageUploadRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Upload a chat image through the backend to avoid browser-to-Firebase CORS issues.
+    User must be a participant in the conversation.
+    """
+    try:
+        if not verify_user_in_conversation(conversation_id, current_user.id, current_user.role):
+            raise HTTPException(
+                status_code=403,
+                detail="You are not a participant in this conversation"
+            )
+
+        content_type = request.content_type.strip().lower()
+        if not content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Only image uploads are supported")
+
+        try:
+            file_bytes = base64.b64decode(request.data_base64, validate=True)
+        except (binascii.Error, ValueError):
+            raise HTTPException(status_code=400, detail="Uploaded image payload is invalid")
+
+        if not file_bytes:
+            raise HTTPException(status_code=400, detail="Uploaded image is empty")
+
+        image_url = upload_message_image(
+            conversation_id=conversation_id,
+            sender_id=current_user.id,
+            file_bytes=file_bytes,
+            file_name=request.file_name,
+            content_type=content_type,
+        )
+
+        log.info(
+            f"User {current_user.id} uploaded image for conversation {conversation_id}"
+        )
+
+        return {"image_url": image_url}
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        log.error(f"Error uploading image: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to upload image: {str(e)}"
         )
 
 

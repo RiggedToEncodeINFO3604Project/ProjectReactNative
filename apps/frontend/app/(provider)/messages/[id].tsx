@@ -27,6 +27,7 @@ import {
   uploadMessagingImage,
 } from "@/services/messagingMedia";
 import { Conversation, Message, MessageStatus } from "@/types/scheduling";
+import { getMessageSearchResults } from "@/utils/messageSearch";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -148,7 +149,7 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [hasHydratedMessages, setHasHydratedMessages] = useState(false);
   const [connectionState, setConnectionState] = useState<
     "connected" | "disconnected" | "connecting"
@@ -176,13 +177,8 @@ export default function ChatScreen() {
 
   // Search results - filter messages based on search query
   const searchResults = useMemo(() => {
-    if (!messageSearchQuery.trim()) return [];
-    const query = messageSearchQuery.toLowerCase();
-    return messages.filter(
-      (m) =>
-        m.message_type === "text" && m.content.toLowerCase().includes(query),
-    );
-  }, [messages, messageSearchQuery]);
+    return getMessageSearchResults(messages, messageSearchQuery);
+  }, [messageSearchQuery, messages]);
 
   // Fetch conversation details
   const fetchConversation = useCallback(async () => {
@@ -420,15 +416,16 @@ export default function ChatScreen() {
     router.back();
   }, [router]);
 
+  const handleOpenMessageSearch = useCallback(() => {
+    setIsMessageSearching(true);
+    setCurrentResultIndex(0);
+  }, []);
+
   // Handle message search
   const handleMessageSearch = useCallback((query: string) => {
+    setIsMessageSearching(true);
     setMessageSearchQuery(query);
     setCurrentResultIndex(0);
-    if (query.trim()) {
-      setIsMessageSearching(true);
-    } else {
-      setIsMessageSearching(false);
-    }
   }, []);
 
   // Handle search close
@@ -481,7 +478,6 @@ export default function ChatScreen() {
       const tempId = optimisticMessage.id;
 
       setMessages((prev) => [...prev, optimisticMessage]);
-      setIsSending(true);
 
       try {
         const response = await sendMessage(conversationId, {
@@ -508,8 +504,6 @@ export default function ChatScreen() {
             m.id === tempId ? { ...m, status: "failed" as MessageStatus } : m,
           ),
         );
-      } finally {
-        setIsSending(false);
       }
     },
     [conversationId, currentUserId, user?.role],
@@ -537,13 +531,12 @@ export default function ChatScreen() {
     if (!conversationId || !currentUserId) return;
 
     try {
-      setIsSending(true);
       const selectedImage = await pickMessageImageFromDevice();
       if (!selectedImage) {
-        setIsSending(false);
         return;
       }
 
+      setIsUploadingImage(true);
       const imageUrl = await uploadMessagingImage(
         selectedImage,
         conversationId,
@@ -557,8 +550,12 @@ export default function ChatScreen() {
       });
     } catch (error) {
       console.error("Error sending image:", error);
-      Alert.alert("Unable to send image", "Please try again.");
-      setIsSending(false);
+      Alert.alert(
+        "Unable to send image",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setIsUploadingImage(false);
     }
   }, [conversationId, currentUserId, submitMessage]);
 
@@ -651,6 +648,7 @@ export default function ChatScreen() {
         avatar={otherUserAvatar}
         status={connectionState === "connected" ? "Online" : undefined}
         onBack={handleBack}
+        onSearchOpen={handleOpenMessageSearch}
         onSearch={handleMessageSearch}
         isSearching={isMessageSearching}
         searchQuery={messageSearchQuery}
@@ -686,29 +684,33 @@ export default function ChatScreen() {
             </View>
           ) : (
             Array.isArray(messages) &&
-            messages.map((message, index) => (
-              <View
-                key={getRenderKey(message, index)}
-                ref={(ref) => {
-                  if (ref) {
-                    messageRefs.current.set(message.id, ref);
-                  }
-                }}
-              >
-                <MessageBubble
-                  message={message}
-                  isCurrentUser={message.sender_id === currentUserId}
-                  showStatus={index === messages.length - 1}
-                  highlightQuery={isMessageSearching ? messageSearchQuery : ""}
-                  isHighlighted={
-                    isMessageSearching &&
-                    searchResults.length > 0 &&
-                    searchResults[currentResultIndex]?.id === message.id
-                  }
-                  onRetry={handleRetryMessage}
-                />
-              </View>
-            ))
+            messages.map((message, index) => {
+              const isCurrentUserMessage = message.sender_id === currentUserId;
+
+              return (
+                <View
+                  key={getRenderKey(message, index)}
+                  ref={(ref) => {
+                    if (ref) {
+                      messageRefs.current.set(message.id, ref);
+                    }
+                  }}
+                >
+                  <MessageBubble
+                    message={message}
+                    isCurrentUser={isCurrentUserMessage}
+                    showStatus={index === messages.length - 1}
+                    highlightQuery={isMessageSearching ? messageSearchQuery : ""}
+                    isHighlighted={
+                      isMessageSearching &&
+                      searchResults.length > 0 &&
+                      searchResults[currentResultIndex]?.id === message.id
+                    }
+                    onRetry={handleRetryMessage}
+                  />
+                </View>
+              );
+            })
           )}
         </ScrollView>
       )}
@@ -718,7 +720,8 @@ export default function ChatScreen() {
         onSend={handleSendMessage}
         onSendImageFile={handleSendImageFile}
         onSendImageUrl={handleSendImageUrl}
-        disabled={isSending}
+        attachmentDisabled={isUploadingImage}
+        isUploadingImage={isUploadingImage}
       />
     </View>
   );

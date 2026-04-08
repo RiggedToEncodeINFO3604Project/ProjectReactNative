@@ -389,6 +389,16 @@ app.post(
   },
 );
 
+// Upload chat image
+app.post("/api/messaging/conversations/:conversationId/image-upload", (req, res) => {
+  const { conversationId } = req.params;
+  proxyToLocalBackend(
+    req,
+    res,
+    `/api/messaging/conversations/${conversationId}/image-upload`,
+  );
+});
+
 // Mark conversation as read
 app.post(
   "/api/messaging/conversations/:conversationId/read",

@@ -15,6 +15,7 @@ interface ChatHeaderProps {
   avatar?: string;
   status?: string;
   onBack?: () => void;
+  onSearchOpen?: () => void;
   onSearch?: (query: string) => void;
   isSearching?: boolean;
   searchQuery?: string;
@@ -30,6 +31,7 @@ export function ChatHeader({
   avatar,
   status,
   onBack,
+  onSearchOpen,
   onSearch,
   isSearching = false,
   searchQuery = "",
@@ -42,6 +44,7 @@ export function ChatHeader({
   const { isDarkMode, colours: theme } = useTheme();
   const extendedColours = getExtendedColours(isDarkMode);
   const isOnline = status?.toLowerCase() === "online";
+  const hasSearchQuery = searchQuery.trim().length > 0;
 
   if (isSearching) {
     return (
@@ -91,25 +94,33 @@ export function ChatHeader({
         </View>
 
         {/* Search Navigation */}
-        {searchResultCount > 0 && (
+        {(searchResultCount > 0 || hasSearchQuery) && (
           <View style={styles.navigationContainer}>
-            <Pressable
-              onPress={onNavigatePrevious}
-              style={styles.navButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <IconSymbol name="chevron.up" size={20} color={theme.text} />
-            </Pressable>
-            <Text style={[styles.resultCounter, { color: theme.text }]}>
-              {currentResultIndex + 1} of {searchResultCount}
-            </Text>
-            <Pressable
-              onPress={onNavigateNext}
-              style={styles.navButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <IconSymbol name="chevron.down" size={20} color={theme.text} />
-            </Pressable>
+            {searchResultCount > 0 ? (
+              <>
+                <Pressable
+                  onPress={onNavigatePrevious}
+                  style={styles.navButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol name="chevron.up" size={20} color={theme.text} />
+                </Pressable>
+                <Text style={[styles.resultCounter, { color: theme.text }]}>
+                  {currentResultIndex + 1} of {searchResultCount}
+                </Text>
+                <Pressable
+                  onPress={onNavigateNext}
+                  style={styles.navButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <IconSymbol name="chevron.down" size={20} color={theme.text} />
+                </Pressable>
+              </>
+            ) : (
+              <Text style={[styles.resultCounter, { color: theme.icon }]}>
+                No matches
+              </Text>
+            )}
           </View>
         )}
 
@@ -168,7 +179,14 @@ export function ChatHeader({
       <View style={styles.rightSection}>
         {onSearch && (
           <Pressable
-            onPress={() => onSearch("")}
+            onPress={() => {
+              if (onSearchOpen) {
+                onSearchOpen();
+                return;
+              }
+
+              onSearch("");
+            }}
             style={styles.iconButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >

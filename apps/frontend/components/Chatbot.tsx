@@ -2,6 +2,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
 import { publicEnv } from "@/config/publicEnv";
+import { extractChatbotErrorMessage } from "@/utils/chatbotError";
 import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import React, {
@@ -239,7 +240,11 @@ const sendToApi = async (
   });
 
   if (!response.ok) {
-    throw new Error(await response.text());
+    const responseText = await response.text();
+    throw new Error(
+      extractChatbotErrorMessage(responseText) ||
+        "Unable to reach AI assistant. Please try again.",
+    );
   }
 
   const data = await response.json();

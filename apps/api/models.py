@@ -262,6 +262,12 @@ class SendMessageRequest(BaseModel):
         return self
 
 
+class MessageImageUploadRequest(BaseModel):
+    file_name: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(min_length=1, max_length=100)
+    data_base64: str = Field(min_length=1)
+
+
 class StartConversationRequest(BaseModel):
     recipient_id: str
     
