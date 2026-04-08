@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from gemini_client import MODEL, chat
 
-ROOT_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+ROOT_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 LOCAL_ENV_PATH = Path(__file__).resolve().parent / ".env"
 if ROOT_ENV_PATH.exists():
     load_dotenv(ROOT_ENV_PATH)
@@ -203,7 +203,6 @@ async def startup_event():
     log.info("CORS Origins: %s", allowed_origins)
     log.info("CORS Origin Regex: %s", allowed_origin_regex)
     log.info("========================================")
-
 
 if __name__ == "__main__":
     import uvicorn

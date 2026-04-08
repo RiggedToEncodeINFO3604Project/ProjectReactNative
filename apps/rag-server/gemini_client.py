@@ -11,7 +11,7 @@ from google.genai import types as genai_types
 
 from knowledge_base import get_full_knowledge_base, get_relevant_context
 
-ROOT_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+ROOT_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
 LOCAL_ENV_PATH = Path(__file__).resolve().parent / ".env"
 if ROOT_ENV_PATH.exists():
     load_dotenv(ROOT_ENV_PATH)
@@ -20,7 +20,6 @@ elif LOCAL_ENV_PATH.exists():
 
 log = logging.getLogger("skedulelt.gemini")
 
-_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 MODEL = os.environ.get("RAG_MODEL", "gemma-3-27b-it")
 
 MAX_RETRIES = 4
@@ -29,6 +28,23 @@ BASE_DELAY_SECONDS = 2
 _executor = ThreadPoolExecutor(max_workers=4)
 _queue: asyncio.Queue | None = None
 _worker_task: asyncio.Task | None = None
+_client: genai.Client | None = None
+
+
+def _create_client() -> genai.Client:
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured. Add it to the repo root .env or apps/rag-server/.env.",
+        )
+    return genai.Client(api_key=api_key)
+
+
+def _get_client() -> genai.Client:
+    global _client
+    if _client is None:
+        _client = _create_client()
+    return _client
 
 
 def _get_queue() -> asyncio.Queue:
@@ -69,7 +85,10 @@ async def _call_with_retry(
         try:
             response = await loop.run_in_executor(
                 _executor,
-                lambda: _client.models.generate_content(model=MODEL, contents=contents),
+                lambda: _get_client().models.generate_content(
+                    model=MODEL,
+                    contents=contents,
+                ),
             )
             return response.text or ""
         except Exception as exc:
