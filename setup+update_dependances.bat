@@ -24,11 +24,21 @@ echo.
 call :require_command npm "Node.js and npm"
 if errorlevel 1 goto :fail
 
-echo [1/8] Installing frontend dependencies...
+echo [1/8] Installing and validating frontend dependencies...
 call npm install
 if errorlevel 1 (
     echo Error: Frontend npm install failed.
     goto :fail
+)
+call :verify_frontend_install
+if errorlevel 1 (
+    echo Warning: Frontend dependency validation failed after npm install.
+    echo Running a clean frontend reinstall...
+    call :clean_reinstall_frontend
+    if errorlevel 1 (
+        echo Error: Frontend clean reinstall failed.
+        goto :fail
+    )
 )
 echo Frontend dependencies installed successfully.
 echo.
@@ -155,11 +165,17 @@ if not exist ".env" (
     echo Warning: .env file was not found in the project root.
     echo Create one with values similar to:
     echo   EXPO_PUBLIC_API_URL=http://localhost:8000
+    echo   EXPO_PUBLIC_FIREBASE_API_KEY=your-firebase-web-api-key
+    echo   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+    echo   EXPO_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+    echo   EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+    echo   EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-firebase-sender-id
+    echo   EXPO_PUBLIC_FIREBASE_APP_ID=your-firebase-web-app-id
+    echo   EXPO_PUBLIC_FIREBASE_DATABASE_URL=your-firebase-database-url
     echo   FIREBASE_CREDENTIALS=your-firebase-credentials-json-string
-    echo   SECRET_KEY=your-secret-key
-    echo   ALGORITHM=HS256
-    echo   ACCESS_TOKEN_EXPIRE_MINUTES=30
     echo   GEMINI_API_KEY=your-gemini-api-key
+    echo.
+    echo Firebase Email/Password auth must also be enabled in the Firebase console.
 ) else (
     echo .env file exists.
 )
@@ -189,8 +205,8 @@ echo.
 echo You can now run "start server.bat" to start the application.
 echo.
 echo Test accounts:
-echo   Customer: testc@test.com / 123
-echo   Provider: testp@test.com / 123
+echo   Customer: testc@test.com / 123456
+echo   Provider: testp@test.com / 123456
 echo.
 pause
 exit /b 0
@@ -201,6 +217,53 @@ if errorlevel 1 (
     echo Error: %~2 was not found in PATH.
     exit /b 1
 )
+exit /b 0
+
+:verify_frontend_install
+if not exist "package.json" (
+    echo Error: package.json was not found in the project root.
+    exit /b 1
+)
+
+if not exist "node_modules\expo\bin\cli" (
+    echo Error: Expo launcher was not installed.
+    exit /b 1
+)
+
+call npx expo --version >nul 2>&1
+if errorlevel 1 (
+    echo Error: Local Expo CLI failed to start.
+    exit /b 1
+)
+
+call node scripts\validate-frontend-install.js >nul
+if errorlevel 1 (
+    exit /b 1
+)
+
+exit /b 0
+
+:clean_reinstall_frontend
+if exist "node_modules" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -Recurse -Force -LiteralPath 'node_modules'"
+    if errorlevel 1 (
+        echo Error: Failed to remove node_modules during frontend repair.
+        exit /b 1
+    )
+)
+
+call npm install
+if errorlevel 1 (
+    echo Error: npm install failed during frontend repair.
+    exit /b 1
+)
+
+call :verify_frontend_install
+if errorlevel 1 (
+    echo Error: Frontend dependency validation still failed after clean reinstall.
+    exit /b 1
+)
+
 exit /b 0
 
 :find_python_for_venv
