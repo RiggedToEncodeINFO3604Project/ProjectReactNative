@@ -2,6 +2,7 @@ import { getScreenPalette } from "@/constants/theme";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
+import { publicEnv } from "@/config/publicEnv";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -64,7 +65,7 @@ export default function LoginScreen() {
   };
 
   const handleOpenRagServer = async () => {
-    const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL || "").replace(
+    const apiBaseUrl = publicEnv.EXPO_PUBLIC_API_URL.replace(
       /\/+$/,
       "",
     );

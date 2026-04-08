@@ -32,6 +32,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, { AxiosError, AxiosInstance, isAxiosError } from "axios";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { publicEnv } from "@/config/publicEnv";
 import {
   getFirebaseIdToken,
   signInToFirebaseWithCustomToken,
@@ -82,7 +83,7 @@ const extractExpoHost = (): string | null => {
 };
 
 const resolveApiUrl = (): string => {
-  const configuredUrl = normalizeApiUrl(process.env.EXPO_PUBLIC_API_URL);
+  const configuredUrl = normalizeApiUrl(publicEnv.EXPO_PUBLIC_API_URL);
   const isLocalhostConfig =
     !configuredUrl ||
     configuredUrl.includes("localhost") ||
@@ -125,7 +126,7 @@ const resolveApiUrl = (): string => {
 };
 
 const API_URL = resolveApiUrl();
-const FIREBASE_API_KEY = (process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "").trim();
+const FIREBASE_API_KEY = publicEnv.EXPO_PUBLIC_FIREBASE_API_KEY;
 
 const AUTH_STORAGE_KEYS = {
   role: "role",

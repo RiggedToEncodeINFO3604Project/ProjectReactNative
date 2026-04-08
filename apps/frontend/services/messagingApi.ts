@@ -5,6 +5,7 @@
 
 import { Conversation, Message, SendMessageRequest } from "@/types/scheduling";
 import Constants from "expo-constants";
+import { publicEnv } from "@/config/publicEnv";
 import api from "./schedulingApi";
 
 const normalizeUrl = (value?: string | null): string =>
@@ -363,7 +364,7 @@ export class MessagingWebSocket {
    * Ensures secure WebSocket (wss://) for HTTPS pages
    */
   private getWebSocketUrl(): string {
-    const apiUrl = normalizeUrl(process.env.EXPO_PUBLIC_API_URL);
+    const apiUrl = normalizeUrl(publicEnv.EXPO_PUBLIC_API_URL);
     console.log("[MessagingWebSocket] EXPO_PUBLIC_API_URL:", apiUrl);
 
     // Remove trailing slash if present to avoid double slashes

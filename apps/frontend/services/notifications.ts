@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { publicEnv } from "@/config/publicEnv";
 
 const DEVICE_PUSH_TOKEN_STORAGE_KEY = "devicePushToken";
 
@@ -23,7 +24,7 @@ const resolveProjectId = (): string | null => {
     Constants.easConfig?.projectId ||
     (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)
       ?.eas?.projectId ||
-    process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
+    publicEnv.EXPO_PUBLIC_EAS_PROJECT_ID;
 
   if (!easProjectId || easProjectId === "your-project-id") {
     return null;

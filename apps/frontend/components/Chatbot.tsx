@@ -1,6 +1,7 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
+import { publicEnv } from "@/config/publicEnv";
 import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import React, {
@@ -189,7 +190,7 @@ const parseTextParts = (text: string): TextPart[] => {
 };
 
 const API_URL = (() => {
-  const configuredBaseUrl = normalizeUrl(process.env.EXPO_PUBLIC_API_URL);
+  const configuredBaseUrl = normalizeUrl(publicEnv.EXPO_PUBLIC_API_URL);
   const isLocalhostConfig =
     !configuredBaseUrl ||
     configuredBaseUrl.includes("localhost") ||
