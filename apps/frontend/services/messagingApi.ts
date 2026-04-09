@@ -11,6 +11,9 @@ import api from "./schedulingApi";
 const normalizeUrl = (value?: string | null): string =>
   (value || "").trim().replace(/\/+$/, "");
 
+const hasBrowserLocation = (): boolean =>
+  typeof window !== "undefined" && typeof window.location !== "undefined";
+
 const extractPort = (value: string): string => {
   const match = value.match(/:(\d+)(?:\/|$)/);
   return match?.[1] || "8081";
@@ -49,7 +52,7 @@ const extractExpoHost = (): string | null => {
     return manifest2Host;
   }
 
-  if (typeof window !== "undefined" && window.location.host) {
+  if (hasBrowserLocation() && window.location.host) {
     return window.location.host;
   }
 
@@ -374,7 +377,7 @@ export class MessagingWebSocket {
       normalizedUrl.includes("localhost") ||
       normalizedUrl.includes("127.0.0.1");
 
-    if (typeof window !== "undefined") {
+    if (hasBrowserLocation()) {
       if (isLocalhostConfig) {
         if (normalizedUrl) {
           const configuredPort = extractPort(normalizedUrl);
@@ -409,7 +412,7 @@ export class MessagingWebSocket {
     }
 
     // Improved fallback - detect current protocol in browser
-    if (typeof window !== "undefined") {
+    if (hasBrowserLocation()) {
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const host = normalizedUrl || window.location.host;
       const wsUrl = `${protocol}//${host}/ws`;
@@ -452,8 +455,8 @@ export class MessagingWebSocket {
         userAgent:
           typeof navigator !== "undefined" ? navigator.userAgent : "N/A",
         protocol:
-          typeof window !== "undefined" ? window.location.protocol : "N/A",
-        host: typeof window !== "undefined" ? window.location.host : "N/A",
+          hasBrowserLocation() ? window.location.protocol : "N/A",
+        host: hasBrowserLocation() ? window.location.host : "N/A",
       });
 
       this.ws = new WebSocket(wsUrl);
