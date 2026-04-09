@@ -2,8 +2,26 @@
   "name": "@skeduleit/frontend",
   "private": true,
   "license": "0BSD",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "54.0.35",
+  "expo": {
+    "install": {
+      "exclude": [
+        "expo-modules-autolinking"
+      ]
+    },
+    "doctor": {
+      "appConfigFieldsNotSyncedCheck": {
+        "enabled": false
+      },
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "@google/generative-ai"
+        ],
+        "listUnknownPackages": false
+      }
+    }
+  },
   "scripts": {
     "build": "node ../../node_modules/expo/bin/cli export --platform web",
     "start": "node ../../node_modules/expo/bin/cli start",
@@ -25,7 +43,7 @@
     "@google/generative-ai": "^0.24.1",
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-tabs": "^1.1.13",
-    "@react-native-async-storage/async-storage": "^1.23.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
@@ -42,7 +60,6 @@
     "expo-image": "~3.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.8",
-    "expo-modules-core": "~3.0.29",
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.8",
     "expo-splash-screen": "~31.0.10",
@@ -62,7 +79,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-fast-compare": "^3.2.2",
-    "react-native": "0.81.4",
+    "react-native": "0.81.5",
     "react-native-calendars": "^1.1314.0",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-reanimated": "~4.1.1",
@@ -74,10 +91,13 @@
     "shallowequal": "^1.1.0",
     "statuses": "^2.0.2",
     "toidentifier": "^1.0.1",
-    "vaul": "^1.1.2"
+    "vaul": "^1.1.2",
+    "whatwg-url-without-unicode": "8.0.0-3"
   },
   "devDependencies": {
+    "@eslint/plugin-kit": "^0.7.1",
     "@expo/cli": "^54.0.23",
+    "@expo/fingerprint": "0.15.4",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^12.9.0",
     "@types/jest": "^29.5.14",
@@ -86,6 +106,7 @@
     "babel-preset-expo": "~54.0.6",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "eslint-visitor-keys": "^5.0.1",
     "jest": "^29.7.0",
     "jest-expo": "~54.0.0",
     "typescript": "~5.9.2"

@@ -49,6 +49,9 @@ app-example
 # generated native folders
 /ios
 /android
+apps/frontend/android/
+apps/frontend/ios/
+apps/frontend/android/local.properties
 
 # Backend
 __pycache__/

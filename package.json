@@ -5,6 +5,10 @@
   "workspaces": [
     "apps/frontend"
   ],
+  "devDependencies": {
+    "expo-modules-autolinking": "3.0.24",
+    "expo-modules-core": "3.0.29"
+  },
   "scripts": {
     "start": "npm run start --workspace apps/frontend",
     "frontend": "npm run start --workspace apps/frontend",
