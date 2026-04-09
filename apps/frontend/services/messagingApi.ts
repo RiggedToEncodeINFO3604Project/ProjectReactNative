@@ -306,6 +306,7 @@ export class MessagingWebSocket {
   private ws: WebSocket | null = null;
   private token: string | null = null;
   private connectionState: ConnectionState = "disconnected";
+  private hasEstablishedConnection = false;
   private reconnectAttempts = 0;
   private pingIntervalId: NodeJS.Timeout | null = null;
   private reconnectTimeoutId: NodeJS.Timeout | null = null;
@@ -333,7 +334,7 @@ export class MessagingWebSocket {
       maxReconnectAttempts: options.maxReconnectAttempts ?? 5,
       reconnectBaseDelay: options.reconnectBaseDelay ?? 1000,
       maxReconnectDelay: options.maxReconnectDelay ?? 30000,
-      pingInterval: options.pingInterval ?? 30000,
+      pingInterval: options.pingInterval ?? 15000,
     };
 
     this.maxReconnectAttempts = this.options.maxReconnectAttempts;
@@ -500,6 +501,7 @@ export class MessagingWebSocket {
   // Handle WebSocket open event
   private handleOpen(): void {
     console.log("[MessagingWebSocket] Connected successfully");
+    this.hasEstablishedConnection = true;
     this.setConnectionState("connected");
     this.reconnectAttempts = 0;
 
@@ -618,6 +620,12 @@ export class MessagingWebSocket {
     if (typeof event !== "undefined" && event.target) {
       const target = event.target as WebSocket;
       if (target.readyState === WebSocket.CLOSED) {
+        if (this.hasEstablishedConnection) {
+          console.warn(
+            "[MessagingWebSocket] Connection dropped after being established. Reconnecting...",
+          );
+          return;
+        }
         // Connection was refused or failed
         errorMessage =
           "WebSocket connection refused - server may be unavailable or WebSocket proxy not configured correctly";
@@ -796,6 +804,7 @@ export class MessagingWebSocket {
       this.ws = null;
     }
 
+    this.hasEstablishedConnection = false;
     this.token = null;
     this.subscribedConversations.clear();
     this.setConnectionState("disconnected");
