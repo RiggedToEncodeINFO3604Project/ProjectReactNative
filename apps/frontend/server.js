@@ -385,28 +385,15 @@ server.on("upgrade", (request, socket, head) => {
 
   if (request.url.startsWith("/ws")) {
     console.log("[WebSocket Upgrade] Routing to backend proxy");
-
-    const upgradeTimeout = setTimeout(() => {
-      console.error("[WebSocket Upgrade] Timeout after 10s");
-      socket.write("HTTP/1.1 504 Gateway Timeout\r\n\r\n");
-      socket.destroy();
-    }, 10000);
-
-    wsProxy.upgrade(request, socket, head, (err) => {
-      clearTimeout(upgradeTimeout);
-
-      if (err) {
-        console.error("[WebSocket Upgrade] Error:", err.message);
-        try {
-          socket.write("HTTP/1.1 502 Bad Gateway\r\n\r\n");
-        } catch {
-          // Socket may already be closed.
-        }
-        socket.destroy();
-      } else {
-        console.log("[WebSocket Upgrade] Successfully upgraded");
-      }
+    socket.once("error", (error) => {
+      console.error("[WebSocket Upgrade] Socket error:", error.message);
     });
+
+    socket.once("close", () => {
+      console.log("[WebSocket Upgrade] Socket closed");
+    });
+
+    wsProxy.upgrade(request, socket, head);
     return;
   }
 
