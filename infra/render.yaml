@@ -5,29 +5,36 @@ services:
     name: expo-scheduling
     runtime: docker
     dockerfilePath: ./infra/Dockerfile
-    # Health check for Render to verify service is ready
-    # Required for proper WebSocket upgrade handling
+    # Health check verifies the Express proxy plus both internal services.
     healthCheckPath: /health
-    # Combined service needs all environment variables
     envVars:
-      # Frontend API URL (must be HTTPS for production)
+      # Leave blank so the web build uses the same-origin Render URL.
       - key: EXPO_PUBLIC_API_URL
-        value: http://localhost:8000
+        value: ""
 
-      # MongoDB Configuration (for FastAPI backend)
-      - key: MONGODB_URL
+      # Firebase admin credentials for the FastAPI backend.
+      - key: FIREBASE_CREDENTIALS
         sync: false
-      - key: DATABASE_NAME
-        value: scheduling_db
-      - key: SECRET_KEY
-        generateValue: true
 
-      # Gemini API (used by the local RAG server in this same container)
+      # Firebase web config for the Expo frontend.
+      - key: EXPO_PUBLIC_FIREBASE_API_KEY
+        sync: false
+      - key: EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: EXPO_PUBLIC_FIREBASE_PROJECT_ID
+        sync: false
+      - key: EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: EXPO_PUBLIC_FIREBASE_APP_ID
+        sync: false
+      - key: EXPO_PUBLIC_FIREBASE_DATABASE_URL
+        sync: false
+
+      # Gemini API for the local RAG service.
       - key: GEMINI_API_KEY
         sync: false
-      - key: EXPO_PUBLIC_GEMINI_API_KEY
-        sync: false
 
-      # Node environment
       - key: NODE_ENV
         value: production

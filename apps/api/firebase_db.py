@@ -17,8 +17,8 @@ def initialize_firebase():
     
     if not firebase_creds:
         raise ValueError(
-            "FIREBASE_CREDENTIALS not set in .env. "
-            "Add your Firebase service account JSON as a single-line string to .env"
+            "FIREBASE_CREDENTIALS is not configured. "
+            "Add your Firebase service account JSON as an environment variable."
         )
     
     try:

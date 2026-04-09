@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 
 type PublicEnvShape = {
   EXPO_PUBLIC_API_URL?: string;
@@ -12,12 +13,21 @@ type PublicEnvShape = {
   EXPO_PUBLIC_EAS_PROJECT_ID?: string;
 };
 
+type WebRuntimeWindow = Window & {
+  __PUBLIC_ENV__?: Partial<PublicEnvShape>;
+};
+
 const expoExtra = (Constants.expoConfig?.extra as {
   publicEnv?: PublicEnvShape;
 } | null)?.publicEnv;
 
+const webRuntimeEnv =
+  Platform.OS === "web"
+    ? (globalThis.window as WebRuntimeWindow | undefined)?.__PUBLIC_ENV__ ?? null
+    : null;
+
 const readEnv = (key: keyof PublicEnvShape): string => {
-  const value = process.env[key] ?? expoExtra?.[key] ?? "";
+  const value = webRuntimeEnv?.[key] ?? process.env[key] ?? expoExtra?.[key] ?? "";
   return value.trim();
 };
 

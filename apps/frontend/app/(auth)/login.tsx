@@ -70,11 +70,18 @@ export default function LoginScreen() {
       "",
     );
     const normalizedBaseUrl = apiBaseUrl.replace(/\/api\/chat$/, "");
-    const url = normalizedBaseUrl
-      ? `${normalizedBaseUrl}/api/rag/health`
-      : (typeof window !== "undefined"
+    const isLocalhostConfig =
+      !normalizedBaseUrl ||
+      normalizedBaseUrl.includes("localhost") ||
+      normalizedBaseUrl.includes("127.0.0.1");
+    const url =
+      Platform.OS === "web" &&
+      typeof window !== "undefined" &&
+      isLocalhostConfig
         ? `${window.location.origin}/api/rag/health`
-        : "http://localhost:8081/api/rag/health");
+        : normalizedBaseUrl
+          ? `${normalizedBaseUrl}/api/rag/health`
+          : "http://localhost:8081/api/rag/health";
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);

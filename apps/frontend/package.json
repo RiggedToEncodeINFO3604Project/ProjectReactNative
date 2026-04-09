@@ -55,6 +55,7 @@
     "firebase": "^10.14.1",
     "generator-function": "^2.0.1",
     "http-errors": "^2.0.1",
+    "http-proxy": "^1.18.1",
     "http-proxy-middleware": "^2.0.6",
     "invariant": "^2.2.4",
     "jest-expo": "~54.0.17",

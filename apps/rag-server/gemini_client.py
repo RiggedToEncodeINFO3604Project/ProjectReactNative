@@ -70,7 +70,7 @@ def _create_client() -> genai.Client:
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError(
-            "GEMINI_API_KEY is not configured. Add it to the repo root .env or apps/rag-server/.env.",
+            "GEMINI_API_KEY is not configured. Add it as an environment variable for the RAG service.",
         )
     return genai.Client(api_key=api_key)
 
