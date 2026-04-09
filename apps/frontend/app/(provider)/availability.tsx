@@ -166,9 +166,7 @@ export default function ManageAvailabilityScreen() {
     setTempDuration(30);
     setTempRecurrence("repeat_weekly");
     setTempEndDate(todayString);
-    setTempSelectedServiceIds(
-      services.length === 1 ? [services[0].id] : [],
-    );
+    setTempSelectedServiceIds(services.length === 1 ? [services[0].id] : []);
     setEditModalVisible(true);
   };
 
@@ -284,9 +282,7 @@ export default function ManageAvailabilityScreen() {
       case "just_this_month":
         return `This month only${slot.start_date ? ` from ${slot.start_date}` : ""}`;
       case "specified_end_date":
-        return slot.end_date
-          ? `Until ${slot.end_date}`
-          : "Specified end date";
+        return slot.end_date ? `Until ${slot.end_date}` : "Specified end date";
       default:
         return "Repeats weekly";
     }
@@ -324,10 +320,7 @@ export default function ManageAvailabilityScreen() {
     const parsedEndTime = parseTwelveHourTime(tempEndTime);
 
     if (!parsedStartTime || !parsedEndTime) {
-      Alert.alert(
-        "Invalid Time",
-        "Please enter times in h:mm AM/PM format.",
-      );
+      Alert.alert("Invalid Time", "Please enter times in h:mm AM/PM format.");
       return;
     }
 
@@ -355,7 +348,8 @@ export default function ManageAvailabilityScreen() {
     const justTodayDate = formatDate(
       getNextOccurrenceForDay(today, editingSlot.dayIndex),
     );
-    const useAllServices = services.length > 1 && tempSelectedServiceIds.length === 0;
+    const useAllServices =
+      services.length > 1 && tempSelectedServiceIds.length === 0;
     const selectedServiceIds =
       services.length <= 1
         ? services.map((service) => service.id)
@@ -363,11 +357,12 @@ export default function ManageAvailabilityScreen() {
           ? []
           : tempSelectedServiceIds;
 
-    if (services.length > 1 && !useAllServices && selectedServiceIds.length === 0) {
-      Alert.alert(
-        "Select Services",
-        "Choose at least one service or use All.",
-      );
+    if (
+      services.length > 1 &&
+      !useAllServices &&
+      selectedServiceIds.length === 0
+    ) {
+      Alert.alert("Select Services", "Choose at least one service or use All.");
       return;
     }
 
@@ -496,7 +491,11 @@ export default function ManageAvailabilityScreen() {
       return null;
     }
 
-    return generateSessionsPreview(parsedStartTime, parsedEndTime, tempDuration);
+    return generateSessionsPreview(
+      parsedStartTime,
+      parsedEndTime,
+      tempDuration,
+    );
   };
 
   const preview = editModalVisible ? getPreview() : null;
@@ -572,7 +571,9 @@ export default function ManageAvailabilityScreen() {
                   onPress={() => openEditModal(dayIndex, slotIndex, slot)}
                 >
                   <View style={styles.slotInfo}>
-                    <Text style={[styles.slotTimeText, { color: colours.text }]}>
+                    <Text
+                      style={[styles.slotTimeText, { color: colours.text }]}
+                    >
                       {formatStoredTimeRange(slot.start_time, slot.end_time)}
                     </Text>
                     <Text
@@ -601,11 +602,17 @@ export default function ManageAvailabilityScreen() {
                     </Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.removeButton, { borderColor: colours.error }]}
+                    style={[
+                      styles.removeButton,
+                      { borderColor: colours.error },
+                    ]}
                     onPress={() => removeTimeSlot(dayIndex, slotIndex)}
                   >
                     <Text
-                      style={[styles.removeButtonText, { color: colours.error }]}
+                      style={[
+                        styles.removeButtonText,
+                        { color: colours.error },
+                      ]}
                     >
                       {"\u2715"}
                     </Text>
@@ -666,296 +673,313 @@ export default function ManageAvailabilityScreen() {
                 : "Edit Time Slot"}
             </Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
-                Start Time
-              </Text>
-              <TextInput
-                style={[
-                  styles.timeInput,
-                  { backgroundColor: colours.inputBg, color: colours.text },
-                ]}
-                value={tempStartTime}
-                onChangeText={setTempStartTime}
-                placeholder="9:00 AM"
-                placeholderTextColor={colours.textMuted}
-                maxLength={8}
-                autoCapitalize="characters"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
-                End Time
-              </Text>
-              <TextInput
-                style={[
-                  styles.timeInput,
-                  { backgroundColor: colours.inputBg, color: colours.text },
-                ]}
-                value={tempEndTime}
-                onChangeText={setTempEndTime}
-                placeholder="5:00 PM"
-                placeholderTextColor={colours.textMuted}
-                maxLength={8}
-                autoCapitalize="characters"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
-                Session Duration (minutes)
-              </Text>
-              <View style={styles.durationOptions}>
-                {DURATION_OPTIONS.map((duration) => (
-                  <TouchableOpacity
-                    key={duration}
-                    style={[
-                      styles.durationButton,
-                      {
-                        backgroundColor:
-                          tempDuration === duration
-                            ? colours.accent
-                            : colours.inputBg,
-                        borderColor: colours.border,
-                      },
-                    ]}
-                    onPress={() => setTempDuration(duration)}
-                  >
-                    <Text
-                      style={[
-                        styles.durationButtonText,
-                        {
-                          color:
-                            tempDuration === duration
-                              ? UIColours.button.textLight
-                              : colours.text,
-                        },
-                      ]}
-                    >
-                      {duration}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            <ScrollView
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                  Start Time
+                </Text>
+                <TextInput
+                  style={[
+                    styles.timeInput,
+                    { backgroundColor: colours.inputBg, color: colours.text },
+                  ]}
+                  value={tempStartTime}
+                  onChangeText={setTempStartTime}
+                  placeholder="9:00 AM"
+                  placeholderTextColor={colours.textMuted}
+                  maxLength={8}
+                  autoCapitalize="characters"
+                />
               </View>
-            </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
-                Recurrence
-              </Text>
-              <View style={styles.recurrenceOptions}>
-                {recurrenceOptions.map((option) => {
-                  const selected = tempRecurrence === option.value;
-                  return (
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                  End Time
+                </Text>
+                <TextInput
+                  style={[
+                    styles.timeInput,
+                    { backgroundColor: colours.inputBg, color: colours.text },
+                  ]}
+                  value={tempEndTime}
+                  onChangeText={setTempEndTime}
+                  placeholder="5:00 PM"
+                  placeholderTextColor={colours.textMuted}
+                  maxLength={8}
+                  autoCapitalize="characters"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                  Session Duration (minutes)
+                </Text>
+                <View style={styles.durationOptions}>
+                  {DURATION_OPTIONS.map((duration) => (
                     <TouchableOpacity
-                      key={option.value}
+                      key={duration}
                       style={[
-                        styles.recurrenceOption,
+                        styles.durationButton,
                         {
-                          backgroundColor: selected
-                            ? `${colours.accent}20`
-                            : colours.inputBg,
-                          borderColor: selected
-                            ? colours.accent
-                            : colours.border,
+                          backgroundColor:
+                            tempDuration === duration
+                              ? colours.accent
+                              : colours.inputBg,
+                          borderColor: colours.border,
                         },
                       ]}
-                      onPress={() => setTempRecurrence(option.value)}
+                      onPress={() => setTempDuration(duration)}
                     >
-                      <View
+                      <Text
                         style={[
-                          styles.radioOuter,
+                          styles.durationButtonText,
                           {
-                            borderColor: selected
-                              ? colours.accent
-                              : colours.textMuted,
+                            color:
+                              tempDuration === duration
+                                ? UIColours.button.textLight
+                                : colours.text,
                           },
                         ]}
                       >
-                        {selected && (
-                          <View
-                            style={[
-                              styles.radioInner,
-                              { backgroundColor: colours.accent },
-                            ]}
-                          />
-                        )}
-                      </View>
-                      <Text
-                        style={[
-                          styles.recurrenceOptionText,
-                          { color: colours.text },
-                        ]}
-                      >
-                        {option.label}
+                        {duration}
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
+                  ))}
+                </View>
               </View>
-            </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
-                Apply To Services
-              </Text>
-              <View style={styles.serviceOptions}>
-                {services.length > 1 && (
-                  <TouchableOpacity
-                    style={[
-                      styles.serviceChip,
-                      {
-                        backgroundColor:
-                          tempSelectedServiceIds.length === 0
-                            ? `${colours.accent}20`
-                            : colours.inputBg,
-                        borderColor:
-                          tempSelectedServiceIds.length === 0
-                            ? colours.accent
-                            : colours.border,
-                      },
-                    ]}
-                    onPress={() => setTempSelectedServiceIds([])}
-                  >
-                    <Text
-                      style={[
-                        styles.serviceChipText,
-                        {
-                          color:
-                            tempSelectedServiceIds.length === 0
-                              ? colours.text
-                              : colours.textMuted,
-                        },
-                      ]}
-                    >
-                      All
-                    </Text>
-                  </TouchableOpacity>
-                )}
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                  Recurrence
+                </Text>
+                <View style={styles.recurrenceOptions}>
+                  {recurrenceOptions.map((option) => {
+                    const selected = tempRecurrence === option.value;
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[
+                          styles.recurrenceOption,
+                          {
+                            backgroundColor: selected
+                              ? `${colours.accent}20`
+                              : colours.inputBg,
+                            borderColor: selected
+                              ? colours.accent
+                              : colours.border,
+                          },
+                        ]}
+                        onPress={() => setTempRecurrence(option.value)}
+                      >
+                        <View
+                          style={[
+                            styles.radioOuter,
+                            {
+                              borderColor: selected
+                                ? colours.accent
+                                : colours.textMuted,
+                            },
+                          ]}
+                        >
+                          {selected && (
+                            <View
+                              style={[
+                                styles.radioInner,
+                                { backgroundColor: colours.accent },
+                              ]}
+                            />
+                          )}
+                        </View>
+                        <Text
+                          style={[
+                            styles.recurrenceOptionText,
+                            { color: colours.text },
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
 
-                {services.map((service) => {
-                  const selected = tempSelectedServiceIds.includes(service.id);
-                  return (
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                  Apply To Services
+                </Text>
+                <View style={styles.serviceOptions}>
+                  {services.length > 1 && (
                     <TouchableOpacity
-                      key={service.id}
                       style={[
                         styles.serviceChip,
                         {
-                          backgroundColor: selected
-                            ? `${colours.accent}20`
-                            : colours.inputBg,
-                          borderColor: selected
-                            ? colours.accent
-                            : colours.border,
+                          backgroundColor:
+                            tempSelectedServiceIds.length === 0
+                              ? `${colours.accent}20`
+                              : colours.inputBg,
+                          borderColor:
+                            tempSelectedServiceIds.length === 0
+                              ? colours.accent
+                              : colours.border,
                         },
                       ]}
-                      onPress={() => toggleServiceSelection(service.id)}
+                      onPress={() => setTempSelectedServiceIds([])}
                     >
                       <Text
                         style={[
                           styles.serviceChipText,
                           {
-                            color: selected ? colours.text : colours.textMuted,
+                            color:
+                              tempSelectedServiceIds.length === 0
+                                ? colours.text
+                                : colours.textMuted,
                           },
                         ]}
                       >
-                        {service.name}
+                        All
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </View>
-              {services.length === 0 && (
-                <Text
-                  style={[styles.helperText, { color: colours.textMuted }]}
-                >
-                  Add services first to target availability by service.
-                </Text>
-              )}
-            </View>
+                  )}
 
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
-                End Date
-              </Text>
-              <TouchableOpacity
-                style={[
-                  styles.dateSelector,
-                  {
-                    backgroundColor:
-                      tempRecurrence === "specified_end_date"
-                        ? colours.inputBg
-                        : `${colours.inputBg}99`,
-                    borderColor: colours.border,
-                    opacity: tempRecurrence === "specified_end_date" ? 1 : 0.55,
-                  },
-                ]}
-                disabled={tempRecurrence !== "specified_end_date"}
-                onPress={() => setDatePickerVisible(true)}
-              >
-                <Text
+                  {services.map((service) => {
+                    const selected = tempSelectedServiceIds.includes(
+                      service.id,
+                    );
+                    return (
+                      <TouchableOpacity
+                        key={service.id}
+                        style={[
+                          styles.serviceChip,
+                          {
+                            backgroundColor: selected
+                              ? `${colours.accent}20`
+                              : colours.inputBg,
+                            borderColor: selected
+                              ? colours.accent
+                              : colours.border,
+                          },
+                        ]}
+                        onPress={() => toggleServiceSelection(service.id)}
+                      >
+                        <Text
+                          style={[
+                            styles.serviceChipText,
+                            {
+                              color: selected
+                                ? colours.text
+                                : colours.textMuted,
+                            },
+                          ]}
+                        >
+                          {service.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {services.length === 0 && (
+                  <Text
+                    style={[styles.helperText, { color: colours.textMuted }]}
+                  >
+                    Add services first to target availability by service.
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colours.textMuted }]}>
+                  End Date
+                </Text>
+                <TouchableOpacity
                   style={[
-                    styles.dateSelectorText,
+                    styles.dateSelector,
                     {
-                      color:
+                      backgroundColor:
                         tempRecurrence === "specified_end_date"
-                          ? colours.text
-                          : colours.textMuted,
+                          ? colours.inputBg
+                          : `${colours.inputBg}99`,
+                      borderColor: colours.border,
+                      opacity:
+                        tempRecurrence === "specified_end_date" ? 1 : 0.55,
+                    },
+                  ]}
+                  disabled={tempRecurrence !== "specified_end_date"}
+                  onPress={() => setDatePickerVisible(true)}
+                >
+                  <Text
+                    style={[
+                      styles.dateSelectorText,
+                      {
+                        color:
+                          tempRecurrence === "specified_end_date"
+                            ? colours.text
+                            : colours.textMuted,
+                      },
+                    ]}
+                  >
+                    {tempEndDate || "Select end date"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Live Preview */}
+              {preview && (
+                <View
+                  style={[
+                    styles.previewContainer,
+                    {
+                      backgroundColor: colours.inputBg,
+                      borderColor: colours.border,
                     },
                   ]}
                 >
-                  {tempEndDate || "Select end date"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Live Preview */}
-            {preview && (
-              <View
-                style={[
-                  styles.previewContainer,
-                  {
-                    backgroundColor: colours.inputBg,
-                    borderColor: colours.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.previewTitle, { color: colours.text }]}>
-                  Sessions Preview
-                </Text>
-                <Text style={[styles.previewText, { color: colours.textMuted }]}>
-                  {preview.sessionsCreated} session
-                  {preview.sessionsCreated !== 1 ? "s" : ""} will be created
-                </Text>
-                {preview.sessions.length > 0 && (
-                  <Text
-                    style={[styles.previewSessions, { color: colours.text }]}
-                  >
-                    {preview.sessions
-                      .slice(0, 4)
-                      .map((s) => formatStoredTimeRange(s.start, s.end))
-                      .join(", ")}
-                    {preview.sessions.length > 4 &&
-                      ` +${preview.sessions.length - 4} more`}
+                  <Text style={[styles.previewTitle, { color: colours.text }]}>
+                    Sessions Preview
                   </Text>
-                )}
-                {preview.remainderMinutes > 0 && (
-                  <View style={styles.warningBox}>
+                  <Text
+                    style={[styles.previewText, { color: colours.textMuted }]}
+                  >
+                    {preview.sessionsCreated} session
+                    {preview.sessionsCreated !== 1 ? "s" : ""} will be created
+                  </Text>
+                  {preview.sessions.length > 0 && (
                     <Text
-                      style={[styles.warningText, { color: colours.warning }]}
+                      style={[styles.previewSessions, { color: colours.text }]}
                     >
-                      ⚠️ {preview.remainderMinutes} minutes will be unused
+                      {preview.sessions
+                        .slice(0, 4)
+                        .map((s) => formatStoredTimeRange(s.start, s.end))
+                        .join(", ")}
+                      {preview.sessions.length > 4 &&
+                        ` +${preview.sessions.length - 4} more`}
                     </Text>
-                    <Text
-                      style={[styles.warningHint, { color: colours.textMuted }]}
-                    >
-                      Consider adjusting end time or session duration
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
+                  )}
+                  {preview.remainderMinutes > 0 && (
+                    <View style={styles.warningBox}>
+                      <Text
+                        style={[styles.warningText, { color: colours.warning }]}
+                      >
+                        ⚠️ {preview.remainderMinutes} minutes will be unused
+                      </Text>
+                      <Text
+                        style={[
+                          styles.warningHint,
+                          { color: colours.textMuted },
+                        ]}
+                      >
+                        Consider adjusting end time or session duration
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </ScrollView>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -973,7 +997,10 @@ export default function ManageAvailabilityScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colours.accent }]}
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: colours.accent },
+                ]}
                 onPress={saveSlotEdit}
               >
                 <Text style={styles.modalButtonText}>Save</Text>
@@ -1159,16 +1186,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: UIColours.overlay,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
   },
   modalContent: {
     width: "90%",
+    maxWidth: 960,
     maxHeight: "92%",
-    padding: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     borderRadius: 15,
     borderWidth: 1,
   },
+  modalScrollView: {
+    flexShrink: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: 8,
+  },
   calendarModalContent: {
     width: "92%",
+    maxWidth: 420,
     padding: 16,
     borderRadius: 15,
     borderWidth: 1,
@@ -1268,7 +1307,8 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: "row",
     gap: 10,
-    marginTop: 20,
+    marginTop: 16,
+    paddingTop: 4,
   },
   modalButton: {
     flex: 1,
