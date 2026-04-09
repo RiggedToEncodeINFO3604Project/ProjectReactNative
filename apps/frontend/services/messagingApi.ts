@@ -201,19 +201,84 @@ export const getConversation = async (
  * Get messages in a conversation
  * @param conversationId - The ID of the conversation
  * @param limit - Maximum number of messages to retrieve (1-100, default 50)
+ * @param beforeTimestamp - Fetch messages older than this timestamp
  * @returns Array of messages in reverse chronological order (newest first)
  */
+export interface GetMessagesOptions {
+  limit?: number;
+  beforeTimestamp?: string;
+}
+
 export const getMessages = async (
   conversationId: string,
-  limit?: number,
+  limitOrOptions?: number | GetMessagesOptions,
 ): Promise<Message[]> => {
+  const options =
+    typeof limitOrOptions === "number"
+      ? { limit: limitOrOptions }
+      : (limitOrOptions ?? {});
+
+  const params: Record<string, number | string> = {};
+
+  if (options.limit) {
+    params.limit = options.limit;
+  }
+
+  if (options.beforeTimestamp) {
+    params.before_timestamp = options.beforeTimestamp;
+  }
+
   const response = await api.get<Message[]>(
     `/api/messaging/conversations/${conversationId}/messages`,
     {
-      params: limit ? { limit } : undefined,
+      params: Object.keys(params).length > 0 ? params : undefined,
     },
   );
   return response.data;
+};
+
+const MESSAGE_HISTORY_BATCH_SIZE = 100;
+
+/**
+ * Fetch the full message history for a conversation in paginated batches.
+ */
+export const getFullMessageHistory = async (
+  conversationId: string,
+): Promise<Message[]> => {
+  const allMessages: Message[] = [];
+  const seenMessageIds = new Set<string>();
+  let beforeTimestamp: string | undefined;
+
+  while (true) {
+    const batch = await getMessages(conversationId, {
+      limit: MESSAGE_HISTORY_BATCH_SIZE,
+      beforeTimestamp,
+    });
+
+    if (batch.length === 0) {
+      break;
+    }
+
+    batch.forEach((message) => {
+      if (!seenMessageIds.has(message.id)) {
+        seenMessageIds.add(message.id);
+        allMessages.push(message);
+      }
+    });
+
+    if (batch.length < MESSAGE_HISTORY_BATCH_SIZE) {
+      break;
+    }
+
+    const oldestMessage = batch[batch.length - 1];
+    if (!oldestMessage?.created_at || oldestMessage.created_at === beforeTimestamp) {
+      break;
+    }
+
+    beforeTimestamp = oldestMessage.created_at;
+  }
+
+  return allMessages;
 };
 
 /**

@@ -16,7 +16,7 @@ import {
 } from "@/services/firebaseMessaging";
 import {
   getConversation,
-  getMessages,
+  getFullMessageHistory,
   markConversationAsRead,
   messagingSocket,
   sendMessage,
@@ -224,7 +224,7 @@ export default function ChatScreen() {
     setIsLoadingMessages(true);
     setHasHydratedMessages(false);
     try {
-      const data = await getMessages(conversationId, 50);
+      const data = await getFullMessageHistory(conversationId);
       // Reverse to show oldest first
       setMessages(
         Array.isArray(data)
