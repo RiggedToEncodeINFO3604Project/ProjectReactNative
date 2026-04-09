@@ -415,19 +415,27 @@ const MessageBubble = React.memo(
         {!isUser && message.sections && message.sections.length > 0 && (
           <View style={styles.sectionsBadge}>
             {message.sections.map((section, index) => (
-              <Text
+              <View
                 key={index}
                 style={[
-                  styles.sectionBadgeText,
+                  styles.sectionBadge,
                   {
-                    color: colours.accentDim,
                     backgroundColor: colours.accentSoft,
                     borderColor: `${colours.accent}30`,
                   },
                 ]}
               >
-                {section}
-              </Text>
+                <Text
+                  style={[
+                    styles.sectionBadgeText,
+                    {
+                      color: colours.accentDim,
+                    },
+                  ]}
+                >
+                  {section}
+                </Text>
+              </View>
             ))}
           </View>
         )}
@@ -1183,6 +1191,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
+    width: "100%",
   },
   userRow: {
     flexDirection: "row-reverse",
@@ -1205,9 +1214,12 @@ const styles = StyleSheet.create({
   },
   bubble: {
     maxWidth: "82%",
+    minWidth: 0,
+    flexShrink: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 18,
+    overflow: "hidden",
   },
   bubbleBot: {
     borderWidth: 1,
@@ -1234,6 +1246,7 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 15,
     lineHeight: 22,
+    flexShrink: 1,
   },
   blankLine: {
     height: 4,
@@ -1242,11 +1255,13 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     flexDirection: "row",
     alignItems: "flex-start",
+    minWidth: 0,
   },
   listItem: {
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: 2,
+    minWidth: 0,
   },
   listPrefix: {
     width: 20,
@@ -1258,6 +1273,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     flexDirection: "row",
     alignItems: "flex-start",
+    minWidth: 0,
   },
   boldText: {
     fontWeight: "700",
@@ -1271,16 +1287,21 @@ const styles = StyleSheet.create({
   sectionsBadge: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
     marginTop: 10,
+  },
+  sectionBadge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+    marginBottom: 6,
+    maxWidth: "100%",
   },
   sectionBadgeText: {
     fontSize: 11,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1,
     fontWeight: "600",
+    flexShrink: 1,
   },
   inputBar: {
     paddingHorizontal: 16,
