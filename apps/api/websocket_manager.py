@@ -47,9 +47,14 @@ class WebSocketManager:
     async def authenticate(self, token: str) -> Optional[dict]:
         try:
             current_user = resolve_user_from_token(token)
+            role = (
+                current_user.role.value
+                if hasattr(current_user.role, "value")
+                else str(current_user.role)
+            )
             return {
                 "user_id": current_user.id,
-                "role": str(current_user.role),
+                "role": role,
             }
         except Exception:
             return None

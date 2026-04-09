@@ -161,8 +161,12 @@ def verify_user_in_conversation(conversation_id: str, user_id: str, role: str) -
     
     if not conversation:
         return False
-    
-    if role == "Customer":
+
+    normalized_role = role.value if hasattr(role, "value") else str(role)
+    if "." in normalized_role:
+        normalized_role = normalized_role.split(".")[-1]
+
+    if normalized_role == "Customer":
         return conversation.get('customer_id') == user_id
     else:  # Provider
         return conversation.get('provider_id') == user_id
