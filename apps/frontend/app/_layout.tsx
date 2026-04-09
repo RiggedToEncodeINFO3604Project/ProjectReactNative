@@ -158,7 +158,7 @@ function AuthNavigator() {
         <Redirect href="/(provider)" />
       )}
 
-      <StatusBar style={isDarkMode ? "light" : "dark"} />
+      <StatusBar style={isDarkMode ? "light" : "dark"} backgroundColor="transparent" translucent={true} />
     </ThemeProvider>
   );
 }
