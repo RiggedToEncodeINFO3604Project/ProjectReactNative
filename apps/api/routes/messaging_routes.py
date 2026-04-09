@@ -1,5 +1,6 @@
 import base64
 import binascii
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List
 import logging
@@ -130,12 +131,14 @@ async def get_conversation(conversation_id: str, current_user: User = Depends(ge
 async def get_messages(
     conversation_id: str,
     limit: int = Query(50, ge=1, le=100),
+    before_timestamp: datetime | None = Query(None),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get messages in a conversation.
     
     - Returns messages in reverse chronological order (newest first)
+    - Supports pagination with before_timestamp
     - User must be a participant in the conversation.
     
     """
@@ -148,7 +151,8 @@ async def get_messages(
         
         messages = get_conversation_messages(
             conversation_id=conversation_id,
-            limit=limit
+            limit=limit,
+            before_timestamp=before_timestamp,
         )
         
         log.info(f"User {current_user.id} retrieved {len(messages)} messages from conversation {conversation_id}")

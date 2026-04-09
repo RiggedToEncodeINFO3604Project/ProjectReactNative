@@ -51,6 +51,37 @@ class MessagingRoutesTests(unittest.TestCase):
             "You are not a participant in this conversation",
         )
 
+    def test_get_messages_passes_pagination_cursor(self):
+        before_timestamp = "2026-04-01T12:00:00Z"
+
+        with (
+            patch.object(
+                messaging_routes,
+                "verify_user_in_conversation",
+                return_value=True,
+            ),
+            patch.object(
+                messaging_routes,
+                "get_conversation_messages",
+                return_value=[],
+            ) as get_messages_mock,
+        ):
+            response = self.client.get(
+                "/api/messaging/conversations/conv-1/messages",
+                params={
+                    "limit": 100,
+                    "before_timestamp": before_timestamp,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+        get_messages_mock.assert_called_once_with(
+            conversation_id="conv-1",
+            limit=100,
+            before_timestamp=datetime(2026, 4, 1, 12, 0, tzinfo=timezone.utc),
+        )
+
     def test_send_message_broadcasts_and_notifies_offline_recipient(self):
         with (
             patch.object(
