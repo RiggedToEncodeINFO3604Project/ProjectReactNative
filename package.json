@@ -6,6 +6,7 @@
     "apps/frontend"
   ],
   "devDependencies": {
+    "eslint-scope": "^8.4.0",
     "expo-modules-autolinking": "3.0.24",
     "expo-modules-core": "3.0.29"
   },
