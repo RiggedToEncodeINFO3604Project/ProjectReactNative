@@ -518,7 +518,13 @@ export class MessagingWebSocket {
 
       switch (message.type) {
         case "new_message":
-          this.options.onMessageReceived(message.data);
+          this.options.onMessageReceived({
+            ...(message.data as Message & { _id?: string }),
+            id:
+              (message.data as Message & { _id?: string }).id ||
+              (message.data as Message & { _id?: string })._id ||
+              "",
+          });
           break;
 
         case "connection_established":

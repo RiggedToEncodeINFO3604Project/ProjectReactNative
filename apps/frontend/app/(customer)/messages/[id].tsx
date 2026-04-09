@@ -18,7 +18,6 @@ import {
   getConversation,
   getMessages,
   markConversationAsRead,
-  markMessageAsRead,
   messagingSocket,
   sendMessage,
 } from "@/services/messagingApi";
@@ -115,6 +114,29 @@ const replaceOptimisticMessage = (
   });
 };
 
+const applyReadReceiptUpdate = (
+  currentMessages: Message[],
+  readerRole: "Customer" | "Provider",
+  currentUserRole?: "Customer" | "Provider",
+): Message[] => {
+  let hasChanges = false;
+
+  const nextMessages = currentMessages.map((message) => {
+    if (message.sender_role === readerRole || message.read) {
+      return message;
+    }
+
+    hasChanges = true;
+    return {
+      ...message,
+      read: true,
+      status: message.sender_role === currentUserRole ? "read" : message.status,
+    };
+  });
+
+  return hasChanges ? nextMessages : currentMessages;
+};
+
 const getRenderKey = (message: Message, index: number): string =>
   `${message.id}-${message.created_at}-${index}`;
 
@@ -164,6 +186,7 @@ export default function ChatScreen() {
 
   const messagesScrollViewRef = useRef<ScrollView>(null);
   const messageRefs = useRef<Map<string, View>>(new Map());
+  const isMarkingConversationReadRef = useRef(false);
 
   // Get other user details
   const otherUserName = useMemo(() => {
@@ -231,10 +254,19 @@ export default function ChatScreen() {
   const handleMessagesRead = useCallback(
     (data: { conversation_id: string; reader_role: string }) => {
       console.log("[Chat] WebSocket messages_read received:", data);
-      // Trigger a refresh of messages from API to ensure we have latest read status
-      fetchMessages();
+      if (data.conversation_id !== conversationId) {
+        return;
+      }
+
+      setMessages((prev) =>
+        applyReadReceiptUpdate(
+          prev,
+          data.reader_role as "Customer" | "Provider",
+          user?.role,
+        ),
+      );
     },
-    [fetchMessages],
+    [conversationId, user?.role],
   );
 
   // Handle new message from Firebase
@@ -346,40 +378,47 @@ export default function ChatScreen() {
     };
   }, [conversationId, handleFirebaseMessages, hasHydratedMessages]);
 
-  // Mark conversation as read when opened
-  useEffect(() => {
-    if (conversationId) {
-      markConversationAsRead(conversationId).catch(console.error);
+  const markConversationReadIfNeeded = useCallback(() => {
+    if (!conversationId || !user?.role || isMarkingConversationReadRef.current) {
+      return;
     }
-  }, [conversationId]);
 
-  // Mark individual messages as read when they become visible in the viewport
-  const markVisibleMessagesAsRead = useCallback(() => {
-    if (!conversationId) return;
+    const hasUnreadFromOtherUser = messages.some(
+      (message) =>
+        message.sender_role !== user.role &&
+        !message.read &&
+        !!message.id &&
+        !message.id.startsWith("temp-"),
+    );
 
-    // Get visible messages - check for any unread messages from the other user
-    messages.forEach((message) => {
-      // Only mark messages from the other party that have a valid (non-temp) ID
-      const isFromOther = message.sender_role !== user?.role;
-      const isUnread = !message.read;
-      const hasValidId = message.id && !message.id.startsWith("temp-");
+    if (!hasUnreadFromOtherUser) {
+      return;
+    }
 
-      if (isFromOther && isUnread && hasValidId) {
-        markMessageAsRead(conversationId, message.id).catch(console.error);
-      }
-    });
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.sender_role !== user.role &&
+        !message.read &&
+        !!message.id &&
+        !message.id.startsWith("temp-")
+          ? { ...message, read: true }
+          : message,
+      ),
+    );
+
+    isMarkingConversationReadRef.current = true;
+    markConversationAsRead(conversationId)
+      .catch((error) => {
+        console.error("Error marking conversation as read:", error);
+      })
+      .finally(() => {
+        isMarkingConversationReadRef.current = false;
+      });
   }, [conversationId, messages, user?.role]);
 
-  // Track visibility and mark messages as read when user is viewing
   useEffect(() => {
-    // Mark all visible messages as read when the chat becomes visible
-    markVisibleMessagesAsRead();
-
-    // Also mark on mount in case the chat was already open
-    if (conversationId) {
-      markConversationAsRead(conversationId).catch(console.error);
-    }
-  }, [conversationId, markVisibleMessagesAsRead]);
+    markConversationReadIfNeeded();
+  }, [markConversationReadIfNeeded]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
