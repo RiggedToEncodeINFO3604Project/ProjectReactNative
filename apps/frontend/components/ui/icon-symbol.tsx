@@ -9,7 +9,6 @@ type IconMapping = Record<
   SymbolViewProps["name"],
   ComponentProps<typeof MaterialIcons>["name"]
 >;
-type IconSymbolName = keyof typeof MAPPING;
 
 /**
  * Add your SF Symbols to Material Icons mappings here.
@@ -31,13 +30,15 @@ const MAPPING = {
   "chevron.up": "keyboard-arrow-up",
   "chevron.down": "keyboard-arrow-down",
   "cpu.fill": "memory",
-  "robot.fill": "smart-toy",
   sparkles: "auto-awesome",
   calendar: "calendar-month",
+  "exclamationmark.triangle": "warning-amber",
   "lock.shield.fill": "shield",
   "chart.line.uptrend.xyaxis": "trending-up",
   "person.fill": "person",
-} as IconMapping;
+} satisfies Partial<IconMapping>;
+
+type IconSymbolName = keyof typeof MAPPING;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
@@ -60,7 +61,7 @@ export function IconSymbol({
     <MaterialIcons
       color={color}
       size={size}
-      name={MAPPING[name]}
+      name={MAPPING[name] as ComponentProps<typeof MaterialIcons>["name"]}
       style={style}
     />
   );

@@ -19,6 +19,26 @@ Notifications.setNotificationHandler({
 
 const isNativePlatform = Platform.OS === "android" || Platform.OS === "ios";
 
+const hasGrantedNotificationPermission = (
+  permissions: unknown,
+): boolean => {
+  const candidate = permissions as {
+    granted?: boolean;
+    status?: string;
+    ios?: { status?: number };
+  };
+
+  if (typeof candidate.granted === "boolean") {
+    return candidate.granted;
+  }
+
+  if (typeof candidate.status === "string") {
+    return candidate.status === "granted";
+  }
+
+  return candidate.ios?.status === Notifications.IosAuthorizationStatus.AUTHORIZED;
+};
+
 const resolveProjectId = (): string | null => {
   const easProjectId =
     Constants.easConfig?.projectId ||
@@ -48,15 +68,15 @@ export const registerForPushNotificationsAsync = async (): Promise<string | null
     });
   }
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
+  const existingPermissions = await Notifications.getPermissionsAsync();
+  let isGranted = hasGrantedNotificationPermission(existingPermissions);
 
-  if (existingStatus !== "granted") {
+  if (!isGranted) {
     const permissionResponse = await Notifications.requestPermissionsAsync();
-    finalStatus = permissionResponse.status;
+    isGranted = hasGrantedNotificationPermission(permissionResponse);
   }
 
-  if (finalStatus !== "granted") {
+  if (!isGranted) {
     return null;
   }
 

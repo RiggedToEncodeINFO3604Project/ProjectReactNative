@@ -375,7 +375,7 @@ export default function MessagesScreen() {
                     },
                   ]}
                 >
-                  <IconSymbol name="robot.fill" size={28} color={theme.tint} />
+                  <IconSymbol name="sparkles" size={28} color={theme.tint} />
                 </View>
                 <View style={styles.aiSupportContent}>
                   <Text

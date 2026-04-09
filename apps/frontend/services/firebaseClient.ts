@@ -35,6 +35,27 @@ let firestore: Firestore | undefined;
 let storage: FirebaseStorage | undefined;
 let authReadyPromise: Promise<User | null> | null = null;
 
+type ReactNativeAuthModule = {
+  getAuth: (app?: FirebaseApp) => Auth;
+  initializeAuth: (
+    app: FirebaseApp,
+    deps?: { persistence?: unknown },
+  ) => Auth;
+  getReactNativePersistence: (storage: typeof AsyncStorage) => unknown;
+  onIdTokenChanged: typeof onIdTokenChanged;
+  signInWithCustomToken: typeof signInWithCustomToken;
+  signInWithEmailAndPassword: typeof signInWithEmailAndPassword;
+  signOut: typeof signOut;
+};
+
+const getReactNativeAuthModule = (): ReactNativeAuthModule => {
+  // Firebase 10.14.x ships the React Native-specific auth bundle here.
+  // Metro resolves this file path in the native bundle even though Node's
+  // package exports don't expose it directly.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require("@firebase/auth/dist/rn/index.js") as ReactNativeAuthModule;
+};
+
 const getFirebaseErrorCode = (error: unknown): string | null =>
   typeof error === "object" &&
   error !== null &&
@@ -78,31 +99,25 @@ const initializeFirebaseAuthInstance = (firebaseApp: FirebaseApp): Auth => {
       auth = getAuth(firebaseApp);
       return auth;
     }
+    const reactNativeAuth = getReactNativeAuthModule();
 
-    type ReactNativeAuthModule = typeof import("@firebase/auth");
-    // Expo resolves the React Native Firebase Auth entry at runtime here.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const reactNativeAuth = require("@firebase/auth") as ReactNativeAuthModule;
-    auth = initializeAuth(firebaseApp, {
+    auth = reactNativeAuth.initializeAuth(firebaseApp, {
       persistence: reactNativeAuth.getReactNativePersistence(AsyncStorage),
     });
     return auth;
   } catch (error) {
     const errorCode = getFirebaseErrorCode(error);
     if (errorCode === "auth/already-initialized") {
-      auth = getAuth(firebaseApp);
+      if (Platform.OS === "web") {
+        auth = getAuth(firebaseApp);
+        return auth;
+      }
+
+      const reactNativeAuth = getReactNativeAuthModule();
+      auth = reactNativeAuth.getAuth(firebaseApp);
       return auth;
     }
-
-    if (Platform.OS !== "web") {
-      console.warn(
-        "Falling back to default Firebase Auth initialization:",
-        error,
-      );
-    }
-
-    auth = getAuth(firebaseApp);
-    return auth;
+    throw error;
   }
 };
 
@@ -162,7 +177,15 @@ export const signInToFirebaseWithEmail = async (
     throw new Error("Firebase authentication is not configured.");
   }
 
-  return signInWithEmailAndPassword(firebaseAuth, email, password);
+  if (Platform.OS === "web") {
+    return signInWithEmailAndPassword(firebaseAuth, email, password);
+  }
+
+  return getReactNativeAuthModule().signInWithEmailAndPassword(
+    firebaseAuth,
+    email,
+    password,
+  );
 };
 
 export const signInToFirebaseWithCustomToken = async (
@@ -173,7 +196,14 @@ export const signInToFirebaseWithCustomToken = async (
     throw new Error("Firebase authentication is not configured.");
   }
 
-  return signInWithCustomToken(firebaseAuth, customToken);
+  if (Platform.OS === "web") {
+    return signInWithCustomToken(firebaseAuth, customToken);
+  }
+
+  return getReactNativeAuthModule().signInWithCustomToken(
+    firebaseAuth,
+    customToken,
+  );
 };
 
 export const getFirebaseCurrentUser = (): User | null =>
@@ -198,7 +228,12 @@ export const waitForFirebaseAuthReady = async (): Promise<User | null> => {
 
   if (!authReadyPromise) {
     authReadyPromise = new Promise<User | null>((resolve, reject) => {
-      const unsubscribe = onIdTokenChanged(
+      const onTokenChanged =
+        Platform.OS === "web"
+          ? onIdTokenChanged
+          : getReactNativeAuthModule().onIdTokenChanged;
+
+      const unsubscribe = onTokenChanged(
         firebaseAuth,
         (user) => {
           unsubscribe();
@@ -223,5 +258,10 @@ export const signOutFromFirebase = async (): Promise<void> => {
     return;
   }
 
-  await signOut(firebaseAuth);
+  if (Platform.OS === "web") {
+    await signOut(firebaseAuth);
+    return;
+  }
+
+  await getReactNativeAuthModule().signOut(firebaseAuth);
 };

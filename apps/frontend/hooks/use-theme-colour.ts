@@ -14,9 +14,28 @@ import { useTheme } from "@/context/ThemeContext";
  */
 export function useThemeColour<
   K extends keyof ReturnType<typeof useTheme>["colours"],
->(colourName: K): ReturnType<typeof useTheme>["colours"][K] {
-  const { colours } = useTheme();
-  return colours[colourName];
+>(colourName: K): ReturnType<typeof useTheme>["colours"][K];
+export function useThemeColour<
+  K extends keyof ReturnType<typeof useTheme>["colours"],
+>(
+  props: { light?: string; dark?: string },
+  colourName: K,
+): string;
+export function useThemeColour<
+  K extends keyof ReturnType<typeof useTheme>["colours"],
+>(
+  propsOrColourName: K | { light?: string; dark?: string },
+  maybeColourName?: K,
+): ReturnType<typeof useTheme>["colours"][K] | string {
+  const { colours, isDarkMode } = useTheme();
+
+  if (typeof propsOrColourName === "string") {
+    return colours[propsOrColourName];
+  }
+
+  const colourName = maybeColourName as K;
+  const override = propsOrColourName[isDarkMode ? "dark" : "light"];
+  return override ?? colours[colourName];
 }
 
 /**
@@ -31,15 +50,7 @@ export function useThemeColourWithFallback(
   props: { light?: string; dark?: string },
   colourName: keyof ReturnType<typeof useTheme>["colours"],
 ) {
-  const { colours, isDarkMode } = useTheme();
-
-  // If props are provided, use them based on current theme
-  if (props[isDarkMode ? "dark" : "light"]) {
-    return props[isDarkMode ? "dark" : "light"];
-  }
-
-  // Otherwise, use the theme colour
-  return colours[colourName];
+  return useThemeColour(props, colourName);
 }
 
 export { useTheme } from "@/context/ThemeContext";
