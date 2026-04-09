@@ -43,6 +43,9 @@ RUN pip3 install --no-cache-dir --break-system-packages -r apps/api/requirements
 # Copy all source code
 COPY . .
 
+# Build the Expo web bundle during image build so startup stays lightweight
+RUN npm run build:web --workspace apps/frontend
+
 # Copy and set permissions for startup script
 COPY infra/start.sh /app/start.sh
 RUN chmod +x /app/start.sh

@@ -11,7 +11,18 @@ const RAG_PORT = 8001;
 const HEALTHCHECK_TIMEOUT_MS = 3000;
 const DIST_DIR = path.join(__dirname, "dist");
 const DIST_INDEX_PATH = path.join(DIST_DIR, "index.html");
-const serveFrontendDist = express.static(DIST_DIR);
+const serveFrontendDist = express.static(DIST_DIR, { index: false });
+const PUBLIC_ENV_KEYS = [
+  "EXPO_PUBLIC_API_URL",
+  "EXPO_PUBLIC_FIREBASE_API_KEY",
+  "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN",
+  "EXPO_PUBLIC_FIREBASE_PROJECT_ID",
+  "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET",
+  "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+  "EXPO_PUBLIC_FIREBASE_APP_ID",
+  "EXPO_PUBLIC_FIREBASE_DATABASE_URL",
+  "EXPO_PUBLIC_EAS_PROJECT_ID",
+];
 
 // ============================================
 // WEBSOCKET PROXY SETUP (Render-Compatible)
@@ -215,6 +226,29 @@ function isFrontendBuildReady() {
   return fs.existsSync(DIST_INDEX_PATH);
 }
 
+function getRuntimePublicEnv() {
+  return PUBLIC_ENV_KEYS.reduce((accumulator, key) => {
+    accumulator[key] = String(process.env[key] ?? "").trim();
+    return accumulator;
+  }, {});
+}
+
+function renderRuntimeEnvScript() {
+  return `window.__PUBLIC_ENV__ = ${JSON.stringify(getRuntimePublicEnv())};`;
+}
+
+function renderFrontendHtml(res) {
+  const indexHtml = fs.readFileSync(DIST_INDEX_PATH, "utf8");
+  const runtimeEnvTag = '<script src="/runtime-env.js"></script>';
+
+  res
+    .status(200)
+    .type("html")
+    .send(indexHtml.includes(runtimeEnvTag)
+      ? indexHtml
+      : indexHtml.replace("</head>", `  ${runtimeEnvTag}\n</head>`));
+}
+
 // ============================================
 // BACKEND AND RAG ROUTE PROXIES
 // ============================================
@@ -277,6 +311,12 @@ app.get("/ws-test", (req, res) => {
   });
 });
 
+app.get("/runtime-env.js", (req, res) => {
+  res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res.status(200).send(renderRuntimeEnvScript());
+});
+
 // ============================================
 // SERVE STATIC FILES
 // ============================================
@@ -305,7 +345,7 @@ app.get("*", (req, res) => {
 </html>`);
   }
 
-  return res.sendFile(DIST_INDEX_PATH);
+  return renderFrontendHtml(res);
 });
 
 // ============================================
