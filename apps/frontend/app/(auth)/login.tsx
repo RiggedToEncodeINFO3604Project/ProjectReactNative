@@ -180,7 +180,7 @@ export default function LoginScreen() {
 
             <View style={styles.registerContainer}>
               <Text style={[styles.registerText, { color: colours.textMuted }]}>
-                Don't have an account?
+                Don&apos;t have an account?
               </Text>
               <TouchableOpacity
                 onPress={() => router.push("register" as never)}

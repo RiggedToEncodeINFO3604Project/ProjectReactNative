@@ -67,6 +67,26 @@ export default function CustomerSnapshotView({
   const [showEditTagsPanel, setShowEditTagsPanel] = useState(false);
   const [showEditNotesPanel, setShowEditNotesPanel] = useState(false);
 
+  // Keep hooks unconditional so the component remains valid even when the
+  // snapshot payload is temporarily unavailable.
+  const colors = useMemo(
+    () => ({
+      background: isDarkMode ? "#151718" : "#f5f5f5",
+      card: isDarkMode ? "#1e2333" : "#ffffff",
+      text: isDarkMode ? "#ECEDEE" : "#11181C",
+      textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
+      border: isDarkMode ? "#2a2f3e" : "#dee2e6",
+      accent: "#f0c85a",
+      inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
+      error: "#FF3B30",
+      success: "#34C759",
+      lightAccent: isDarkMode ? "#2a2530" : "#fef3c7",
+    }),
+    [isDarkMode],
+  );
+
+  const sortedTags = useMemo(() => snapshot?.tags || [], [snapshot?.tags]);
+
   // Check if snapshot is null/undefined
   if (!snapshot) {
     return (
@@ -96,23 +116,6 @@ export default function CustomerSnapshotView({
     );
   }
 
-  // tried memo here as well for color reloading - wasn't the problem but i'll keep it for now
-  const colors = useMemo(
-    () => ({
-      background: isDarkMode ? "#151718" : "#f5f5f5",
-      card: isDarkMode ? "#1e2333" : "#ffffff",
-      text: isDarkMode ? "#ECEDEE" : "#11181C",
-      textMuted: isDarkMode ? "#9BA1A6" : "#6b7280",
-      border: isDarkMode ? "#2a2f3e" : "#dee2e6",
-      accent: "#f0c85a",
-      inputBg: isDarkMode ? "#1a1f2e" : "#e9ecef",
-      error: "#FF3B30",
-      success: "#34C759",
-      lightAccent: isDarkMode ? "#2a2530" : "#fef3c7",
-    }),
-    [isDarkMode],
-  );
-
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Not available";
     const date = new Date(dateString);
@@ -126,11 +129,6 @@ export default function CustomerSnapshotView({
   const formatCurrency = (amount: number | undefined | null) => {
     return `$${(amount ?? 0).toFixed(2)}`;
   };
-
-  // Tags directly from snapshot
-  const sortedTags = useMemo(() => {
-    return snapshot.tags || [];
-  }, [snapshot.tags]);
 
   // Tag management handlers
   const openNewTagModal = () => {
