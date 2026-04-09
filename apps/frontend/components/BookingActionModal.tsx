@@ -246,7 +246,9 @@ export default function BookingActionModal({
               style={[
                 styles.dateText,
                 {
-                  color: item.hasAvailability ? colours.text : colours.textMuted,
+                  color: item.hasAvailability
+                    ? colours.text
+                    : colours.textMuted,
                 },
               ]}
             >
@@ -395,6 +397,7 @@ export default function BookingActionModal({
           <View
             style={[
               styles.modalContent,
+              showReschedule && styles.rescheduleModalContent,
               { backgroundColor: colours.card, borderColor: colours.border },
             ]}
           >
@@ -439,7 +442,10 @@ export default function BookingActionModal({
                     Time:
                   </Text>
                   <Text style={[styles.detailValue, { color: colours.text }]}>
-                    {formatStoredTimeRange(booking.start_time, booking.end_time)}
+                    {formatStoredTimeRange(
+                      booking.start_time,
+                      booking.end_time,
+                    )}
                   </Text>
 
                   <Text
@@ -493,63 +499,71 @@ export default function BookingActionModal({
             ) : (
               // Reschedule View - Static Date List
               <>
-                <Text style={[styles.modalTitle, { color: colours.text }]}>
-                  Reschedule Booking
-                </Text>
+                <View style={styles.rescheduleContent}>
+                  <Text style={[styles.modalTitle, { color: colours.text }]}>
+                    Reschedule Booking
+                  </Text>
 
-                <Text
-                  style={[
-                    styles.currentBookingText,
-                    { color: colours.textMuted },
-                  ]}
-                >
-                  Current: {booking.service_name} on{" "}
-                  {new Date(booking.date).toLocaleDateString()} at{" "}
-                  {formatStoredTime(booking.start_time)}
-                </Text>
-
-                <Text
-                  style={[styles.selectPrompt, { color: colours.textMuted }]}
-                >
-                  Select a New Date & Time
-                </Text>
-
-                {loadingSchedule ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colours.accent} />
-                    <Text
-                      style={[styles.loadingText, { color: colours.textMuted }]}
-                    >
-                      Loading available dates...
-                    </Text>
-                  </View>
-                ) : scheduleError ? (
-                  renderErrorState()
-                ) : (
-                  <FlatList
-                    data={scheduleData}
-                    renderItem={renderDateItem}
-                    keyExtractor={(item) => item.date}
-                    style={styles.dateList}
-                    contentContainerStyle={styles.dateListContent}
-                    ListEmptyComponent={renderEmptyState}
-                    showsVerticalScrollIndicator={false}
-                  />
-                )}
-
-                {/* Selected slot summary */}
-                {selectedSlot && selectedDate && (
-                  <View
+                  <Text
                     style={[
-                      styles.selectedSummary,
-                      { backgroundColor: colours.accent + "20" },
+                      styles.currentBookingText,
+                      { color: colours.textMuted },
                     ]}
                   >
-                    <Text style={[styles.summaryText, { color: colours.text }]}>
-                      Selected: {selectedDate} at {formatStoredTime(selectedSlot.start_time)}
-                    </Text>
-                  </View>
-                )}
+                    Current: {booking.service_name} on{" "}
+                    {new Date(booking.date).toLocaleDateString()} at{" "}
+                    {formatStoredTime(booking.start_time)}
+                  </Text>
+
+                  <Text
+                    style={[styles.selectPrompt, { color: colours.textMuted }]}
+                  >
+                    Select a New Date & Time
+                  </Text>
+
+                  {loadingSchedule ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="large" color={colours.accent} />
+                      <Text
+                        style={[
+                          styles.loadingText,
+                          { color: colours.textMuted },
+                        ]}
+                      >
+                        Loading available dates...
+                      </Text>
+                    </View>
+                  ) : scheduleError ? (
+                    renderErrorState()
+                  ) : (
+                    <FlatList
+                      data={scheduleData}
+                      renderItem={renderDateItem}
+                      keyExtractor={(item) => item.date}
+                      style={styles.dateList}
+                      contentContainerStyle={styles.dateListContent}
+                      ListEmptyComponent={renderEmptyState}
+                      showsVerticalScrollIndicator={false}
+                    />
+                  )}
+
+                  {/* Selected slot summary */}
+                  {selectedSlot && selectedDate && (
+                    <View
+                      style={[
+                        styles.selectedSummary,
+                        { backgroundColor: colours.accent + "20" },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.summaryText, { color: colours.text }]}
+                      >
+                        Selected: {selectedDate} at{" "}
+                        {formatStoredTime(selectedSlot.start_time)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
 
                 <View style={styles.rescheduleButtons}>
                   <TouchableOpacity
@@ -617,14 +631,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: 16,
+    paddingVertical: 20,
   },
   modalContent: {
     width: "90%",
     maxWidth: 400,
     maxHeight: "85%",
-    padding: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     borderRadius: 16,
     borderWidth: 1,
+  },
+  rescheduleModalContent: {
+    width: "92%",
+    maxWidth: 520,
+    height: "80%",
   },
   modalTitle: {
     fontSize: 20,
@@ -678,6 +701,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 10,
   },
+  rescheduleContent: {
+    flex: 1,
+    minHeight: 0,
+  },
   selectPrompt: {
     fontSize: 14,
     textAlign: "center",
@@ -687,10 +714,11 @@ const styles = StyleSheet.create({
   // Date list styles
   dateList: {
     flex: 1,
-    minHeight: 200,
+    minHeight: 0,
   },
   dateListContent: {
     paddingBottom: 10,
+    flexGrow: 1,
   },
   dateItemContainer: {
     marginBottom: 8,
@@ -848,6 +876,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
     marginTop: 10,
+    paddingTop: 4,
   },
   modalButton: {
     flex: 1,
