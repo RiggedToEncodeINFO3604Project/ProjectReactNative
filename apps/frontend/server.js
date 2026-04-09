@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const http = require("http");
+const fs = require("fs");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 const app = express();
@@ -8,6 +9,9 @@ const PORT = process.env.PORT || 8081;
 const BACKEND_PORT = 8000;
 const RAG_PORT = 8001;
 const HEALTHCHECK_TIMEOUT_MS = 3000;
+const DIST_DIR = path.join(__dirname, "dist");
+const DIST_INDEX_PATH = path.join(DIST_DIR, "index.html");
+const serveFrontendDist = express.static(DIST_DIR);
 
 // ============================================
 // WEBSOCKET PROXY SETUP (Render-Compatible)
@@ -207,6 +211,10 @@ function checkLocalServiceHealth(serviceName, targetPort, targetPath) {
   });
 }
 
+function isFrontendBuildReady() {
+  return fs.existsSync(DIST_INDEX_PATH);
+}
+
 // ============================================
 // BACKEND AND RAG ROUTE PROXIES
 // ============================================
@@ -237,7 +245,8 @@ app.get("/health", async (req, res) => {
     checkLocalServiceHealth("rag", RAG_PORT, "/api/health"),
   ]);
 
-  const allHealthy = backendHealth.ok && ragHealth.ok;
+  const frontendReady = isFrontendBuildReady();
+  const allHealthy = frontendReady && backendHealth.ok && ragHealth.ok;
 
   res.status(allHealthy ? 200 : 503).json({
     status: allHealthy ? "healthy" : "degraded",
@@ -248,6 +257,11 @@ app.get("/health", async (req, res) => {
       backendPort: BACKEND_PORT,
     },
     services: {
+      frontend: {
+        ok: frontendReady,
+        statusCode: frontendReady ? 200 : 503,
+        path: DIST_INDEX_PATH,
+      },
       backend: backendHealth,
       rag: ragHealth,
     },
@@ -267,10 +281,31 @@ app.get("/ws-test", (req, res) => {
 // SERVE STATIC FILES
 // ============================================
 
-app.use(express.static(path.join(__dirname, "dist")));
+app.use((req, res, next) => {
+  if (!isFrontendBuildReady()) {
+    return next();
+  }
+
+  return serveFrontendDist(req, res, next);
+});
 
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
+  if (!isFrontendBuildReady()) {
+    return res.status(503).type("html").send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Skeduleit is starting</title>
+  </head>
+  <body style="font-family: sans-serif; padding: 2rem; line-height: 1.5;">
+    <h1>Skeduleit is starting up</h1>
+    <p>The frontend bundle is still building. Refresh in a moment.</p>
+  </body>
+</html>`);
+  }
+
+  return res.sendFile(DIST_INDEX_PATH);
 });
 
 // ============================================
