@@ -121,7 +121,9 @@ export default function SearchProvidersScreen() {
           {
             backgroundColor: colours.card,
             borderBottomColor: colours.border,
-            paddingTop: insets.top + 10,
+            paddingTop: Math.max(insets.top, 12) + 8,
+            paddingLeft: 15 + insets.left,
+            paddingRight: 15 + insets.right,
           },
         ]}
       >
@@ -132,7 +134,16 @@ export default function SearchProvidersScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <View style={[styles.searchContainer, { backgroundColor: colours.card }]}>
+      <View
+        style={[
+          styles.searchContainer,
+          {
+            backgroundColor: colours.card,
+            marginLeft: 15 + insets.left,
+            marginRight: 15 + insets.right,
+          },
+        ]}
+      >
         <TextInput
           style={[
             styles.searchInput,
@@ -167,7 +178,14 @@ export default function SearchProvidersScreen() {
           data={providers}
           renderItem={renderProvider}
           keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            {
+              paddingLeft: 15 + insets.left,
+              paddingRight: 15 + insets.right,
+              paddingBottom: Math.max(insets.bottom, 16) + 12,
+            },
+          ]}
         />
       ) : searchQuery ? (
         <Text style={[styles.emptyText, { color: colours.textMuted }]}>

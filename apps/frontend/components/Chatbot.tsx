@@ -25,6 +25,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Message {
   id: string;
@@ -508,6 +509,7 @@ TypingIndicator.displayName = "TypingIndicator";
 
 export default function Chatbot() {
   const { isDarkMode, colours: themeColours, userType } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const colours = useMemo<Colours>(() => {
     const extended = ExtendedColours[isDarkMode ? "dark" : "light"];
@@ -767,7 +769,13 @@ export default function Chatbot() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={[styles.container, { backgroundColor: colours.bgDeep }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor: colours.bgDeep,
+          paddingBottom: 0,
+        },
+      ]}
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       <View
@@ -776,6 +784,9 @@ export default function Chatbot() {
           {
             backgroundColor: colours.bgCard,
             borderBottomColor: colours.border,
+            paddingTop: Math.max(insets.top, 12) + 8,
+            paddingLeft: 16 + insets.left,
+            paddingRight: 16 + insets.right,
           },
         ]}
       >
@@ -842,7 +853,14 @@ export default function Chatbot() {
 
       {!hasStarted && (
         <Animated.View
-          style={[styles.welcomeContainer, { opacity: welcomeOpacity }]}
+          style={[
+            styles.welcomeContainer,
+            {
+              opacity: welcomeOpacity,
+              paddingLeft: 16 + insets.left,
+              paddingRight: 16 + insets.right,
+            },
+          ]}
         >
           <View
             style={[
@@ -946,7 +964,13 @@ export default function Chatbot() {
 
       <ScrollView
         ref={scrollViewRef}
-        style={styles.messagesContainer}
+        style={[
+          styles.messagesContainer,
+          {
+            paddingLeft: 16 + insets.left,
+            paddingRight: 16 + insets.right,
+          },
+        ]}
         contentContainerStyle={styles.messagesContent}
         showsVerticalScrollIndicator={false}
         onContentSizeChange={scrollToBottom}
@@ -967,6 +991,9 @@ export default function Chatbot() {
           {
             backgroundColor: colours.bgCard,
             borderTopColor: colours.border,
+            paddingLeft: 16 + insets.left,
+            paddingRight: 16 + insets.right,
+            paddingBottom: Math.max(insets.bottom, 16),
           },
         ]}
       >

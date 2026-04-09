@@ -31,6 +31,7 @@ import {
   View,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const DAYS = [
   "Monday",
@@ -67,6 +68,7 @@ const getNextOccurrenceForDay = (today: Date, dayIndex: number) => {
 export default function ManageAvailabilityScreen() {
   const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const today = new Date();
   const todayString = formatDate(today);
 
@@ -516,7 +518,13 @@ export default function ManageAvailabilityScreen() {
       <View
         style={[
           styles.header,
-          { backgroundColor: colours.card, borderBottomColor: colours.border },
+          {
+            backgroundColor: colours.card,
+            borderBottomColor: colours.border,
+            paddingTop: Math.max(insets.top, 12) + 8,
+            paddingLeft: 20 + insets.left,
+            paddingRight: 20 + insets.right,
+          },
         ]}
       >
         <BackButton onPress={() => router.back()} />
@@ -526,7 +534,16 @@ export default function ManageAvailabilityScreen() {
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingLeft: 15 + insets.left,
+            paddingRight: 15 + insets.right,
+            paddingBottom: Math.max(insets.bottom, 16) + 96,
+          },
+        ]}
+      >
         {DAYS.map((day, dayIndex) => {
           const daySchedule = getDaySchedule(dayIndex);
 
@@ -610,7 +627,15 @@ export default function ManageAvailabilityScreen() {
       </ScrollView>
 
       <TouchableOpacity
-        style={[styles.saveButton, { backgroundColor: colours.accent }]}
+        style={[
+          styles.saveButton,
+          {
+            backgroundColor: colours.accent,
+            bottom: Math.max(insets.bottom, 16),
+            left: 15 + insets.left,
+            right: 15 + insets.right,
+          },
+        ]}
         onPress={handleSave}
         disabled={saving}
       >

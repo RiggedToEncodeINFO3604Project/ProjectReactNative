@@ -16,11 +16,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RegisterProviderScreen() {
   const { isDarkMode } = useTheme();
   const { registerProvider, login } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [providerName, setProviderName] = useState("");
   const [businessName, setBusinessName] = useState("");
@@ -80,10 +82,24 @@ export default function RegisterProviderScreen() {
       style={[styles.container, { backgroundColor: colours.background }]}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: Math.max(insets.bottom, 24),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.content}>
+        <View
+          style={[
+            styles.content,
+            {
+              paddingTop: Math.max(insets.top, 24) + 16,
+              paddingLeft: 20 + insets.left,
+              paddingRight: 20 + insets.right,
+            },
+          ]}
+        >
           <Text style={[styles.title, { color: colours.text }]}>
             Register as Provider
           </Text>
@@ -241,9 +257,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   content: {
-    padding: 20,
     alignItems: "center",
-    paddingTop: 40,
   },
   title: {
     fontFamily: "serif",

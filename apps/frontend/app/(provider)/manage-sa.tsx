@@ -4,10 +4,12 @@ import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ManageSAScreen() {
   const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
 
@@ -25,7 +27,13 @@ export default function ManageSAScreen() {
       <View
         style={[
           styles.header,
-          { backgroundColor: colours.card, borderBottomColor: colours.border },
+          {
+            backgroundColor: colours.card,
+            borderBottomColor: colours.border,
+            paddingTop: Math.max(insets.top, 12) + 8,
+            paddingLeft: 20 + insets.left,
+            paddingRight: 20 + insets.right,
+          },
         ]}
       >
         <BackButton onPress={() => router.replace("/")} />
@@ -35,7 +43,16 @@ export default function ManageSAScreen() {
         <View style={{ width: 50 }} />
       </View>
 
-      <View style={styles.content}>
+      <View
+        style={[
+          styles.content,
+          {
+            paddingLeft: 20 + insets.left,
+            paddingRight: 20 + insets.right,
+            paddingBottom: Math.max(insets.bottom, 20),
+          },
+        ]}
+      >
         <TouchableOpacity
           style={[
             styles.optionCard,

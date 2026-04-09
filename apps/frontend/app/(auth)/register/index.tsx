@@ -10,17 +10,27 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RegisterChoiceScreen() {
   const { isDarkMode } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const colours = getScreenPalette(isDarkMode, { cardTone: "alt" });
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colours.background }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: Math.max(insets.top, 24) + 24,
+          paddingBottom: Math.max(insets.bottom, 24),
+          paddingLeft: 20 + insets.left,
+          paddingRight: 20 + insets.right,
+        },
+      ]}
     >
       <Text style={[styles.brandName, { color: colours.accent }]}>
         SkeduleIt
@@ -79,9 +89,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 20,
     alignItems: "center",
-    paddingTop: 60,
   },
   brandName: {
     fontFamily: "serif",

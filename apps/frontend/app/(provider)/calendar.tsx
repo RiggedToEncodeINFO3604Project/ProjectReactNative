@@ -28,6 +28,7 @@ import {
   View,
 } from "react-native";
 import { CalendarList } from "react-native-calendars";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 const CALENDAR_HEIGHT = width * 0.95;
@@ -35,6 +36,7 @@ const CALENDAR_HEIGHT = width * 0.95;
 export default function CalendarScreen() {
   const router = useRouter();
   const { isDarkMode, colours: themeColours } = useTheme();
+  const insets = useSafeAreaInsets();
   const colours = getScreenPalette(isDarkMode, {
     backgroundTone: "alt",
     accent: themeColours.primary,
@@ -264,6 +266,9 @@ export default function CalendarScreen() {
           {
             backgroundColor: colours.card,
             borderBottomColor: colours.border,
+            paddingTop: Math.max(insets.top, 12) + 8,
+            paddingLeft: 16 + insets.left,
+            paddingRight: 16 + insets.right,
           },
         ]}
       >
@@ -387,6 +392,9 @@ export default function CalendarScreen() {
           data={bookings}
           keyExtractor={(item) => item.booking_id}
           renderItem={renderBooking}
+          contentContainerStyle={{
+            paddingBottom: Math.max(insets.bottom, 16) + 12,
+          }}
           ListHeaderComponent={
             <View>
               <Text

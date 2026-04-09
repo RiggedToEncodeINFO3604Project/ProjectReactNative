@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // groups a flat bookings array the sorts chronologically by day
 const groupByDay = (bookings: BookingWithDetails[]) => {
@@ -48,6 +49,7 @@ export default function MyBookingsScreen() {
   const { isDarkMode, colours: themeColours } = useTheme();
   const { logout } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,7 +215,13 @@ export default function MyBookingsScreen() {
       <View
         style={[
           styles.header,
-          { backgroundColor: colours.card, borderBottomColor: colours.border },
+          {
+            backgroundColor: colours.card,
+            borderBottomColor: colours.border,
+            paddingTop: Math.max(insets.top, 12) + 8,
+            paddingLeft: 20 + insets.left,
+            paddingRight: 20 + insets.right,
+          },
         ]}
       >
         <BackButton onPress={() => router.back()} />
@@ -236,7 +244,14 @@ export default function MyBookingsScreen() {
         <FlatList
           data={groupedDays}
           keyExtractor={([day]) => day}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[
+            styles.listContainer,
+            {
+              paddingLeft: 15 + insets.left,
+              paddingRight: 15 + insets.right,
+              paddingBottom: Math.max(insets.bottom, 16) + 12,
+            },
+          ]}
           renderItem={({ item: [day, dayBookings] }) => (
             <View>
               {/* Day header */}

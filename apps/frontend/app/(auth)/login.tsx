@@ -112,10 +112,24 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: Math.max(insets.bottom, 24),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.content}>
+        <View
+          style={[
+            styles.content,
+            {
+              paddingTop: Math.max(insets.top, 24),
+              paddingLeft: 20 + insets.left,
+              paddingRight: 20 + insets.right,
+            },
+          ]}
+        >
           <Text style={[styles.brandName, { color: colours.accent }]}>
             SkeduleIt
           </Text>
@@ -239,7 +253,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   content: {
-    padding: 20,
     alignItems: "center",
   },
   brandName: {

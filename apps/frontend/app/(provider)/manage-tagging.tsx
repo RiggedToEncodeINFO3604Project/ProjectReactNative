@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Extract ThresholdInput as a memoized component to prevent re-creation
 const ThresholdInput = React.memo(
@@ -125,6 +126,7 @@ PhaseToggle.displayName = "PhaseToggle";
 export default function ManageTaggingScreen() {
   const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [config, setConfig] = useState<TaggingConfig>({});
   const [loading, setLoading] = useState(true);
@@ -321,11 +323,22 @@ export default function ManageTaggingScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 16) + 12,
+        }}
+      >
         <View
           style={[
             styles.header,
-            { backgroundColor: colors.card, borderBottomColor: colors.border },
+            {
+              backgroundColor: colors.card,
+              borderBottomColor: colors.border,
+              paddingTop: Math.max(insets.top, 12) + 8,
+              paddingLeft: 20 + insets.left,
+              paddingRight: 20 + insets.right,
+            },
           ]}
         >
           <TouchableOpacity onPress={() => router.back()}>
@@ -597,7 +610,7 @@ export default function ManageTaggingScreen() {
           )}
         </TouchableOpacity>
 
-        <View style={{ height: 30 }} />
+        <View style={{ height: Math.max(insets.bottom, 16) }} />
       </ScrollView>
 
       <SuccessModal

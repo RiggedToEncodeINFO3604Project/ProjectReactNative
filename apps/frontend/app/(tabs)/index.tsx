@@ -4,13 +4,27 @@ import { Platform, StatusBar, StyleSheet, Text, View } from "react-native";
 import { getScreenPalette } from "@/constants/theme";
 import AnimatedButton from "@/components/ui/animated-button";
 import { useTheme } from "@/context/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const { isDarkMode } = useTheme();
   const colours = getScreenPalette(isDarkMode);
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { backgroundColor: colours.background }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colours.background,
+          paddingTop: Math.max(insets.top, 24),
+          paddingBottom:
+            Math.max(insets.bottom, 16) + (Platform.OS === "ios" ? 64 : 48),
+          paddingLeft: 20 + insets.left,
+          paddingRight: 20 + insets.right,
+        },
+      ]}
+    >
       <StatusBar barStyle={isDarkMode ? "light-content" : "dark-content"} />
 
       <View style={styles.content}>
@@ -39,7 +53,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingBottom: Platform.OS === "ios" ? 80 : 60,
   },
   content: {
     alignItems: "center",

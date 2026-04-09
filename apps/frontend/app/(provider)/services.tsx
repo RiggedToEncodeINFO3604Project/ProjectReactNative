@@ -16,10 +16,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ManageServicesScreen() {
   const { isDarkMode, colours: themeColours } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +114,13 @@ export default function ManageServicesScreen() {
       <View
         style={[
           styles.header,
-          { backgroundColor: colours.card, borderBottomColor: colours.border },
+          {
+            backgroundColor: colours.card,
+            borderBottomColor: colours.border,
+            paddingTop: Math.max(insets.top, 12) + 8,
+            paddingLeft: 20 + insets.left,
+            paddingRight: 20 + insets.right,
+          },
         ]}
       >
         <BackButton onPress={() => router.back()} />
@@ -123,7 +131,14 @@ export default function ManageServicesScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: colours.accent }]}
+        style={[
+          styles.addButton,
+          {
+            backgroundColor: colours.accent,
+            marginLeft: 15 + insets.left,
+            marginRight: 15 + insets.right,
+          },
+        ]}
         onPress={() => setModalVisible(true)}
       >
         <Text style={styles.addButtonText}>+ Add New Service</Text>
@@ -140,7 +155,14 @@ export default function ManageServicesScreen() {
           data={services}
           renderItem={renderService}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[
+            styles.listContainer,
+            {
+              paddingLeft: 15 + insets.left,
+              paddingRight: 15 + insets.right,
+              paddingBottom: Math.max(insets.bottom, 16) + 12,
+            },
+          ]}
           ListEmptyComponent={
             <Text style={[styles.emptyText, { color: colours.textMuted }]}>
               No services yet. Add your first service!

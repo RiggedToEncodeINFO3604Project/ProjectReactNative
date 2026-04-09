@@ -19,6 +19,10 @@ export default function ProviderHomeScreen() {
   const { logout } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const headerPaddingTop = Math.max(insets.top, 12) + 8;
+  const headerPaddingHorizontal = 20;
+  const contentPaddingHorizontal = 15;
+  const contentPaddingBottom = Math.max(insets.bottom, 16) + 12;
 
   const handleLogout = async () => {
     await logout();
@@ -91,7 +95,9 @@ export default function ProviderHomeScreen() {
           {
             backgroundColor: colours.card,
             borderBottomColor: colours.border,
-            paddingTop: 20,
+            paddingTop: headerPaddingTop,
+            paddingLeft: headerPaddingHorizontal + insets.left,
+            paddingRight: headerPaddingHorizontal + insets.right,
           },
         ]}
       >
@@ -119,7 +125,17 @@ export default function ProviderHomeScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingLeft: contentPaddingHorizontal + insets.left,
+            paddingRight: contentPaddingHorizontal + insets.right,
+            paddingBottom: contentPaddingBottom,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {menuItems.map((item, index) => (
           <TouchableOpacity
             key={index}
@@ -182,7 +198,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   content: {
-    padding: 15,
+    paddingTop: 15,
   },
   menuCard: {
     padding: 20,

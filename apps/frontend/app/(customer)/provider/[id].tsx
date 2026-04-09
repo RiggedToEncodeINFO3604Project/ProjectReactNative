@@ -27,6 +27,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Days of week for display (Sunday first)
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -69,6 +70,7 @@ export default function ProviderDetailsScreen() {
     accent: themeColours.primary,
   });
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id, provider: providerJson } = useLocalSearchParams<{
     id: string;
     provider: string;
@@ -215,17 +217,35 @@ export default function ProviderDetailsScreen() {
     <View style={{ flex: 1, backgroundColor: colours.background }}>
       <ScrollView
         style={[styles.container, { backgroundColor: colours.background }]}
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 16) + 16,
+        }}
       >
         <View
           style={[
             styles.header,
-            { backgroundColor: colours.card, borderBottomColor: colours.border },
+            {
+              backgroundColor: colours.card,
+              borderBottomColor: colours.border,
+              paddingTop: Math.max(insets.top, 12) + 8,
+              paddingLeft: 15 + insets.left,
+              paddingRight: 15 + insets.right,
+            },
           ]}
         >
           <BackButton onPress={() => router.back()} />
         </View>
 
-        <View style={[styles.providerInfo, { backgroundColor: colours.card }]}>
+        <View
+          style={[
+            styles.providerInfo,
+            {
+              backgroundColor: colours.card,
+              paddingLeft: 20 + insets.left,
+              paddingRight: 20 + insets.right,
+            },
+          ]}
+        >
           <Text style={[styles.providerName, { color: colours.text }]}>
             {provider.provider_name}
           </Text>
@@ -257,7 +277,15 @@ export default function ProviderDetailsScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
+        <View
+          style={[
+            styles.section,
+            {
+              paddingLeft: 15 + insets.left,
+              paddingRight: 15 + insets.right,
+            },
+          ]}
+        >
           <Text style={[styles.sectionTitle, { color: colours.text }]}>
             Select Service
           </Text>
@@ -307,7 +335,15 @@ export default function ProviderDetailsScreen() {
         </View>
 
         {selectedService && (
-          <View style={styles.section}>
+          <View
+            style={[
+              styles.section,
+              {
+                paddingLeft: 15 + insets.left,
+                paddingRight: 15 + insets.right,
+              },
+            ]}
+          >
             <View style={styles.monthHeader}>
               <TouchableOpacity
                 onPress={() =>
@@ -396,7 +432,15 @@ export default function ProviderDetailsScreen() {
         )}
 
         {selectedDate && availableSlots.length > 0 && (
-          <View style={styles.section}>
+          <View
+            style={[
+              styles.section,
+              {
+                paddingLeft: 15 + insets.left,
+                paddingRight: 15 + insets.right,
+              },
+            ]}
+          >
             <Text style={[styles.sectionTitle, { color: colours.text }]}>
               Available Time Slots
             </Text>
@@ -435,7 +479,15 @@ export default function ProviderDetailsScreen() {
 
         {selectedSlot && (
           <TouchableOpacity
-            style={[styles.bookButton, { backgroundColor: colours.accent }]}
+            style={[
+              styles.bookButton,
+              {
+                backgroundColor: colours.accent,
+                marginLeft: 15 + insets.left,
+                marginRight: 15 + insets.right,
+                marginBottom: Math.max(insets.bottom, 16),
+              },
+            ]}
             onPress={handleBooking}
             disabled={loading}
           >
