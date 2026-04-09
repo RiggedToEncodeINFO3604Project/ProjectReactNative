@@ -209,6 +209,25 @@ export interface GetMessagesOptions {
   beforeTimestamp?: string;
 }
 
+type RawMessage = Message & { _id?: string };
+
+const normalizeMessage = (message: RawMessage): Message => ({
+  ...message,
+  id: message.id || message._id || "",
+});
+
+const getMessageDeduplicationKey = (message: Message): string =>
+  message.id ||
+  [
+    message.conversation_id,
+    message.sender_id,
+    message.sender_role,
+    message.message_type,
+    message.content,
+    message.image_url || "",
+    message.created_at,
+  ].join("|");
+
 export const getMessages = async (
   conversationId: string,
   limitOrOptions?: number | GetMessagesOptions,
@@ -228,13 +247,13 @@ export const getMessages = async (
     params.before_timestamp = options.beforeTimestamp;
   }
 
-  const response = await api.get<Message[]>(
+  const response = await api.get<RawMessage[]>(
     `/api/messaging/conversations/${conversationId}/messages`,
     {
       params: Object.keys(params).length > 0 ? params : undefined,
     },
   );
-  return response.data;
+  return response.data.map(normalizeMessage);
 };
 
 const MESSAGE_HISTORY_BATCH_SIZE = 100;
@@ -246,7 +265,7 @@ export const getFullMessageHistory = async (
   conversationId: string,
 ): Promise<Message[]> => {
   const allMessages: Message[] = [];
-  const seenMessageIds = new Set<string>();
+  const seenMessages = new Set<string>();
   let beforeTimestamp: string | undefined;
 
   while (true) {
@@ -260,8 +279,9 @@ export const getFullMessageHistory = async (
     }
 
     batch.forEach((message) => {
-      if (!seenMessageIds.has(message.id)) {
-        seenMessageIds.add(message.id);
+      const dedupeKey = getMessageDeduplicationKey(message);
+      if (!seenMessages.has(dedupeKey)) {
+        seenMessages.add(dedupeKey);
         allMessages.push(message);
       }
     });
