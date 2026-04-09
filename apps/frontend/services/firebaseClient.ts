@@ -1,10 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  FirebaseApp,
-  FirebaseOptions,
-  getApps,
-  initializeApp,
-} from "firebase/app";
+import type { FirebaseApp, FirebaseOptions } from "firebase/app";
 import type { Auth, Persistence, User, UserCredential } from "firebase/auth";
 import { Firestore, getFirestore } from "firebase/firestore";
 import { FirebaseStorage, getStorage } from "firebase/storage";
@@ -26,6 +21,11 @@ let auth: Auth | undefined;
 let firestore: Firestore | undefined;
 let storage: FirebaseStorage | undefined;
 let authReadyPromise: Promise<User | null> | null = null;
+
+type FirebaseAppModule = {
+  getApps: () => FirebaseApp[];
+  initializeApp: (options: FirebaseOptions) => FirebaseApp;
+};
 
 type ReactNativeAuthModule = {
   getAuth: (app?: FirebaseApp) => Auth;
@@ -53,17 +53,25 @@ type ReactNativeAuthModule = {
 
 type WebAuthModule = Omit<ReactNativeAuthModule, "getReactNativePersistence">;
 
-const getWebAuthModule = (): WebAuthModule => {
+const getFirebaseAppModule = (): FirebaseAppModule => {
+  // Keep the app runtime aligned with the auth runtime on native.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require("firebase/auth") as WebAuthModule;
+  return (Platform.OS === "web"
+    ? require("firebase/app")
+    : require("@firebase/app")) as FirebaseAppModule;
 };
 
-const getReactNativeAuthModule = (): ReactNativeAuthModule => {
-  // Use the public package entry so Metro can resolve the React Native export
-  // condition without relying on a private deep import path.
+const getAuthModule = (): WebAuthModule | ReactNativeAuthModule => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require("@firebase/auth") as ReactNativeAuthModule;
+  return (Platform.OS === "web"
+    ? require("firebase/auth")
+    : require("@firebase/auth")) as WebAuthModule | ReactNativeAuthModule;
 };
+
+const getReactNativeAuthModule = (): ReactNativeAuthModule =>
+  getAuthModule() as ReactNativeAuthModule;
+
+const getWebAuthModule = (): WebAuthModule => getAuthModule() as WebAuthModule;
 
 const getFirebaseErrorCode = (error: unknown): string | null =>
   typeof error === "object" &&
@@ -83,7 +91,8 @@ const initializeFirebaseAppInstance = (): FirebaseApp | null => {
     return app;
   }
 
-  const existingApps = getApps();
+  const firebaseAppModule = getFirebaseAppModule();
+  const existingApps = firebaseAppModule.getApps();
   if (existingApps.length > 0) {
     app = existingApps[0];
     return app;
@@ -94,7 +103,7 @@ const initializeFirebaseAppInstance = (): FirebaseApp | null => {
     return null;
   }
 
-  app = initializeApp(config);
+  app = firebaseAppModule.initializeApp(config);
   return app;
 };
 
@@ -117,12 +126,10 @@ const initializeFirebaseAuthInstance = (firebaseApp: FirebaseApp): Auth => {
   } catch (error) {
     const errorCode = getFirebaseErrorCode(error);
     if (errorCode === "auth/already-initialized") {
-      if (Platform.OS === "web") {
-        auth = getWebAuthModule().getAuth(firebaseApp);
-        return auth;
-      }
-
-      auth = getReactNativeAuthModule().getAuth(firebaseApp);
+      auth =
+        Platform.OS === "web"
+          ? getWebAuthModule().getAuth(firebaseApp)
+          : getReactNativeAuthModule().getAuth(firebaseApp);
       return auth;
     }
     throw error;
@@ -240,12 +247,11 @@ export const waitForFirebaseAuthReady = async (): Promise<User | null> => {
 
   if (!authReadyPromise) {
     authReadyPromise = new Promise<User | null>((resolve, reject) => {
-      const onTokenChanged =
+      const unsubscribe = (
         Platform.OS === "web"
           ? getWebAuthModule().onIdTokenChanged
-          : getReactNativeAuthModule().onIdTokenChanged;
-
-      const unsubscribe = onTokenChanged(
+          : getReactNativeAuthModule().onIdTokenChanged
+      )(
         firebaseAuth,
         (user) => {
           unsubscribe();
