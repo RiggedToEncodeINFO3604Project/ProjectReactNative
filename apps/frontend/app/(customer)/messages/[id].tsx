@@ -38,6 +38,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const MESSAGE_MATCH_WINDOW_MS = 5000;
 
@@ -247,9 +248,6 @@ export default function ChatScreen() {
           return prev;
         }
 
-        if (prev.length === 0) {
-          return prev;
-        }
         const nextMessages = upsertMessages(prev, firebaseMessages, {
           ignoreContent: true,
         });
@@ -276,9 +274,18 @@ export default function ChatScreen() {
 
   // Handle connection state change
   const handleConnectionChange = useCallback(
-    (state: "connected" | "disconnected" | "connecting" | "reconnecting") => {
+    (
+      state:
+        | "connected"
+        | "disconnected"
+        | "connecting"
+        | "reconnecting"
+        | "fallback_polling",
+    ) => {
       if (state === "reconnecting") {
         setConnectionState("connecting");
+      } else if (state === "fallback_polling") {
+        setConnectionState("disconnected");
       } else {
         setConnectionState(
           state as "connected" | "disconnected" | "connecting",
@@ -293,27 +300,23 @@ export default function ChatScreen() {
     fetchConversation();
     fetchMessages();
 
-    /*
-    // WebSocket is disabled - Firebase now handles all real-time messaging
-    // Keeping this code as reference for future use
-    if (token) {
-      // Set up WebSocket callbacks
+    if (token && conversationId) {
       messagingSocket.setCallbacks({
         onMessageReceived: handleNewMessage,
+        onMessagesRead: handleMessagesRead,
         onConnectionChange: handleConnectionChange,
         onError: (error) => console.error("WebSocket error:", error),
       });
-
-      // Connect WebSocket
+      messagingSocket.subscribeToConversation(conversationId);
       messagingSocket.connect(token);
     }
-    */
 
     return () => {
       setHasHydratedMessages(false);
-      // Cleanup WebSocket on unmount
+      if (conversationId) {
+        messagingSocket.unsubscribeFromConversation(conversationId);
+      }
       messagingSocket.disconnect();
-      // Cleanup Firebase subscription
       if (conversationId) {
         unsubscribeFromConversation(conversationId);
       }
@@ -610,18 +613,24 @@ export default function ChatScreen() {
   // Render loading state
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        edges={["top", "bottom"]}
+      >
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.tint} />
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   // Render error state if conversation not found
   if (!conversation) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        edges={["top", "bottom"]}
+      >
         <View style={styles.errorContainer}>
           <IconSymbol
             name="exclamationmark.triangle"
@@ -636,12 +645,15 @@ export default function ChatScreen() {
             The conversation may have been deleted or you do not have access
           </Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      edges={["top", "bottom"]}
+    >
       {/* Chat Header */}
       <ChatHeader
         name={otherUserName}
@@ -723,7 +735,7 @@ export default function ChatScreen() {
         attachmentDisabled={isUploadingImage}
         isUploadingImage={isUploadingImage}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

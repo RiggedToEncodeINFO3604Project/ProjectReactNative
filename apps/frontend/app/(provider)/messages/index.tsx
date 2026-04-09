@@ -6,12 +6,11 @@
 import BackButton from "@/components/BackButton";
 import { ConversationListItem } from "@/components/messaging/ConversationListItem";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { ExtendedColours, SharedColours } from "@/constants/theme";
+import { ExtendedColours } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { getConversations, messagingSocket } from "@/services/messagingApi";
-import { getValidAuthToken } from "@/services/schedulingApi";
-import { Conversation, ConversationPreview, Message } from "@/types/scheduling";
+import { getConversations } from "@/services/messagingApi";
+import { Conversation, ConversationPreview } from "@/types/scheduling";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -24,6 +23,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // Convert Conversation to ConversationPreview format
 function toConversationPreview(
@@ -56,7 +56,7 @@ function toConversationPreview(
 }
 
 export default function MessagesScreen() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const { colours: theme, isDarkMode } = useTheme();
   const extendedColours = ExtendedColours[isDarkMode ? "dark" : "light"];
   const currentUserId = user?.id || "";
@@ -70,9 +70,6 @@ export default function MessagesScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [connectionState, setConnectionState] = useState<
-    "connected" | "disconnected" | "connecting"
-  >("disconnected");
 
   // Fetch conversations
   const fetchConversations = useCallback(async (showLoading = true) => {
@@ -89,91 +86,17 @@ export default function MessagesScreen() {
     }
   }, []);
 
-  // Handle new message from WebSocket
-  const handleNewMessage = useCallback(
-    (message: Message) => {
-      // Update conversation list with new last message
-      setConversations((prev) => {
-        return prev.map((conv) => {
-          if (conv.id === message.conversation_id) {
-            return {
-              ...conv,
-              last_message: message,
-              updated_at: message.created_at,
-              // Increment unread count if not current user
-              ...(message.sender_id !== currentUserId && {
-                unread_count:
-                  message.sender_role === "Customer"
-                    ? (conv.unread_count || 0) + 1
-                    : conv.unread_count,
-              }),
-            };
-          }
-          return conv;
-        });
-      });
-    },
-    [currentUserId],
-  );
-
-  // Handle connection state change
-  const handleConnectionChange = useCallback(
-    (
-      state:
-        | "connected"
-        | "disconnected"
-        | "connecting"
-        | "reconnecting"
-        | "fallback_polling",
-    ) => {
-      if (state === "reconnecting") {
-        setConnectionState("connecting");
-      } else if (state === "fallback_polling") {
-        setConnectionState("disconnected");
-      } else {
-        setConnectionState(
-          state as "connected" | "disconnected" | "connecting",
-        );
-      }
-    },
-    [],
-  );
-
-  // Initialize WebSocket and fetch data on mount
+  // Load conversations and keep the inbox fresh without relying on WebSocket.
   useEffect(() => {
-    let isCancelled = false;
-
     fetchConversations();
-
-    const connectSocket = async () => {
-      if (!token) {
-        return;
-      }
-
-      const freshToken = await getValidAuthToken();
-      if (!freshToken || isCancelled) {
-        return;
-      }
-
-      messagingSocket.setCallbacks({
-        onMessageReceived: handleNewMessage,
-        onConnectionChange: handleConnectionChange,
-        onError: (error) => console.error("WebSocket error:", error),
-      });
-
-      messagingSocket.connect(freshToken);
-    };
-
-    connectSocket().catch((error) => {
-      console.error("Error connecting messaging socket:", error);
-    });
+    const refreshInterval = setInterval(() => {
+      fetchConversations(false);
+    }, 10000);
 
     return () => {
-      isCancelled = true;
-      // Cleanup WebSocket on unmount
-      messagingSocket.disconnect();
+      clearInterval(refreshInterval);
     };
-  }, [token, fetchConversations, handleNewMessage, handleConnectionChange]);
+  }, [fetchConversations]);
 
   // Filter conversations based on search query
   useEffect(() => {
@@ -241,43 +164,26 @@ export default function MessagesScreen() {
     </View>
   );
 
-  // Render connection status indicator
-  const renderConnectionStatus = () => {
-    if (connectionState === "connected") return null;
-
-    return (
-      <View
-        style={[
-          styles.connectionStatus,
-          connectionState === "connecting" && styles.connectingStatus,
-        ]}
-      >
-        <Text style={styles.connectionStatusText}>
-          {connectionState === "connecting" ? "Connecting..." : "Disconnected"}
-        </Text>
-      </View>
-    );
-  };
-
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      edges={["top", "bottom"]}
+    >
       {/* Header */}
       <View
         style={[
-            styles.header,
-            {
-              backgroundColor: theme.background,
-              borderBottomColor: extendedColours.borderAlt,
-            },
-          ]}
+          styles.header,
+          {
+            backgroundColor: theme.background,
+            borderBottomColor: extendedColours.borderAlt,
+          },
+        ]}
       >
         <BackButton onPress={() => router.back()} style={styles.backButton} />
         <Text style={[styles.headerTitle, { color: theme.text }]}>
           Messages
         </Text>
-        <View style={styles.headerActions}>
-          {connectionState !== "connected" && renderConnectionStatus()}
-        </View>
+        <View style={styles.headerActions} />
       </View>
 
       {/* Search Bar */}
@@ -397,7 +303,7 @@ export default function MessagesScreen() {
           )}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -469,20 +375,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     textAlign: "center",
-  },
-  connectionStatus: {
-    backgroundColor: SharedColours.error,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  connectingStatus: {
-    backgroundColor: SharedColours.warningAlt,
-  },
-  connectionStatusText: {
-    color: SharedColours.white,
-    fontSize: 11,
-    fontWeight: "600",
   },
   aiSupportSeparator: {
     height: 2,
