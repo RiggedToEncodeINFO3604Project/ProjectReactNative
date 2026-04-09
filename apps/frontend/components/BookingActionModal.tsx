@@ -12,6 +12,7 @@ import {
   DateScheduleData,
   TimeSlot,
 } from "@/types/scheduling";
+import { syncRescheduledBookingInCalendar } from "@/utils/providerCalendarSync";
 import { formatStoredTime, formatStoredTimeRange } from "@/utils/time";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -31,7 +32,7 @@ interface BookingActionModalProps {
   booking: BookingWithDetails | null;
   onClose: () => void;
   onDelete: (bookingId: string) => void;
-  onReschedule: () => void;
+  onReschedule: (updatedBooking: BookingWithDetails) => void;
 }
 
 export default function BookingActionModal({
@@ -176,9 +177,25 @@ export default function BookingActionModal({
         end_time: selectedSlot.end_time,
       });
 
+      const updatedBooking: BookingWithDetails = {
+        ...booking,
+        date: selectedDate,
+        start_time: selectedSlot.start_time,
+        end_time: selectedSlot.end_time,
+      };
+
+      try {
+        await syncRescheduledBookingInCalendar(booking, updatedBooking);
+      } catch (calendarError) {
+        console.error("Failed to sync rescheduled booking to calendar:", {
+          bookingId: booking.booking_id,
+          calendarError,
+        });
+      }
+
       Alert.alert("Success", "Booking rescheduled successfully");
       setShowReschedule(false);
-      onReschedule();
+      onReschedule(updatedBooking);
       onClose();
     } catch (error: any) {
       Alert.alert(

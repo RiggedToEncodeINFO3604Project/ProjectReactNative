@@ -11,6 +11,10 @@ import {
   rejectBooking,
 } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
+import {
+  addBookingToDeviceCalendar,
+  getWritableCalendar,
+} from "@/utils/providerCalendarSync";
 import { formatStoredTime, formatStoredTimeRange } from "@/utils/time";
 import * as Calendar from "expo-calendar";
 import { useRouter } from "expo-router";
@@ -105,46 +109,6 @@ export default function PendingBookingsScreen() {
     }
   };
 
-  const getWritableCalendar = async () => {
-    const { status } = await Calendar.requestCalendarPermissionsAsync();
-    if (status !== "granted") return null;
-
-    const calendars = await Calendar.getCalendarsAsync(
-      Calendar.EntityTypes.EVENT,
-    );
-    return (
-      calendars.find(
-        (cal) => cal.allowsModifications && cal.source?.isLocalAccount,
-      ) ||
-      calendars.find((cal) => cal.allowsModifications) ||
-      null
-    );
-  };
-
-  const parseBookingDateTime = (date: string, time: string): Date => {
-    const dateOnly = date.split("T")[0];
-    const [hour, minute] = time.split(":").map(Number);
-    const d = new Date(`${dateOnly}T00:00:00`);
-    d.setHours(hour, minute, 0, 0);
-    return d;
-  };
-
-  const addBookingToCalendar = async (
-    booking: BookingWithDetails,
-    calendarId: string,
-  ) => {
-    const startDate = parseBookingDateTime(booking.date, booking.start_time);
-    const endDate = parseBookingDateTime(booking.date, booking.end_time);
-
-    await Calendar.createEventAsync(calendarId, {
-      title: `Booking: ${booking.service_name}`,
-      startDate,
-      endDate,
-      notes: `Customer: ${booking.customer_name}\nPhone: ${booking.customer_phone}`,
-      timeZone: "UTC",
-    });
-  };
-
   // sync ALL confirmed bookings from Firebase → device calendar
 
   const syncAllConfirmedToCalendar = async () => {
@@ -188,7 +152,7 @@ export default function PendingBookingsScreen() {
           continue;
         }
         try {
-          await addBookingToCalendar(booking, writableCalendar.id);
+          await addBookingToDeviceCalendar(booking, writableCalendar.id);
           added++;
         } catch (err) {
           console.log(`Failed to add booking ${booking.booking_id}:`, err);
@@ -215,7 +179,7 @@ export default function PendingBookingsScreen() {
       if (booking) {
         const writableCalendar = await getWritableCalendar();
         if (writableCalendar) {
-          await addBookingToCalendar(booking, writableCalendar.id);
+          await addBookingToDeviceCalendar(booking, writableCalendar.id);
         }
       }
 

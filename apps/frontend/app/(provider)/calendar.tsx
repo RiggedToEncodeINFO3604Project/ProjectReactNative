@@ -14,7 +14,7 @@ import {
 } from "@/utils/time";
 import * as Calendar from "expo-calendar";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -77,25 +77,6 @@ export default function CalendarScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const hasBookingOverlap = (
-    event: any,
-    bookings: BookingWithDetails[],
-  ): boolean => {
-    const eventStart = new Date(event.startDate);
-    const eventEnd = new Date(event.endDate);
-    const eventDate = eventStart.toISOString().split("T")[0];
-
-    return bookings.some((booking) => {
-      const bookingDate = booking.date.split("T")[0];
-      if (bookingDate !== eventDate) return false;
-
-      const bookingStart = new Date(`${bookingDate}T${booking.start_time}:00`);
-      const bookingEnd = new Date(`${bookingDate}T${booking.end_time}:00`);
-
-      return eventStart < bookingEnd && eventEnd > bookingStart;
-    });
   };
 
   const loadBookings = async () => {
@@ -220,11 +201,9 @@ export default function CalendarScreen() {
     setMarkedDates(marks);
   }, [bookings, deviceEvents]);
 
-  useFocusEffect(
-    useCallback(() => {
-      buildMarkedDates();
-    }, [buildMarkedDates]),
-  );
+  useEffect(() => {
+    buildMarkedDates();
+  }, [buildMarkedDates]);
 
   const renderBooking = ({ item }: { item: BookingWithDetails }) => {
     const dateDisplay = new Date(

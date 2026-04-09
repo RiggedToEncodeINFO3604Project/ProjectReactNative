@@ -99,8 +99,14 @@ export default function ConfirmedBookingsScreen() {
     }
   };
 
-  const handleReschedule = () => {
-    loadBookings();
+  const handleReschedule = (updatedBooking: BookingWithDetails) => {
+    setBookings((currentBookings) =>
+      currentBookings.map((booking) =>
+        booking.booking_id === updatedBooking.booking_id
+          ? updatedBooking
+          : booking,
+      ),
+    );
   };
 
   const handleBackPress = () => {
