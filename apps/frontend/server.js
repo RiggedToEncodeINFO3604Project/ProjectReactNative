@@ -281,8 +281,7 @@ app.get("/health", async (req, res) => {
 
   const frontendReady = isFrontendBuildReady();
   const allHealthy = frontendReady && backendHealth.ok && ragHealth.ok;
-
-  res.status(allHealthy ? 200 : 503).json({
+  const healthPayload = {
     status: allHealthy ? "healthy" : "degraded",
     service: "express",
     timestamp: new Date().toISOString(),
@@ -299,7 +298,18 @@ app.get("/health", async (req, res) => {
       backend: backendHealth,
       rag: ragHealth,
     },
-  });
+  };
+
+  console.log(
+    `[Health] ${req.method} ${req.originalUrl} -> ${allHealthy ? 200 : 503}`,
+    JSON.stringify({
+      frontendReady,
+      backendOk: backendHealth.ok,
+      ragOk: ragHealth.ok,
+    }),
+  );
+
+  res.status(allHealthy ? 200 : 503).json(healthPayload);
 });
 
 app.get("/ws-test", (req, res) => {

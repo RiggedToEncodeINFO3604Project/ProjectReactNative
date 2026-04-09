@@ -48,7 +48,7 @@ echo "Starting RAG server on port 8001..."
 echo "========================================"
 
 cd /app/apps/rag-server
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8001 &
+python3 -m uvicorn main:app --host 127.0.0.1 --port 8001 &
 RAG_PID=$!
 echo "RAG server started with PID $RAG_PID"
 wait_for_url "RAG server" "http://localhost:8001/api/health"
@@ -58,7 +58,7 @@ echo "Starting FastAPI backend on port 8000..."
 echo "========================================"
 
 cd /app/apps/api
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 &
 BACKEND_PID=$!
 echo "FastAPI backend started with PID $BACKEND_PID"
 wait_for_url "FastAPI backend" "http://localhost:8000/health"
