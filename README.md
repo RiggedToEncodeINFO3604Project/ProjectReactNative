@@ -6,7 +6,7 @@ SkeduleIt is a multi-app repository organized around five services: the Expo fro
 
 ```text
 apps/
-  frontend/              Expo app, web build, frontend tests
+  expo-frontend/         Expo app, web build, frontend tests
   scheduling-service/    Core scheduling and auth service
   messaging-service/     Messaging REST + WebSocket service
   snapshot-service/      Customer snapshot, notes, tags, auto-tagging
@@ -19,13 +19,13 @@ scripts/         Windows helpers and repo automation
 
 ## Key Paths
 
-- Frontend app: `apps/frontend`
+- Frontend app: `apps/expo-frontend`
 - Dev tools: `dev-tools`
 - Scheduling service: `apps/scheduling-service`
 - Messaging service: `apps/messaging-service`
 - Snapshot service: `apps/snapshot-service`
 - RAG service: `apps/rag-service`
-- Frontend tests: `apps/frontend/__tests__`
+- Frontend tests: `apps/expo-frontend/__tests__`
 - Scheduling tests: `apps/scheduling-service/tests`
 - Messaging tests: `apps/messaging-service/tests`
 - Snapshot tests: `apps/snapshot-service/tests`

@@ -3,15 +3,15 @@
 # dependencies
 node_modules/
 plans/
-apps/frontend/node_modules/
+apps/expo-frontend/node_modules/
 
 # Expo
 .expo/
 dist/
 web-build/
 expo-env.d.ts
-apps/frontend/.expo/
-apps/frontend/dist/
+apps/expo-frontend/.expo/
+apps/expo-frontend/dist/
 
 # Native
 .kotlin/
@@ -49,9 +49,9 @@ app-example
 # generated native folders
 /ios
 /android
-apps/frontend/android/
-apps/frontend/ios/
-apps/frontend/android/local.properties
+apps/expo-frontend/android/
+apps/expo-frontend/ios/
+apps/expo-frontend/android/local.properties
 
 # Backend
 __pycache__/

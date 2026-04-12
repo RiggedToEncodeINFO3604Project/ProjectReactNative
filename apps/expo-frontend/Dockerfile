@@ -17,15 +17,15 @@ ENV EXPO_PUBLIC_RAG_URL=${EXPO_PUBLIC_RAG_URL}
 WORKDIR /app
 
 COPY package*.json ./
-COPY apps/frontend/package.json ./apps/frontend/package.json
+COPY apps/expo-frontend/package.json ./apps/expo-frontend/package.json
 RUN npm install
 
 COPY . .
-RUN npm run build:web --workspace apps/frontend
+RUN npm run build:web --workspace apps/expo-frontend
 
 FROM nginx:1.27-alpine
 
-COPY apps/frontend/nginx/default.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=build /app/apps/frontend/dist /usr/share/nginx/html
+COPY apps/expo-frontend/nginx/default.conf.template /etc/nginx/templates/default.conf.template
+COPY --from=build /app/apps/expo-frontend/dist /usr/share/nginx/html
 
 EXPOSE 8081

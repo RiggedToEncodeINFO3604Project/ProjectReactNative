@@ -10,8 +10,8 @@ LICENSE
 *.swo
 dist
 .expo
-apps/frontend/dist
-apps/frontend/.expo
+apps/expo-frontend/dist
+apps/expo-frontend/.expo
 dev-tools/venv
 apps/*-service/venv
 *.orig.*

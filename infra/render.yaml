@@ -2,7 +2,7 @@ services:
   - type: web
     name: skeduleit-front
     runtime: docker
-    dockerfilePath: ./apps/frontend/Dockerfile
+    dockerfilePath: ./apps/expo-frontend/Dockerfile
     healthCheckPath: /health
 
   - type: web

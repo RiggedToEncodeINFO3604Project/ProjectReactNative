@@ -595,8 +595,8 @@ if errorlevel 1 (
     goto :main_menu
 )
 
-if not exist "%PROJECT_ROOT%\apps\frontend\eas.json" (
-    echo Error: apps\frontend\eas.json was not found.
+if not exist "%PROJECT_ROOT%\apps\expo-frontend\eas.json" (
+    echo Error: apps\expo-frontend\eas.json was not found.
     pause
     goto :main_menu
 )
@@ -604,7 +604,7 @@ if not exist "%PROJECT_ROOT%\apps\frontend\eas.json" (
 echo This will trigger a cloud build using the preview profile.
 echo Make sure you are logged in to Expo/EAS.
 echo.
-pushd "%PROJECT_ROOT%\apps\frontend" >nul
+pushd "%PROJECT_ROOT%\apps\expo-frontend" >nul
 call npx eas-cli build --platform android --profile preview
 set "BUILD_RESULT=%errorlevel%"
 popd >nul
@@ -634,8 +634,8 @@ if errorlevel 1 (
     goto :main_menu
 )
 
-if not exist "%PROJECT_ROOT%\apps\frontend\eas.json" (
-    echo Error: apps\frontend\eas.json was not found.
+if not exist "%PROJECT_ROOT%\apps\expo-frontend\eas.json" (
+    echo Error: apps\expo-frontend\eas.json was not found.
     pause
     goto :main_menu
 )
@@ -643,7 +643,7 @@ if not exist "%PROJECT_ROOT%\apps\frontend\eas.json" (
 echo This will run a local EAS Android build using the preview profile.
 echo Make sure Android Studio, the SDK, Java, and EAS local build prerequisites are installed.
 echo.
-pushd "%PROJECT_ROOT%\apps\frontend" >nul
+pushd "%PROJECT_ROOT%\apps\expo-frontend" >nul
 call npx eas-cli build --platform android --profile preview --local
 set "BUILD_RESULT=%errorlevel%"
 popd >nul
@@ -738,8 +738,8 @@ if not exist "%PROJECT_ROOT%\package.json" (
     exit /b 1
 )
 
-if not exist "%PROJECT_ROOT%\apps\frontend\package.json" (
-    echo Error: apps\frontend\package.json was not found.
+if not exist "%PROJECT_ROOT%\apps\expo-frontend\package.json" (
+    echo Error: apps\expo-frontend\package.json was not found.
     exit /b 1
 )
 

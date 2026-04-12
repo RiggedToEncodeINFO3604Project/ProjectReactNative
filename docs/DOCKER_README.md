@@ -5,7 +5,7 @@ The final submission uses separate Dockerfiles for each deployed service.
 ## Layout
 
 ```text
-apps/frontend            Expo web build served by nginx
+apps/expo-frontend       Expo web build served by nginx
 apps/scheduling-service  FastAPI scheduling service
 apps/messaging-service   FastAPI messaging service
 apps/snapshot-service    FastAPI snapshot service
@@ -16,7 +16,7 @@ infra/                   Render config and docker compose
 
 ## Dockerfiles
 
-- `apps/frontend/Dockerfile`
+- `apps/expo-frontend/Dockerfile`
 - `apps/scheduling-service/Dockerfile`
 - `apps/messaging-service/Dockerfile`
 - `apps/snapshot-service/Dockerfile`
@@ -59,5 +59,5 @@ ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19000,http://localhost:19
 
 - The old Express proxy server has been removed.
 - The frontend now talks directly to the dedicated service URLs.
-- Frontend build output is generated in `apps/frontend/dist`.
+- Frontend build output is generated in `apps/expo-frontend/dist`.
 - `dev-tools` remains in the repo for reset/seed utilities and other local-only development helpers.

@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const REPO_ROOT = process.cwd();
-const FRONTEND_ROOT = path.join(REPO_ROOT, "apps", "frontend");
+const FRONTEND_ROOT = path.join(REPO_ROOT, "apps", "expo-frontend");
 
 function fail(message) {
   console.error(`Error: ${message}`);
@@ -161,7 +161,7 @@ if (!fs.existsSync(path.join(REPO_ROOT, "package.json"))) {
 }
 
 if (!fs.existsSync(path.join(FRONTEND_ROOT, "package.json"))) {
-  fail("apps/frontend/package.json was not found.");
+  fail("apps/expo-frontend/package.json was not found.");
 }
 
 [
