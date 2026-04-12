@@ -4,60 +4,24 @@
 // =======================================================
 
 import { Conversation, Message, SendMessageRequest } from "@/types/scheduling";
-import Constants from "expo-constants";
-import { publicEnv } from "@/config/publicEnv";
-import api from "./schedulingApi";
-
-const normalizeUrl = (value?: string | null): string =>
-  (value || "").trim().replace(/\/+$/, "");
+import axios, { AxiosInstance } from "axios";
+import {
+  getMessagingServiceBaseUrl,
+  getMessagingWebSocketUrl,
+} from "@/config/serviceUrls";
+import { attachAuthenticatedInterceptors } from "./schedulingApi";
 
 const hasBrowserLocation = (): boolean =>
   typeof window !== "undefined" && typeof window.location !== "undefined";
 
-const extractPort = (value: string): string => {
-  const match = value.match(/:(\d+)(?:\/|$)/);
-  return match?.[1] || "8081";
-};
-
-const isPrivateOrLocalHost = (hostname: string): boolean => {
-  return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
-  );
-};
-
-const extractExpoHost = (): string | null => {
-  const expoConfigHost = (Constants.expoConfig as { hostUri?: string } | null)
-    ?.hostUri;
-  if (expoConfigHost) {
-    return expoConfigHost;
-  }
-
-  const manifest2Host = (
-    Constants as typeof Constants & {
-      manifest2?: {
-        extra?: {
-          expoGo?: {
-            debuggerHost?: string;
-          };
-        };
-      };
-    }
-  ).manifest2?.extra?.expoGo?.debuggerHost;
-
-  if (manifest2Host) {
-    return manifest2Host;
-  }
-
-  if (hasBrowserLocation() && window.location.host) {
-    return window.location.host;
-  }
-
-  return null;
-};
+export const messagingApiClient: AxiosInstance = attachAuthenticatedInterceptors(
+  axios.create({
+    baseURL: getMessagingServiceBaseUrl(),
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }),
+);
 
 // ======================================================================
 // = WebSocket Message Type Interfaces                                  =
@@ -162,7 +126,7 @@ export type IncomingWebSocketMessage =
  * @returns Array of conversations sorted by most recent activity
  */
 export const getConversations = async (): Promise<Conversation[]> => {
-  const response = await api.get<Conversation[]>(
+  const response = await messagingApiClient.get<Conversation[]>(
     "/api/messaging/conversations",
   );
   return response.data;
@@ -176,7 +140,7 @@ export const getConversations = async (): Promise<Conversation[]> => {
 export const startConversation = async (
   recipientId: string,
 ): Promise<{ conversation_id: string }> => {
-  const response = await api.post<{ conversation_id: string }>(
+  const response = await messagingApiClient.post<{ conversation_id: string }>(
     "/api/messaging/conversations/start",
     { recipient_id: recipientId },
   );
@@ -191,7 +155,7 @@ export const startConversation = async (
 export const getConversation = async (
   conversationId: string,
 ): Promise<Conversation> => {
-  const response = await api.get<Conversation>(
+  const response = await messagingApiClient.get<Conversation>(
     `/api/messaging/conversations/${conversationId}`,
   );
   return response.data;
@@ -247,7 +211,7 @@ export const getMessages = async (
     params.before_timestamp = options.beforeTimestamp;
   }
 
-  const response = await api.get<RawMessage[]>(
+  const response = await messagingApiClient.get<RawMessage[]>(
     `/api/messaging/conversations/${conversationId}/messages`,
     {
       params: Object.keys(params).length > 0 ? params : undefined,
@@ -311,7 +275,7 @@ export const sendMessage = async (
   conversationId: string,
   data: SendMessageRequest,
 ): Promise<{ message_id: string; filtered_content?: string }> => {
-  const response = await api.post<{
+  const response = await messagingApiClient.post<{
     message_id: string;
     filtered_content?: string;
   }>(
@@ -328,7 +292,7 @@ export const sendMessage = async (
 export const markConversationAsRead = async (
   conversationId: string,
 ): Promise<void> => {
-  await api.post(`/api/messaging/conversations/${conversationId}/read`);
+  await messagingApiClient.post(`/api/messaging/conversations/${conversationId}/read`);
 };
 
 /**
@@ -340,7 +304,7 @@ export const markMessageAsRead = async (
   conversationId: string,
   messageId: string,
 ): Promise<void> => {
-  await api.post(
+  await messagingApiClient.post(
     `/api/messaging/conversations/${conversationId}/messages/${messageId}/read`,
   );
 };
@@ -453,63 +417,9 @@ export class MessagingWebSocket {
    * Ensures secure WebSocket (wss://) for HTTPS pages
    */
   private getWebSocketUrl(): string {
-    const apiUrl = normalizeUrl(publicEnv.EXPO_PUBLIC_API_URL);
-    console.log("[MessagingWebSocket] EXPO_PUBLIC_API_URL:", apiUrl);
-
-    // Remove trailing slash if present to avoid double slashes
-    let normalizedUrl = apiUrl;
-    const isLocalhostConfig =
-      !normalizedUrl ||
-      normalizedUrl.includes("localhost") ||
-      normalizedUrl.includes("127.0.0.1");
-
-    if (hasBrowserLocation()) {
-      if (isLocalhostConfig) {
-        if (normalizedUrl) {
-          const configuredPort = extractPort(normalizedUrl);
-          const currentHostname = window.location.hostname;
-          if (isPrivateOrLocalHost(currentHostname)) {
-            normalizedUrl = `${window.location.protocol}//${currentHostname}:${configuredPort}`;
-          } else {
-            normalizedUrl = window.location.origin;
-          }
-        } else {
-          normalizedUrl = window.location.origin;
-        }
-      }
-    } else if (isLocalhostConfig) {
-      const expoHost = extractExpoHost();
-      if (expoHost) {
-        normalizedUrl = normalizedUrl.replace(
-          /(localhost|127\.0\.0\.1)(:\d+)?/,
-          expoHost,
-        );
-      }
-    }
-
-    if (normalizedUrl.startsWith("https://")) {
-      const wsUrl = normalizedUrl.replace("https://", "wss://") + "/ws";
-      console.log("[MessagingWebSocket] Using WSS (HTTPS detected):", wsUrl);
-      return wsUrl;
-    } else if (normalizedUrl.startsWith("http://")) {
-      const wsUrl = normalizedUrl.replace("http://", "ws://") + "/ws";
-      console.log("[MessagingWebSocket] Using WS (HTTP detected):", wsUrl);
-      return wsUrl;
-    }
-
-    // Improved fallback - detect current protocol in browser
-    if (hasBrowserLocation()) {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const host = normalizedUrl || window.location.host;
-      const wsUrl = `${protocol}//${host}/ws`;
-      console.log("[MessagingWebSocket] Using fallback (browser):", wsUrl);
-      return wsUrl;
-    }
-
-    // Default to secure WebSocket for production safety
-    const defaultUrl = `wss://${normalizedUrl || "localhost"}/ws`;
-    console.log("[MessagingWebSocket] Using default WSS:", defaultUrl);
-    return defaultUrl;
+    const wsUrl = getMessagingWebSocketUrl();
+    console.log("[MessagingWebSocket] Resolved WebSocket URL:", wsUrl);
+    return wsUrl;
   }
 
   /**

@@ -1,8 +1,8 @@
+import { getRagHealthUrl } from "@/config/serviceUrls";
 import { getScreenPalette } from "@/constants/theme";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { publicEnv } from "@/config/publicEnv";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -65,23 +65,7 @@ export default function LoginScreen() {
   };
 
   const handleOpenRagServer = async () => {
-    const apiBaseUrl = publicEnv.EXPO_PUBLIC_API_URL.replace(
-      /\/+$/,
-      "",
-    );
-    const normalizedBaseUrl = apiBaseUrl.replace(/\/api\/chat$/, "");
-    const isLocalhostConfig =
-      !normalizedBaseUrl ||
-      normalizedBaseUrl.includes("localhost") ||
-      normalizedBaseUrl.includes("127.0.0.1");
-    const url =
-      Platform.OS === "web" &&
-      typeof window !== "undefined" &&
-      isLocalhostConfig
-        ? `${window.location.origin}/api/rag/health`
-        : normalizedBaseUrl
-          ? `${normalizedBaseUrl}/api/rag/health`
-          : "http://localhost:8081/api/rag/health";
+    const url = getRagHealthUrl();
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);

@@ -27,11 +27,13 @@ import {
   TokenResponse,
   UserCreate,
 } from "@/types/scheduling";
+import {
+  getSchedulingServiceBaseUrl,
+  getSnapshotServiceBaseUrl,
+} from "@/config/serviceUrls";
 import { formatLocalDate, parseLocalDate } from "@/utils/time";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios, { AxiosError, AxiosInstance, isAxiosError } from "axios";
-import Constants from "expo-constants";
-import { Platform } from "react-native";
 import { publicEnv } from "@/config/publicEnv";
 import {
   getFirebaseIdToken,
@@ -41,91 +43,8 @@ import {
   waitForFirebaseAuthReady,
 } from "@/services/firebaseClient";
 
-const normalizeApiUrl = (value?: string | null): string => {
-  return (value || "").trim().replace(/\/+$/, "");
-};
-
-const extractPort = (value: string): string => {
-  const match = value.match(/:(\d+)(?:\/|$)/);
-  return match?.[1] || "8000";
-};
-
-const isPrivateOrLocalHost = (hostname: string): boolean => {
-  return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
-  );
-};
-
-const extractExpoHost = (): string | null => {
-  const expoConfigHost = (Constants.expoConfig as { hostUri?: string } | null)
-    ?.hostUri;
-  if (expoConfigHost) {
-    return expoConfigHost;
-  }
-
-  const manifest2Host = (
-    Constants as typeof Constants & {
-      manifest2?: {
-        extra?: {
-          expoGo?: {
-            debuggerHost?: string;
-          };
-        };
-      };
-    }
-  ).manifest2?.extra?.expoGo?.debuggerHost;
-
-  return manifest2Host || null;
-};
-
-const resolveApiUrl = (): string => {
-  const configuredUrl = normalizeApiUrl(publicEnv.EXPO_PUBLIC_API_URL);
-  const isLocalhostConfig =
-    !configuredUrl ||
-    configuredUrl.includes("localhost") ||
-    configuredUrl.includes("127.0.0.1");
-
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    if (isLocalhostConfig && configuredUrl) {
-      const configuredPort = extractPort(configuredUrl);
-      const currentHostname = window.location.hostname;
-      if (isPrivateOrLocalHost(currentHostname)) {
-        return `${window.location.protocol}//${currentHostname}:${configuredPort}`;
-      }
-      return window.location.origin;
-    }
-    return configuredUrl || window.location.origin;
-  }
-
-  if (!isLocalhostConfig) {
-    return configuredUrl;
-  }
-
-  if (Platform.OS === "android" && configuredUrl.includes("10.0.2.2")) {
-    return configuredUrl;
-  }
-
-  const expoHost = extractExpoHost();
-  const expoHostname = expoHost?.split(":")[0];
-
-  if (expoHostname) {
-    const protocol = configuredUrl.startsWith("https://") ? "https" : "http";
-    const configuredPort = extractPort(configuredUrl);
-    const resolvedUrl = `${protocol}://${expoHostname}:${configuredPort}`;
-    console.log(
-      `[API] Resolved Expo device API URL from "${configuredUrl || "(empty)"}" to "${resolvedUrl}"`,
-    );
-    return resolvedUrl;
-  }
-
-  return configuredUrl;
-};
-
-const API_URL = resolveApiUrl();
+const API_URL = getSchedulingServiceBaseUrl();
+const SNAPSHOT_API_URL = getSnapshotServiceBaseUrl();
 const FIREBASE_API_KEY = publicEnv.EXPO_PUBLIC_FIREBASE_API_KEY;
 
 const AUTH_STORAGE_KEYS = {
@@ -476,39 +395,51 @@ export const restoreAuthSession = async (): Promise<TokenResponse | null> => {
   }
 };
 
-// Create axios instance
-const api: AxiosInstance = axios.create({
-  baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+export const attachAuthenticatedInterceptors = (
+  client: AxiosInstance,
+): AxiosInstance => {
+  client.interceptors.request.use(
+    async (config) => {
+      const token = await getValidAuthToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error),
+  );
 
-// Request interceptor to add auth token
-api.interceptors.request.use(
-  async (config) => {
-    const token = await getValidAuthToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
+  client.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError) => {
+      if (error.response?.status === 401) {
+        await signOutFromFirebase();
+        await clearLegacyStoredAuth();
+        await clearStoredAuth();
+      }
+      return Promise.reject(error);
+    },
+  );
+
+  return client;
+};
+
+const api: AxiosInstance = attachAuthenticatedInterceptors(
+  axios.create({
+    baseURL: API_URL,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }),
 );
 
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      await signOutFromFirebase();
-      await clearLegacyStoredAuth();
-      await clearStoredAuth();
-    }
-    return Promise.reject(error);
-  },
+const snapshotApi: AxiosInstance = attachAuthenticatedInterceptors(
+  axios.create({
+    baseURL: SNAPSHOT_API_URL,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  }),
 );
 
 // =====================
@@ -976,10 +907,10 @@ export const getCustomerSnapshot = async (
     customerId,
   );
   console.log("[DEBUG schedulingApi] customerId type:", typeof customerId);
-  console.log("[DEBUG schedulingApi] Full URL:", API_URL + url);
+  console.log("[DEBUG schedulingApi] Full URL:", SNAPSHOT_API_URL + url);
 
   try {
-    const response = await api.get<CustomerSnapshot>(url);
+    const response = await snapshotApi.get<CustomerSnapshot>(url);
     console.log("[DEBUG schedulingApi] Raw response:", response);
     console.log("[DEBUG schedulingApi] Response data:", response.data);
     console.log(
@@ -1025,7 +956,7 @@ export interface TaggingConfig {
 
 export const getTaggingRules = async (): Promise<TaggingConfig> => {
   const url = `/provider/tags/rules`;
-  const response = await api.get<TaggingConfig>(url);
+  const response = await snapshotApi.get<TaggingConfig>(url);
   return response.data;
 };
 
@@ -1033,7 +964,7 @@ export const updateTaggingRules = async (
   rules: Partial<TaggingConfig>,
 ): Promise<any> => {
   const url = `/provider/tags/rules`;
-  const response = await api.put<any>(url, rules);
+  const response = await snapshotApi.put<any>(url, rules);
   return response.data;
 };
 
@@ -1041,7 +972,7 @@ export const refreshCustomerAutoTags = async (
   customerId: string,
 ): Promise<any[]> => {
   const url = `/provider/customer/${customerId}/tags/auto-refresh`;
-  const response = await api.post<any[]>(url);
+  const response = await snapshotApi.post<any[]>(url);
   return response.data;
 };
 
@@ -1058,7 +989,7 @@ export const createCustomerTag = async (
   tagData: { tag: string; color: string },
 ): Promise<CustomerTag> => {
   const url = `/provider/customer/${customerId}/tags`;
-  const response = await api.post<CustomerTag>(url, tagData);
+  const response = await snapshotApi.post<CustomerTag>(url, tagData);
   return response.data;
 };
 
@@ -1067,13 +998,13 @@ export const updateCustomerTag = async (
   tagData: Partial<{ tag: string; color: string }>,
 ): Promise<any> => {
   const url = `/provider/tags/${tagId}`;
-  const response = await api.put<any>(url, tagData);
+  const response = await snapshotApi.put<any>(url, tagData);
   return response.data;
 };
 
 export const deleteCustomerTag = async (tagId: string): Promise<any> => {
   const url = `/provider/tags/${tagId}`;
-  const response = await api.delete<any>(url);
+  const response = await snapshotApi.delete<any>(url);
   return response.data;
 };
 
@@ -1090,7 +1021,7 @@ export const createCustomerNote = async (
   noteData: { note: string },
 ): Promise<CustomerNote> => {
   const url = `/provider/customer/${customerId}/notes`;
-  const response = await api.post<CustomerNote>(url, noteData);
+  const response = await snapshotApi.post<CustomerNote>(url, noteData);
   return response.data;
 };
 
@@ -1099,15 +1030,16 @@ export const updateCustomerNote = async (
   noteData: { note: string },
 ): Promise<any> => {
   const url = `/provider/notes/${noteId}`;
-  const response = await api.put<any>(url, noteData);
+  const response = await snapshotApi.put<any>(url, noteData);
   return response.data;
 };
 
 export const deleteCustomerNote = async (noteId: string): Promise<any> => {
   const url = `/provider/notes/${noteId}`;
-  const response = await api.delete<any>(url);
+  const response = await snapshotApi.delete<any>(url);
   return response.data;
 };
 
 // Export the axios instance for custom requests
 export default api;
+

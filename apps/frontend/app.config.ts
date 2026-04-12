@@ -3,6 +3,11 @@ import path from "path";
 
 type PublicEnv = {
   EXPO_PUBLIC_API_URL: string;
+  EXPO_PUBLIC_FRONTEND_URL: string;
+  EXPO_PUBLIC_SCHEDULING_URL: string;
+  EXPO_PUBLIC_MESSAGING_URL: string;
+  EXPO_PUBLIC_SNAPSHOT_URL: string;
+  EXPO_PUBLIC_RAG_URL: string;
   EXPO_PUBLIC_FIREBASE_API_KEY: string;
   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: string;
   EXPO_PUBLIC_FIREBASE_PROJECT_ID: string;
@@ -18,6 +23,11 @@ const ANDROID_PACKAGE = "com.skeduleit.app";
 const EAS_PROJECT_ID = "f709b4eb-6c71-4c91-890b-f06fc75de65e";
 const DEFAULT_PUBLIC_ENV: PublicEnv = {
   EXPO_PUBLIC_API_URL: "https://skeduleit.onrender.com/",
+  EXPO_PUBLIC_FRONTEND_URL: "https://skeduleit-front.onrender.com/",
+  EXPO_PUBLIC_SCHEDULING_URL: "https://skeduleit.onrender.com/",
+  EXPO_PUBLIC_MESSAGING_URL: "https://skeduleit-messaging.onrender.com/",
+  EXPO_PUBLIC_SNAPSHOT_URL: "https://skeduleit-snapshots.onrender.com/",
+  EXPO_PUBLIC_RAG_URL: "https://skeduleit-rag.onrender.com/",
   EXPO_PUBLIC_FIREBASE_API_KEY: "AIzaSyCGXRqGJ69uQGAW5KHUTnsUxbwLWPtDBbA",
   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: "skeduleit-85dc6.firebaseapp.com",
   EXPO_PUBLIC_FIREBASE_PROJECT_ID: "skeduleit-85dc6",
@@ -65,6 +75,11 @@ const readEnv = (key: keyof PublicEnv): string =>
 
 const publicEnv: PublicEnv = {
   EXPO_PUBLIC_API_URL: readEnv("EXPO_PUBLIC_API_URL"),
+  EXPO_PUBLIC_FRONTEND_URL: readEnv("EXPO_PUBLIC_FRONTEND_URL"),
+  EXPO_PUBLIC_SCHEDULING_URL: readEnv("EXPO_PUBLIC_SCHEDULING_URL"),
+  EXPO_PUBLIC_MESSAGING_URL: readEnv("EXPO_PUBLIC_MESSAGING_URL"),
+  EXPO_PUBLIC_SNAPSHOT_URL: readEnv("EXPO_PUBLIC_SNAPSHOT_URL"),
+  EXPO_PUBLIC_RAG_URL: readEnv("EXPO_PUBLIC_RAG_URL"),
   EXPO_PUBLIC_FIREBASE_API_KEY: readEnv("EXPO_PUBLIC_FIREBASE_API_KEY"),
   EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: readEnv("EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN"),
   EXPO_PUBLIC_FIREBASE_PROJECT_ID: readEnv("EXPO_PUBLIC_FIREBASE_PROJECT_ID"),

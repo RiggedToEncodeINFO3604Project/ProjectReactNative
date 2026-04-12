@@ -1,9 +1,8 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { getRagChatUrl } from "@/config/serviceUrls";
 import { ExtendedColours, SharedColours } from "@/constants/theme";
 import { useTheme } from "@/context/ThemeContext";
-import { publicEnv } from "@/config/publicEnv";
 import { extractChatbotErrorMessage } from "@/utils/chatbotError";
-import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
 import React, {
   useCallback,
@@ -98,58 +97,6 @@ const MAX_MESSAGE_LENGTH = 1000;
 const SCROLL_DELAY = 100;
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
-const normalizeUrl = (value?: string | null) =>
-  (value || "").trim().replace(/\/+$/, "");
-
-const extractExpoHost = (): string | null => {
-  const expoConfigHost = (Constants.expoConfig as { hostUri?: string } | null)
-    ?.hostUri;
-  if (expoConfigHost) {
-    return expoConfigHost;
-  }
-
-  const manifest2Host = (
-    Constants as typeof Constants & {
-      manifest2?: {
-        extra?: {
-          expoGo?: {
-            debuggerHost?: string;
-          };
-        };
-      };
-    }
-  ).manifest2?.extra?.expoGo?.debuggerHost;
-
-  return manifest2Host || null;
-};
-
-const rewriteLocalhostToExpoHost = (url: string): string => {
-  if (!url || (!url.includes("localhost") && !url.includes("127.0.0.1"))) {
-    return url;
-  }
-
-  const expoHostname = extractExpoHost()?.split(":")[0];
-  if (!expoHostname) {
-    return url;
-  }
-
-  return url.replace(/(localhost|127\.0\.0\.1)/, expoHostname);
-};
-
-const extractPort = (value: string): string => {
-  const match = value.match(/:(\d+)(?:\/|$)/);
-  return match?.[1] || "8081";
-};
-
-const isPrivateOrLocalHost = (hostname: string): boolean => {
-  return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-    /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)
-  );
-};
 
 const parseTextParts = (text: string): TextPart[] => {
   const parts: TextPart[] = [];
@@ -191,38 +138,7 @@ const parseTextParts = (text: string): TextPart[] => {
   return parts;
 };
 
-const API_URL = (() => {
-  const configuredBaseUrl = normalizeUrl(publicEnv.EXPO_PUBLIC_API_URL);
-  const isLocalhostConfig =
-    !configuredBaseUrl ||
-    configuredBaseUrl.includes("localhost") ||
-    configuredBaseUrl.includes("127.0.0.1");
-
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    if (isLocalhostConfig) {
-      if (configuredBaseUrl) {
-        const configuredPort = extractPort(configuredBaseUrl);
-        const currentHostname = window.location.hostname;
-        if (isPrivateOrLocalHost(currentHostname)) {
-          return `${window.location.protocol}//${currentHostname}:${configuredPort}/api/chat`;
-        }
-      }
-      return `${window.location.origin}/api/chat`;
-    }
-    return `${configuredBaseUrl.replace(/\/api\/chat$/, "")}/api/chat`;
-  }
-
-  if (configuredBaseUrl) {
-    const normalizedBaseUrl = configuredBaseUrl.replace(/\/api\/chat$/, "");
-    return `${rewriteLocalhostToExpoHost(normalizedBaseUrl)}/api/chat`;
-  }
-
-  if (typeof window !== "undefined") {
-    return `${window.location.origin}/api/chat`;
-  }
-
-  return "/api/chat";
-})();
+const API_URL = getRagChatUrl();
 
 const sendToApi = async (
   text: string,

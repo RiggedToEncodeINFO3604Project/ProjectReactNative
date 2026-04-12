@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
-import api from "@/services/schedulingApi";
 import { extractChatbotErrorMessage } from "@/utils/chatbotError";
+import { messagingApiClient } from "@/services/messagingApi";
 
 export interface SelectedMessageImage {
   file?: Blob;
@@ -122,7 +122,7 @@ export const uploadMessagingImage = async (
   const dataBase64 = await readBlobAsBase64(fileBlob);
 
   try {
-    const response = await api.post<{ image_url: string }>(
+    const response = await messagingApiClient.post<{ image_url: string }>(
       `/api/messaging/conversations/${conversationId}/image-upload`,
       {
         file_name: fileName,
