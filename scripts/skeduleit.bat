@@ -36,8 +36,8 @@ set /p MAIN_CHOICE="Choose an option: "
 
 if "%MAIN_CHOICE%"=="1" goto :menu_start_servers
 if "%MAIN_CHOICE%"=="2" goto :menu_database
-if "%MAIN_CHOICE%"=="3" goto :setup_dependencies
-if "%MAIN_CHOICE%"=="4" goto :update_dependencies
+if "%MAIN_CHOICE%"=="3" goto :setup_dependencies_entry
+if "%MAIN_CHOICE%"=="4" goto :update_dependencies_entry
 if "%MAIN_CHOICE%"=="5" goto :menu_build_apk
 if "%MAIN_CHOICE%"=="0" goto :eof
 
@@ -67,12 +67,12 @@ set /p SERVER_CHOICE="Choose an option: "
 
 if /i "%SERVER_CHOICE%"=="1" goto :start_all_backend_and_frontend_clear
 if /i "%SERVER_CHOICE%"=="2" goto :start_all_backend_and_frontend
-if /i "%SERVER_CHOICE%"=="3" goto :run_frontend
+if /i "%SERVER_CHOICE%"=="3" goto :start_frontend_window_menu
 if /i "%SERVER_CHOICE%"=="4" goto :start_all_backend_servers
-if /i "%SERVER_CHOICE%"=="5" goto :run_scheduling
-if /i "%SERVER_CHOICE%"=="6" goto :run_messaging
-if /i "%SERVER_CHOICE%"=="7" goto :run_rag
-if /i "%SERVER_CHOICE%"=="8" goto :run_snapshot
+if /i "%SERVER_CHOICE%"=="5" goto :start_scheduling_window
+if /i "%SERVER_CHOICE%"=="6" goto :start_messaging_window
+if /i "%SERVER_CHOICE%"=="7" goto :start_rag_window
+if /i "%SERVER_CHOICE%"=="8" goto :start_snapshot_window
 if /i "%SERVER_CHOICE%"=="B" goto :main_menu
 
 echo.
@@ -129,12 +129,20 @@ goto :menu_build_apk
 :start_all_backend_and_frontend_clear
 call :start_all_backend_windows
 if errorlevel 1 goto :menu_start_servers
-goto :run_frontend_clear
+echo [5/5] Starting frontend with cache clear...
+echo.
+call :start_frontend_window "__run_frontend_clear" "Frontend (Clear Cache)"
+pause
+goto :menu_start_servers
 
 :start_all_backend_and_frontend
 call :start_all_backend_windows
 if errorlevel 1 goto :menu_start_servers
-goto :run_frontend
+echo [5/5] Starting frontend...
+echo.
+call :start_frontend_window "__run_frontend" "Frontend"
+pause
+goto :menu_start_servers
 
 :start_all_backend_servers
 call :start_all_backend_windows
@@ -156,18 +164,72 @@ if errorlevel 1 exit /b 1
 
 echo.
 echo Launching backend services in separate windows...
-start "Core Scheduling Service" cmd /k "call \"%SCRIPT_PATH%\" __run_scheduling"
-start "Messaging Service" cmd /k "call \"%SCRIPT_PATH%\" __run_messaging"
-start "RAG Service" cmd /k "call \"%SCRIPT_PATH%\" __run_rag"
-start "Snapshot Service" cmd /k "call \"%SCRIPT_PATH%\" __run_snapshot"
+echo [1/4] Starting Core Scheduling Service...
+start "Core Scheduling Service" "%ComSpec%" /k ""%SCRIPT_PATH%" __run_scheduling"
+echo [2/4] Starting Messaging Service...
+start "Messaging Service" "%ComSpec%" /k ""%SCRIPT_PATH%" __run_messaging"
+echo [3/4] Starting RAG Service...
+start "RAG Service" "%ComSpec%" /k ""%SCRIPT_PATH%" __run_rag"
+echo [4/4] Starting Snapshot Service...
+start "Snapshot Service" "%ComSpec%" /k ""%SCRIPT_PATH%" __run_snapshot"
 echo Backend services launched.
 exit /b 0
+
+:start_frontend_window_menu
+call :start_frontend_window "__run_frontend" "Frontend"
+pause
+goto :menu_start_servers
+
+:start_frontend_window
+set "FRONTEND_ARG=%~1"
+set "FRONTEND_TITLE=%~2"
+if not defined FRONTEND_ARG set "FRONTEND_ARG=__run_frontend"
+if not defined FRONTEND_TITLE set "FRONTEND_TITLE=Frontend"
+
+call :ensure_frontend_ready
+if errorlevel 1 exit /b 1
+
+start "%FRONTEND_TITLE%" "%ComSpec%" /k ""%SCRIPT_PATH%" %FRONTEND_ARG%"
+echo %FRONTEND_TITLE% launched in a separate window.
+exit /b 0
+
+:start_scheduling_window
+call :ensure_service_ready "apps\scheduling-service" "Core scheduling service"
+if errorlevel 1 goto :menu_start_servers
+start "Core Scheduling Service" "%ComSpec%" /k ""%SCRIPT_PATH%" __run_scheduling"
+echo Core Scheduling Service launched in a separate window.
+pause
+goto :menu_start_servers
+
+:start_messaging_window
+call :ensure_service_ready "apps\messaging-service" "Messaging service"
+if errorlevel 1 goto :menu_start_servers
+start "Messaging Service" "%ComSpec%" /k ""%SCRIPT_PATH%" __run_messaging"
+echo Messaging Service launched in a separate window.
+pause
+goto :menu_start_servers
+
+:start_rag_window
+call :ensure_service_ready "apps\rag-service" "RAG service"
+if errorlevel 1 goto :menu_start_servers
+start "RAG Service" "%ComSpec%" /k ""%SCRIPT_PATH%" __run_rag"
+echo RAG Service launched in a separate window.
+pause
+goto :menu_start_servers
+
+:start_snapshot_window
+call :ensure_service_ready "apps\snapshot-service" "Snapshot service"
+if errorlevel 1 goto :menu_start_servers
+start "Snapshot Service" "%ComSpec%" /k ""%SCRIPT_PATH%" __run_snapshot"
+echo Snapshot Service launched in a separate window.
+pause
+goto :menu_start_servers
 
 :run_frontend
 call :ensure_frontend_ready
 if errorlevel 1 (
     pause
-    goto :main_menu
+    exit /b 1
 )
 
 call :set_local_frontend_env
@@ -180,13 +242,13 @@ echo   RAG:        %EXPO_PUBLIC_RAG_URL%
 echo   Snapshot:   %EXPO_PUBLIC_SNAPSHOT_URL%
 echo.
 call npm run frontend
-goto :main_menu
+exit /b %errorlevel%
 
 :run_frontend_clear
 call :ensure_frontend_ready
 if errorlevel 1 (
     pause
-    goto :main_menu
+    exit /b 1
 )
 
 call :set_local_frontend_env
@@ -195,6 +257,14 @@ echo.
 echo Starting frontend with cache clear and local service URLs...
 echo.
 call npm run frontend:clear
+exit /b %errorlevel%
+
+:setup_dependencies_entry
+call :ensure_admin_for_action "setup_dependencies" "__setup_dependencies" "setup dependencies"
+goto :main_menu
+
+:update_dependencies_entry
+call :ensure_admin_for_action "update_dependencies" "__update_dependencies" "update dependencies"
 goto :main_menu
 
 :run_scheduling
@@ -219,14 +289,21 @@ set "SERVICE_NAME=%~2"
 set "SERVICE_PORT=%~3"
 
 cd /d "%PROJECT_ROOT%\%SERVICE_PATH%"
-if not exist "venv\Scripts\activate" (
+if not exist "venv\Scripts\python.exe" (
     echo Error: %SERVICE_NAME% virtual environment was not found.
     echo Run setup first from this menu.
     pause
     exit /b 1
 )
 
-call "venv\Scripts\activate"
+call :validate_python_executable "venv\Scripts\python.exe"
+if errorlevel 1 (
+    echo Error: %SERVICE_NAME% virtual environment is invalid.
+    echo Run setup first from this menu to rebuild it.
+    pause
+    exit /b 1
+)
+
 echo ============================================
 echo   %SERVICE_NAME%
 echo ============================================
@@ -237,7 +314,7 @@ if "%SERVICE_PORT%"=="8002" (
 )
 echo.
 set "PORT=%SERVICE_PORT%"
-python main.py
+"venv\Scripts\python.exe" main.py
 exit /b %errorlevel%
 
 :destroy_and_reconstruct_database
@@ -321,24 +398,31 @@ echo.
 call :require_command npm "Node.js and npm"
 if errorlevel 1 goto :setup_failed
 
+echo [1/7] Installing frontend dependencies...
 call npm install
 if errorlevel 1 goto :setup_failed
 
+echo [2/7] Validating frontend install...
 call :verify_frontend_install
 if errorlevel 1 goto :setup_failed
 
+echo [3/7] Setting up Core Scheduling Service...
 call :prepare_python_service "apps\scheduling-service" "Core scheduling service" "install"
 if errorlevel 1 goto :setup_failed
 
+echo [4/7] Setting up Messaging Service...
 call :prepare_python_service "apps\messaging-service" "Messaging service" "install"
 if errorlevel 1 goto :setup_failed
 
+echo [5/7] Setting up Snapshot Service...
 call :prepare_python_service "apps\snapshot-service" "Snapshot service" "install"
 if errorlevel 1 goto :setup_failed
 
+echo [6/7] Setting up RAG Service...
 call :prepare_python_service "apps\rag-service" "RAG service" "install"
 if errorlevel 1 goto :setup_failed
 
+echo [7/7] Setting up Database Tools...
 call :prepare_python_service "apps\api" "Database tools" "install"
 if errorlevel 1 goto :setup_failed
 
@@ -363,29 +447,37 @@ echo.
 call :require_command npm "Node.js and npm"
 if errorlevel 1 goto :update_failed
 
+echo [1/8] Updating frontend dependencies...
 call npm update
 if errorlevel 1 goto :update_failed
 
+echo [2/8] Applying npm audit fixes...
 call npm audit fix
 if errorlevel 1 (
     echo Warning: npm audit fix did not complete successfully.
 )
 
+echo [3/8] Validating frontend install...
 call :verify_frontend_install
 if errorlevel 1 goto :update_failed
 
+echo [4/8] Updating Core Scheduling Service...
 call :prepare_python_service "apps\scheduling-service" "Core scheduling service" "upgrade"
 if errorlevel 1 goto :update_failed
 
+echo [5/8] Updating Messaging Service...
 call :prepare_python_service "apps\messaging-service" "Messaging service" "upgrade"
 if errorlevel 1 goto :update_failed
 
+echo [6/8] Updating Snapshot Service...
 call :prepare_python_service "apps\snapshot-service" "Snapshot service" "upgrade"
 if errorlevel 1 goto :update_failed
 
+echo [7/8] Updating RAG Service...
 call :prepare_python_service "apps\rag-service" "RAG service" "upgrade"
 if errorlevel 1 goto :update_failed
 
+echo [8/8] Updating Database Tools...
 call :prepare_python_service "apps\api" "Database tools" "upgrade"
 if errorlevel 1 goto :update_failed
 
@@ -400,6 +492,21 @@ echo Dependency update did not complete successfully.
 pause
 goto :main_menu
 
+:ensure_admin_for_action
+net session >nul 2>&1
+if "%errorlevel%"=="0" (
+    goto :%~1
+)
+
+echo.
+echo Administrator privileges are required to %~3.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%SCRIPT_PATH%' -ArgumentList '%~2' -WorkingDirectory '%PROJECT_ROOT%' -Verb RunAs"
+if errorlevel 1 (
+    echo Failed to relaunch with administrator privileges.
+    pause
+)
+exit /b 0
+
 :prepare_python_service
 set "SERVICE_PATH=%~1"
 set "SERVICE_NAME=%~2"
@@ -411,6 +518,19 @@ if not exist "%PROJECT_ROOT%\%SERVICE_PATH%\requirements.txt" (
 )
 
 pushd "%PROJECT_ROOT%\%SERVICE_PATH%" >nul
+
+if exist "venv\Scripts\python.exe" (
+    call :validate_python_executable "venv\Scripts\python.exe"
+    if errorlevel 1 (
+        echo Existing virtual environment for %SERVICE_NAME% is invalid. Rebuilding it...
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -Recurse -Force -LiteralPath 'venv'"
+        if errorlevel 1 (
+            echo Error: Failed to remove the invalid virtual environment for %SERVICE_NAME%.
+            popd >nul
+            exit /b 1
+        )
+    )
+)
 
 if not exist "venv\Scripts\python.exe" (
     call :find_python_for_venv
@@ -565,9 +685,16 @@ set "EXPO_PUBLIC_SNAPSHOT_URL=http://localhost:8003"
 exit /b 0
 
 :ensure_service_ready
-if not exist "%PROJECT_ROOT%\%~1\venv\Scripts\activate" (
+if not exist "%PROJECT_ROOT%\%~1\venv\Scripts\python.exe" (
     echo Error: %~2 virtual environment was not found.
     echo Run setup first from this menu.
+    exit /b 1
+)
+
+call :validate_python_executable "%PROJECT_ROOT%\%~1\venv\Scripts\python.exe"
+if errorlevel 1 (
+    echo Error: %~2 virtual environment is invalid.
+    echo Run setup first from this menu to rebuild it.
     exit /b 1
 )
 exit /b 0
@@ -576,11 +703,17 @@ exit /b 0
 set "API_TOOLS_PYTHON="
 
 if exist "%PROJECT_ROOT%\apps\api\venv\Scripts\python.exe" (
-    set "API_TOOLS_PYTHON=%PROJECT_ROOT%\apps\api\venv\Scripts\python.exe"
+    call :validate_python_executable "%PROJECT_ROOT%\apps\api\venv\Scripts\python.exe"
+    if not errorlevel 1 (
+        set "API_TOOLS_PYTHON=%PROJECT_ROOT%\apps\api\venv\Scripts\python.exe"
+    )
 )
 
 if not defined API_TOOLS_PYTHON if exist "%PROJECT_ROOT%\apps\scheduling-service\venv\Scripts\python.exe" (
-    set "API_TOOLS_PYTHON=%PROJECT_ROOT%\apps\scheduling-service\venv\Scripts\python.exe"
+    call :validate_python_executable "%PROJECT_ROOT%\apps\scheduling-service\venv\Scripts\python.exe"
+    if not errorlevel 1 (
+        set "API_TOOLS_PYTHON=%PROJECT_ROOT%\apps\scheduling-service\venv\Scripts\python.exe"
+    )
 )
 
 if not defined API_TOOLS_PYTHON (
@@ -655,6 +788,11 @@ if not errorlevel 1 (
 
 echo Error: Python was not found.
 exit /b 1
+
+:validate_python_executable
+if not exist "%~1" exit /b 1
+"%~1" -c "import sys" >nul 2>&1
+exit /b %errorlevel%
 
 :confirm_action
 set "ACTION_PROMPT=%~1"

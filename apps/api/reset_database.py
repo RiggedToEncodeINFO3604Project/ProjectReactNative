@@ -7,7 +7,7 @@ apps/api/firestore_collections/.
 
 import sys
 
-from firestore_collections.common import init_database
+from firestore_collections.common import init_database, run_script_task, run_steps
 from firestore_collections.destroy_availability import destroy_availability
 from firestore_collections.destroy_client_records import destroy_client_records
 from firestore_collections.destroy_conversations import destroy_conversations
@@ -26,39 +26,34 @@ from firestore_collections.destroy_services import destroy_services
 from firestore_collections.destroy_users import destroy_users
 
 
-def reset_database():
-    try:
-        db = init_database()
-
-        destroy_messages(db)
-        destroy_conversations(db)
-        destroy_client_records(db)
-        destroy_customer_notes(db)
-        destroy_customer_tags(db)
-        destroy_provider_busy_times(db)
-        destroy_provider_tagging_rules(db)
-        destroy_availability(db)
-        destroy_services(db)
-        destroy_customers(db)
-        destroy_providers(db)
-        destroy_users(db)
-
-        print("\nDatabase reset complete!")
-        return True
-
-    except Exception as exc:
-        print(f"Error: {exc}")
-        import traceback
-
-        traceback.print_exc()
-        return False
+def reset_database() -> None:
+    db = init_database()
+    run_steps(
+        [
+            ("Destroying messages", lambda: destroy_messages(db)),
+            ("Destroying conversations", lambda: destroy_conversations(db)),
+            ("Destroying client records", lambda: destroy_client_records(db)),
+            ("Destroying customer notes", lambda: destroy_customer_notes(db)),
+            ("Destroying customer tags", lambda: destroy_customer_tags(db)),
+            ("Destroying provider busy times", lambda: destroy_provider_busy_times(db)),
+            (
+                "Destroying provider tagging rules",
+                lambda: destroy_provider_tagging_rules(db),
+            ),
+            ("Destroying availability", lambda: destroy_availability(db)),
+            ("Destroying services", lambda: destroy_services(db)),
+            ("Destroying customers", lambda: destroy_customers(db)),
+            ("Destroying providers", lambda: destroy_providers(db)),
+            ("Destroying users", lambda: destroy_users(db)),
+        ]
+    )
+    print("Database reset complete!")
 
 
 if __name__ == "__main__":
     print("Resetting Firebase Firestore database...")
     print()
-    success = reset_database()
+    success = run_script_task(reset_database, failure_prefix="Database reset failed")
     if success:
         sys.exit(0)
-    print("Database reset failed.")
     sys.exit(1)
