@@ -1,4 +1,9 @@
-import { getRagHealthUrl } from "@/config/serviceUrls";
+import {
+  getMessagingServiceBaseUrl,
+  getRagHealthUrl,
+  getSchedulingServiceBaseUrl,
+  getSnapshotServiceBaseUrl,
+} from "@/config/serviceUrls";
 import { getScreenPalette } from "@/constants/theme";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/context/AuthContext";
@@ -29,6 +34,24 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const serverButtons = [
+    {
+      label: "Start Core Scheduling Server",
+      url: `${getSchedulingServiceBaseUrl()}/health`,
+    },
+    {
+      label: "Start Messaging Server",
+      url: `${getMessagingServiceBaseUrl()}/health`,
+    },
+    {
+      label: "Start Snapshot Server",
+      url: `${getSnapshotServiceBaseUrl()}/health`,
+    },
+    {
+      label: "Start RAG Server",
+      url: getRagHealthUrl(),
+    },
+  ];
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -54,18 +77,7 @@ export default function LoginScreen() {
     }
   };
 
-  const handleOpenVideo = async () => {
-    const url = "https://www.youtube.com/watch?v=V_wdiGSfABs";
-    const supported = await Linking.canOpenURL(url);
-    if (supported) {
-      await Linking.openURL(url);
-    } else {
-      Alert.alert("Error", "Cannot open this URL");
-    }
-  };
-
-  const handleOpenRagServer = async () => {
-    const url = getRagHealthUrl();
+  const handleOpenServer = async (url: string) => {
     const supported = await Linking.canOpenURL(url);
     if (supported) {
       await Linking.openURL(url);
@@ -189,33 +201,34 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              style={[
-                styles.videoButton,
-                { backgroundColor: colours.inputBg, borderColor: colours.border },
-              ]}
-              onPress={handleOpenVideo}
-            >
-              <Text
-                style={[styles.videoButtonText, { color: colours.textMuted }]}
-              >
-                Video
-              </Text>
-            </TouchableOpacity>
+            <Text style={styles.serverNotice}>
+              Please ensure all servers are spun up before attempting to login.
+            </Text>
 
-            <TouchableOpacity
-              style={[
-                styles.videoButton,
-                { backgroundColor: colours.inputBg, borderColor: colours.border },
-              ]}
-              onPress={handleOpenRagServer}
-            >
-              <Text
-                style={[styles.videoButtonText, { color: colours.textMuted }]}
-              >
-                RAG Server
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.serverButtonsContainer}>
+              {serverButtons.map((serverButton) => (
+                <TouchableOpacity
+                  key={serverButton.label}
+                  style={[
+                    styles.serverButton,
+                    {
+                      backgroundColor: colours.inputBg,
+                      borderColor: colours.border,
+                    },
+                  ]}
+                  onPress={() => handleOpenServer(serverButton.url)}
+                >
+                  <Text
+                    style={[
+                      styles.serverButtonText,
+                      { color: colours.textMuted },
+                    ]}
+                  >
+                    {serverButton.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -289,15 +302,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  videoButton: {
+  serverNotice: {
+    color: "#dc2626",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 20,
+    textAlign: "center",
+  },
+  serverButtonsContainer: {
+    marginTop: 8,
+    width: "100%",
+  },
+  serverButton: {
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: "center",
-    marginTop: 16,
+    marginTop: 12,
   },
-  videoButtonText: {
+  serverButtonText: {
     fontSize: 14,
     fontWeight: "500",
   },
