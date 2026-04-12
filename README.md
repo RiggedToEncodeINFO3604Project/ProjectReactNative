@@ -12,7 +12,7 @@ apps/
   snapshot-service/      Customer snapshot, notes, tags, auto-tagging
   rag-service/           RAG chatbot service
 docs/            Project and deployment docs
-infra/           Docker, Render, and container startup files
+infra/           Docker Compose and Render deployment config
 scripts/         Windows helpers and repo automation
 ```
 
@@ -23,6 +23,7 @@ scripts/         Windows helpers and repo automation
 - Messaging service: `apps/messaging-service`
 - Snapshot service: `apps/snapshot-service`
 - RAG service: `apps/rag-service`
+- Local database tools: `apps/api`
 - Frontend tests: `apps/frontend/__tests__`
 - Scheduling tests: `apps/scheduling-service/tests`
 - Messaging tests: `apps/messaging-service/tests`
@@ -83,13 +84,9 @@ pip install -r requirements.txt
 python main.py
 ```
 
-On Windows, the convenience launchers now live in `scripts/`:
+On Windows, use the control-center script:
 
-- `scripts\setup+update_dependances.bat`
-- `scripts\start server.bat`
-- `scripts\start frontend.bat`
-- `scripts\start backend.bat`
-- `scripts\start rag server.bat`
+- `scripts\skeduleit.bat`
 
 ## Tests
 
@@ -115,6 +112,6 @@ Container and platform config now lives under `infra/`.
 
 - Docker Compose: `infra/docker-compose.yml`
 - Render: `infra/render.yaml`
-- Combined container: `infra/Dockerfile`
+- Per-service Dockerfiles: `apps/*/Dockerfile`
 
 Additional deployment notes are in `docs/DOCKER_README.md`.

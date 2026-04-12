@@ -1,30 +1,26 @@
 # Docker Deployment Guide
 
-The repo now keeps deployment files in `infra/` and app code in `apps/`.
+The final submission uses separate Dockerfiles for each deployed service.
 
 ## Layout
 
 ```text
-apps/frontend     Expo app plus Express web server
-apps/api          FastAPI API
-apps/rag-service  FastAPI RAG service
-infra/            Dockerfile, compose file, Render config, startup script
+apps/frontend            Expo web build served by nginx
+apps/scheduling-service  FastAPI scheduling service
+apps/messaging-service   FastAPI messaging service
+apps/snapshot-service    FastAPI snapshot service
+apps/rag-service         FastAPI RAG service
+apps/api                 Local-only database maintenance tools
+infra/                   Render config and docker compose
 ```
 
-## Deployment Files
+## Dockerfiles
 
-- `infra/Dockerfile`
-- `infra/start.sh`
-- `infra/render.yaml`
-- `infra/docker-compose.yml`
-
-## What the container runs
-
-1. `apps/rag-service` on port `8001`
-2. `apps/api` on port `8000`
-3. `apps/frontend/server.js` on port `8081`
-
-The Express server serves the Expo web build and proxies API and RAG requests to the local FastAPI processes.
+- `apps/frontend/Dockerfile`
+- `apps/scheduling-service/Dockerfile`
+- `apps/messaging-service/Dockerfile`
+- `apps/snapshot-service/Dockerfile`
+- `apps/rag-service/Dockerfile`
 
 ## Local Docker
 
@@ -32,36 +28,36 @@ The Express server serves the Expo web build and proxies API and RAG requests to
 docker compose -f infra/docker-compose.yml up --build
 ```
 
+This starts:
+
+1. frontend on `http://localhost:8081`
+2. scheduling on `http://localhost:8000`
+3. RAG on `http://localhost:8001`
+4. messaging on `http://localhost:8002`
+5. snapshot on `http://localhost:8003`
+
 ## Render
 
-Render should point at:
+`infra/render.yaml` now defines five separate web services:
 
-- Dockerfile: `infra/Dockerfile`
-- Health check: `/health`
+1. `skeduleit-front`
+2. `skeduleit`
+3. `skeduleit-messaging`
+4. `skeduleit-snapshots`
+5. `skeduleit-rag`
 
-Important environment variables:
+Important runtime environment variables:
 
 ```env
-EXPO_PUBLIC_API_URL=
 FIREBASE_CREDENTIALS=...
-EXPO_PUBLIC_FIREBASE_API_KEY=...
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=...
 EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=...
-EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-EXPO_PUBLIC_FIREBASE_APP_ID=...
-EXPO_PUBLIC_FIREBASE_DATABASE_URL=...
 GEMINI_API_KEY=...
-NODE_ENV=production
+ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19000,http://localhost:19006,https://skeduleit-front.onrender.com
 ```
-
-For the combined Render deployment, leaving `EXPO_PUBLIC_API_URL` blank is intentional.
-The web app will use the same-origin Express proxy on your Render domain, so API,
-RAG, and WebSocket traffic all stay on one public origin.
 
 ## Notes
 
-- Frontend build output is generated inside `apps/frontend/dist`.
-- Python dependencies are installed from `apps/api/requirements.txt` and `apps/rag-service/requirements.txt`.
-- The container startup sequence is defined in `infra/start.sh`.
-- `GET /health` now checks the Express process plus the internal FastAPI and RAG services.
+- The old Express proxy server has been removed.
+- The frontend now talks directly to the dedicated service URLs.
+- Frontend build output is generated in `apps/frontend/dist`.
+- `apps/api` remains in the repo for database reset/seed utilities and is not a deployed service.

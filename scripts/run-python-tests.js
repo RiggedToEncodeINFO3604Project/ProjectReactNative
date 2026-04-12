@@ -29,10 +29,26 @@ const candidates = process.platform === "win32"
 
 let result = null;
 
+function isUsablePython(candidate) {
+  const versionArgs = candidate === "py" ? ["-3", "--version"] : ["--version"];
+  const probe = spawnSync(candidate, versionArgs, {
+    cwd: repoRoot,
+    env: process.env,
+    encoding: "utf8",
+    shell: false,
+  });
+
+  return !probe.error && probe.status === 0;
+}
+
 for (const candidate of candidates) {
+  if (!isUsablePython(candidate)) {
+    continue;
+  }
+
   const args =
     candidate === "py"
-      ? ["-m", "unittest", "discover", "-s", testsDir, "-p", "test_*.py"]
+      ? ["-3", "-m", "unittest", "discover", "-s", testsDir, "-p", "test_*.py"]
       : ["-m", "unittest", "discover", "-s", testsDir, "-p", "test_*.py"];
 
   result = spawnSync(candidate, args, {
