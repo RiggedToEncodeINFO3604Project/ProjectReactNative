@@ -20,10 +20,12 @@
     "build:web": "npm run build:web --workspace apps/frontend",
     "serve": "npm run serve --workspace apps/frontend",
     "lint": "npm run lint --workspace apps/frontend",
-    "test": "npm run test:frontend && npm run test:api && npm run test:rag",
+    "test": "npm run test:frontend && npm run test:scheduling && npm run test:messaging && npm run test:snapshot && npm run test:rag",
     "test:frontend": "npm run test --workspace apps/frontend",
     "test:frontend:snapshot": "npm run test:snapshot --workspace apps/frontend",
-    "test:api": "node scripts/run-python-tests.js apps/api",
-    "test:rag": "node scripts/run-python-tests.js apps/rag-server"
+    "test:scheduling": "node scripts/run-python-tests.js apps/scheduling-service",
+    "test:messaging": "node scripts/run-python-tests.js apps/messaging-service",
+    "test:snapshot": "node scripts/run-python-tests.js apps/snapshot-service",
+    "test:rag": "node scripts/run-python-tests.js apps/rag-service"
   }
 }

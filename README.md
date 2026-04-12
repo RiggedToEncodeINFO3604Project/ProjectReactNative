@@ -1,14 +1,16 @@
 # SkeduleIt
 
-SkeduleIt is a multi-app repository with an Expo frontend, a FastAPI API, and a separate FastAPI RAG service.
+SkeduleIt is a multi-app repository organized around five services: the Expo frontend, core scheduling, messaging, customer snapshots, and RAG.
 
 ## Structure
 
 ```text
 apps/
-  frontend/      Expo app, web build, frontend tests
-  api/           FastAPI API and API tests
-  rag-server/    RAG service and RAG tests
+  frontend/              Expo app, web build, frontend tests
+  scheduling-service/    Core scheduling and auth service
+  messaging-service/     Messaging REST + WebSocket service
+  snapshot-service/      Customer snapshot, notes, tags, auto-tagging
+  rag-service/           RAG chatbot service
 docs/            Project and deployment docs
 infra/           Docker, Render, and container startup files
 scripts/         Windows helpers and repo automation
@@ -17,11 +19,15 @@ scripts/         Windows helpers and repo automation
 ## Key Paths
 
 - Frontend app: `apps/frontend`
-- API service: `apps/api`
-- RAG service: `apps/rag-server`
+- Scheduling service: `apps/scheduling-service`
+- Messaging service: `apps/messaging-service`
+- Snapshot service: `apps/snapshot-service`
+- RAG service: `apps/rag-service`
 - Frontend tests: `apps/frontend/__tests__`
-- API tests: `apps/api/tests`
-- RAG tests: `apps/rag-server/tests`
+- Scheduling tests: `apps/scheduling-service/tests`
+- Messaging tests: `apps/messaging-service/tests`
+- Snapshot tests: `apps/snapshot-service/tests`
+- RAG tests: `apps/rag-service/tests`
 
 ## Local Development
 
@@ -37,10 +43,30 @@ Start the frontend:
 npm start
 ```
 
-Start the API:
+Start the core scheduling service:
 
 ```bash
-cd apps/api
+cd apps/scheduling-service
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+```
+
+Start the messaging service:
+
+```bash
+cd apps/messaging-service
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python main.py
+```
+
+Start the snapshot service:
+
+```bash
+cd apps/snapshot-service
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
@@ -50,7 +76,7 @@ python main.py
 Start the RAG service:
 
 ```bash
-cd apps/rag-server
+cd apps/rag-service
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
@@ -77,7 +103,9 @@ Or run each area separately:
 
 ```bash
 npm run test:frontend
-npm run test:api
+npm run test:scheduling
+npm run test:messaging
+npm run test:snapshot
 npm run test:rag
 ```
 

@@ -11,14 +11,29 @@ if (!appPath) {
 const repoRoot = process.cwd();
 const workspaceRoot = path.join(repoRoot, appPath);
 const testsDir = path.join(workspaceRoot, "tests");
+const sharedApiVenv = path.join(repoRoot, "apps", "api", "venv");
+const isRagService = appPath === "apps/rag-service";
+const sharedVenvPath = (() => {
+  if (["apps/scheduling-service", "apps/messaging-service", "apps/snapshot-service"].includes(appPath)) {
+    return sharedApiVenv;
+  }
+
+  if (isRagService) {
+    return sharedApiVenv;
+  }
+
+  return null;
+})();
 const candidates = process.platform === "win32"
   ? [
-      path.join(workspaceRoot, "venv", "Scripts", "python.exe"),
+      ...(isRagService ? [] : [path.join(workspaceRoot, "venv", "Scripts", "python.exe")]),
+      ...(sharedVenvPath ? [path.join(sharedVenvPath, "Scripts", "python.exe")] : []),
       "py",
       "python",
     ]
   : [
-      path.join(workspaceRoot, "venv", "bin", "python"),
+      ...(isRagService ? [] : [path.join(workspaceRoot, "venv", "bin", "python")]),
+      ...(sharedVenvPath ? [path.join(sharedVenvPath, "bin", "python")] : []),
       "python3",
       "python",
     ];
@@ -33,6 +48,20 @@ for (const candidate of candidates) {
 
   result = spawnSync(candidate, args, {
     cwd: repoRoot,
+    env: {
+      ...process.env,
+      ...(isRagService
+        ? {
+            PYTHONPATH: [
+              workspaceRoot,
+              path.join(workspaceRoot, "venv", "Lib", "site-packages"),
+              process.env.PYTHONPATH,
+            ]
+              .filter(Boolean)
+              .join(path.delimiter),
+          }
+        : {}),
+    },
     stdio: "inherit",
     shell: false,
   });
