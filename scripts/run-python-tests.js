@@ -11,29 +11,18 @@ if (!appPath) {
 const repoRoot = process.cwd();
 const workspaceRoot = path.join(repoRoot, appPath);
 const testsDir = path.join(workspaceRoot, "tests");
-const sharedApiVenv = path.join(repoRoot, "apps", "api", "venv");
-const isRagService = appPath === "apps/rag-service";
-const sharedVenvPath = (() => {
-  if (["apps/scheduling-service", "apps/messaging-service", "apps/snapshot-service"].includes(appPath)) {
-    return sharedApiVenv;
-  }
-
-  if (isRagService) {
-    return sharedApiVenv;
-  }
-
-  return null;
-})();
+const workspaceVenv = path.join(repoRoot, appPath, "venv");
+const legacyApiVenv = path.join(repoRoot, "apps", "api", "venv");
 const candidates = process.platform === "win32"
   ? [
-      ...(isRagService ? [] : [path.join(workspaceRoot, "venv", "Scripts", "python.exe")]),
-      ...(sharedVenvPath ? [path.join(sharedVenvPath, "Scripts", "python.exe")] : []),
+      path.join(workspaceVenv, "Scripts", "python.exe"),
+      path.join(legacyApiVenv, "Scripts", "python.exe"),
       "py",
       "python",
     ]
   : [
-      ...(isRagService ? [] : [path.join(workspaceRoot, "venv", "bin", "python")]),
-      ...(sharedVenvPath ? [path.join(sharedVenvPath, "bin", "python")] : []),
+      path.join(workspaceVenv, "bin", "python"),
+      path.join(legacyApiVenv, "bin", "python"),
       "python3",
       "python",
     ];
@@ -50,17 +39,9 @@ for (const candidate of candidates) {
     cwd: repoRoot,
     env: {
       ...process.env,
-      ...(isRagService
-        ? {
-            PYTHONPATH: [
-              workspaceRoot,
-              path.join(workspaceRoot, "venv", "Lib", "site-packages"),
-              process.env.PYTHONPATH,
-            ]
-              .filter(Boolean)
-              .join(path.delimiter),
-          }
-        : {}),
+      PYTHONPATH: [workspaceRoot, process.env.PYTHONPATH]
+        .filter(Boolean)
+        .join(path.delimiter),
     },
     stdio: "inherit",
     shell: false,
