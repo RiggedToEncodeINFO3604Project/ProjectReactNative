@@ -29,6 +29,7 @@ echo 2. Database Management
 echo 3. Setup Dependencies
 echo 4. Update Dependencies
 echo 5. Build APK
+echo 6. Run Tests
 echo 0. Exit
 echo.
 set "MAIN_CHOICE="
@@ -39,6 +40,7 @@ if "%MAIN_CHOICE%"=="2" goto :menu_database
 if "%MAIN_CHOICE%"=="3" goto :setup_dependencies_entry
 if "%MAIN_CHOICE%"=="4" goto :update_dependencies_entry
 if "%MAIN_CHOICE%"=="5" goto :menu_build_apk
+if "%MAIN_CHOICE%"=="6" goto :menu_tests
 if "%MAIN_CHOICE%"=="0" goto :eof
 
 echo.
@@ -125,6 +127,34 @@ echo.
 echo Invalid option.
 pause
 goto :menu_build_apk
+
+:menu_tests
+cls
+echo ============================================
+echo   Run Tests
+echo ============================================
+echo.
+echo 1. Run All Tests
+echo 2. Run Messaging Tests
+echo 3. Run Calendar Tests
+echo 4. Run Snapshot Tests
+echo 5. Run Chatbot + RAG Tests
+echo B. Back
+echo.
+set "TEST_CHOICE="
+set /p TEST_CHOICE="Choose an option: "
+
+if /i "%TEST_CHOICE%"=="1" goto :run_all_tests
+if /i "%TEST_CHOICE%"=="2" goto :run_messaging_tests
+if /i "%TEST_CHOICE%"=="3" goto :run_calendar_tests
+if /i "%TEST_CHOICE%"=="4" goto :run_snapshot_tests
+if /i "%TEST_CHOICE%"=="5" goto :run_chatbot_rag_tests
+if /i "%TEST_CHOICE%"=="B" goto :main_menu
+
+echo.
+echo Invalid option.
+pause
+goto :menu_tests
 
 :start_all_backend_and_frontend_clear
 call :start_all_backend_windows
@@ -258,6 +288,144 @@ echo Starting React frontend with cache clear and local service URLs...
 echo.
 call npm run frontend:clear
 exit /b %errorlevel%
+
+:run_all_tests
+cls
+echo ============================================
+echo   Run All Tests
+echo ============================================
+echo.
+echo [1/4] Running frontend tests...
+call :run_frontend_test_command "__tests__"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo [2/4] Running messaging tests...
+call :run_service_test_command "apps\messaging-service" "Messaging tests" "npm run test:messaging"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo [3/4] Running snapshot tests...
+call :run_service_test_command "apps\snapshot-service" "Snapshot tests" "npm run test:snapshot"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo [4/4] Running chatbot + RAG tests...
+call :run_chatbot_rag_suite
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo All tests completed successfully.
+pause
+goto :menu_tests
+
+:run_messaging_tests
+cls
+echo ============================================
+echo   Run Messaging Tests
+echo ============================================
+echo.
+echo [1/2] Running frontend messaging tests...
+call :run_frontend_test_command "__tests__/utils/messageSearch.test.ts"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo [2/2] Running messaging service tests...
+call :run_service_test_command "apps\messaging-service" "Messaging tests" "npm run test:messaging"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo Messaging tests completed successfully.
+pause
+goto :menu_tests
+
+:run_calendar_tests
+cls
+echo ============================================
+echo   Run Calendar Tests
+echo ============================================
+echo.
+call :run_frontend_test_command "__tests__/calendar/test_calendar.tsx"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo Calendar tests completed successfully.
+pause
+goto :menu_tests
+
+:run_snapshot_tests
+cls
+echo ============================================
+echo   Run Snapshot Tests
+echo ============================================
+echo.
+echo [1/2] Running frontend snapshot tests...
+call :run_frontend_test_command "__tests__/snapshot"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo [2/2] Running snapshot service tests...
+call :run_service_test_command "apps\snapshot-service" "Snapshot tests" "npm run test:snapshot"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo Snapshot tests completed successfully.
+pause
+goto :menu_tests
+
+:run_chatbot_rag_tests
+cls
+echo ============================================
+echo   Run Chatbot + RAG Tests
+echo ============================================
+echo.
+call :run_chatbot_rag_suite
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo Chatbot + RAG tests completed successfully.
+pause
+goto :menu_tests
+
+:run_chatbot_rag_suite
+echo [1/2] Running frontend chatbot tests...
+call :run_frontend_test_command "__tests__/utils/chatbotError.test.ts"
+if errorlevel 1 exit /b 1
+
+echo.
+echo [2/2] Running RAG service tests...
+call :run_service_test_command "apps\rag-service" "RAG tests" "npm run test:rag"
+if errorlevel 1 exit /b 1
+
+exit /b 0
+
+:run_frontend_test_command
+set "FRONTEND_TEST_TARGET=%~1"
+
+call :ensure_frontend_ready
+if errorlevel 1 exit /b 1
+
+echo Running Expo frontend tests for %FRONTEND_TEST_TARGET%...
+call npm run test --workspace apps\expo-frontend -- --runInBand %FRONTEND_TEST_TARGET%
+exit /b %errorlevel%
+
+:run_service_test_command
+set "TEST_SERVICE_PATH=%~1"
+set "TEST_LABEL=%~2"
+set "TEST_COMMAND=%~3"
+
+call :ensure_service_ready "%TEST_SERVICE_PATH%" "%TEST_LABEL%"
+if errorlevel 1 exit /b 1
+
+echo Running %TEST_LABEL%...
+call %TEST_COMMAND%
+exit /b %errorlevel%
+
+:tests_failed
+echo.
+echo Test run failed.
+pause
+goto :menu_tests
 
 :setup_dependencies_entry
 call :ensure_admin_for_action "setup_dependencies" "__setup_dependencies" "setup dependencies"
