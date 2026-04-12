@@ -11,6 +11,7 @@ apps/
   messaging-service/     Messaging REST + WebSocket service
   snapshot-service/      Customer snapshot, notes, tags, auto-tagging
   rag-service/           RAG chatbot service
+dev-tools/       Local reset/seed helpers and development utilities
 docs/            Project and deployment docs
 infra/           Docker Compose and Render deployment config
 scripts/         Windows helpers and repo automation
@@ -19,11 +20,11 @@ scripts/         Windows helpers and repo automation
 ## Key Paths
 
 - Frontend app: `apps/frontend`
+- Dev tools: `dev-tools`
 - Scheduling service: `apps/scheduling-service`
 - Messaging service: `apps/messaging-service`
 - Snapshot service: `apps/snapshot-service`
 - RAG service: `apps/rag-service`
-- Local database tools: `apps/api`
 - Frontend tests: `apps/frontend/__tests__`
 - Scheduling tests: `apps/scheduling-service/tests`
 - Messaging tests: `apps/messaging-service/tests`
@@ -38,7 +39,7 @@ Install repo dependencies from the root:
 npm install
 ```
 
-Start the frontend:
+Start the React frontend:
 
 ```bash
 npm start

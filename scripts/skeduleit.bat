@@ -52,9 +52,9 @@ echo ============================================
 echo   Start Servers
 echo ============================================
 echo.
-echo 1. Start All Backend Servers + Frontend (with clear cache)
-echo 2. Start All Backend Servers + Frontend
-echo 3. Start Frontend
+echo 1. Start All Backend Servers + React Frontend (with clear cache)
+echo 2. Start All Backend Servers + React Frontend
+echo 3. Start React Frontend
 echo 4. Start All Backend Servers
 echo 5. Start Scheduling Server
 echo 6. Start Messaging Server
@@ -129,18 +129,18 @@ goto :menu_build_apk
 :start_all_backend_and_frontend_clear
 call :start_all_backend_windows
 if errorlevel 1 goto :menu_start_servers
-echo [5/5] Starting frontend with cache clear...
+echo [5/5] Starting React frontend with cache clear...
 echo.
-call :start_frontend_window "__run_frontend_clear" "Frontend (Clear Cache)"
+call :start_frontend_window "__run_frontend_clear" "React Frontend (Clear Cache)"
 pause
 goto :menu_start_servers
 
 :start_all_backend_and_frontend
 call :start_all_backend_windows
 if errorlevel 1 goto :menu_start_servers
-echo [5/5] Starting frontend...
+echo [5/5] Starting React frontend...
 echo.
-call :start_frontend_window "__run_frontend" "Frontend"
+call :start_frontend_window "__run_frontend" "React Frontend"
 pause
 goto :menu_start_servers
 
@@ -176,7 +176,7 @@ echo Backend services launched.
 exit /b 0
 
 :start_frontend_window_menu
-call :start_frontend_window "__run_frontend" "Frontend"
+call :start_frontend_window "__run_frontend" "React Frontend"
 pause
 goto :menu_start_servers
 
@@ -184,7 +184,7 @@ goto :menu_start_servers
 set "FRONTEND_ARG=%~1"
 set "FRONTEND_TITLE=%~2"
 if not defined FRONTEND_ARG set "FRONTEND_ARG=__run_frontend"
-if not defined FRONTEND_TITLE set "FRONTEND_TITLE=Frontend"
+if not defined FRONTEND_TITLE set "FRONTEND_TITLE=React Frontend"
 
 call :ensure_frontend_ready
 if errorlevel 1 exit /b 1
@@ -235,7 +235,7 @@ if errorlevel 1 (
 call :set_local_frontend_env
 
 echo.
-echo Starting frontend with local service URLs:
+echo Starting React frontend with local service URLs:
 echo   Scheduling: %EXPO_PUBLIC_SCHEDULING_URL%
 echo   Messaging:  %EXPO_PUBLIC_MESSAGING_URL%
 echo   RAG:        %EXPO_PUBLIC_RAG_URL%
@@ -254,7 +254,7 @@ if errorlevel 1 (
 call :set_local_frontend_env
 
 echo.
-echo Starting frontend with cache clear and local service URLs...
+echo Starting React frontend with cache clear and local service URLs...
 echo.
 call npm run frontend:clear
 exit /b %errorlevel%
@@ -375,14 +375,14 @@ set "TOOL_LABEL=%~2"
 call :resolve_api_tools_python
 if errorlevel 1 exit /b 1
 
-if not exist "%PROJECT_ROOT%\apps\api\%TOOL_SCRIPT%" (
-    echo Error: apps\api\%TOOL_SCRIPT% was not found.
+if not exist "%PROJECT_ROOT%\dev-tools\%TOOL_SCRIPT%" (
+    echo Error: dev-tools\%TOOL_SCRIPT% was not found.
     exit /b 1
 )
 
 echo.
 echo %TOOL_LABEL%...
-pushd "%PROJECT_ROOT%\apps\api" >nul
+pushd "%PROJECT_ROOT%\dev-tools" >nul
 call "%API_TOOLS_PYTHON%" "%TOOL_SCRIPT%"
 set "TOOL_RESULT=%errorlevel%"
 popd >nul
@@ -398,11 +398,11 @@ echo.
 call :require_command npm "Node.js and npm"
 if errorlevel 1 goto :setup_failed
 
-echo [1/7] Installing frontend dependencies...
+echo [1/7] Installing React frontend dependencies...
 call npm install
 if errorlevel 1 goto :setup_failed
 
-echo [2/7] Validating frontend install...
+echo [2/7] Validating React frontend install...
 call :verify_frontend_install
 if errorlevel 1 goto :setup_failed
 
@@ -422,8 +422,8 @@ echo [6/7] Setting up RAG Service...
 call :prepare_python_service "apps\rag-service" "RAG service" "install"
 if errorlevel 1 goto :setup_failed
 
-echo [7/7] Setting up Database Tools...
-call :prepare_python_service "apps\api" "Database tools" "install"
+echo [7/7] Setting up Backend Tools...
+call :prepare_python_service "dev-tools" "Dev tools" "install"
 if errorlevel 1 goto :setup_failed
 
 echo.
@@ -447,7 +447,7 @@ echo.
 call :require_command npm "Node.js and npm"
 if errorlevel 1 goto :update_failed
 
-echo [1/8] Updating frontend dependencies...
+echo [1/8] Updating React frontend dependencies...
 call npm update
 if errorlevel 1 goto :update_failed
 
@@ -457,7 +457,7 @@ if errorlevel 1 (
     echo Warning: npm audit fix did not complete successfully.
 )
 
-echo [3/8] Validating frontend install...
+echo [3/8] Validating React frontend install...
 call :verify_frontend_install
 if errorlevel 1 goto :update_failed
 
@@ -477,8 +477,8 @@ echo [7/8] Updating RAG Service...
 call :prepare_python_service "apps\rag-service" "RAG service" "upgrade"
 if errorlevel 1 goto :update_failed
 
-echo [8/8] Updating Database Tools...
-call :prepare_python_service "apps\api" "Database tools" "upgrade"
+echo [8/8] Updating Backend Tools...
+call :prepare_python_service "dev-tools" "Dev tools" "upgrade"
 if errorlevel 1 goto :update_failed
 
 echo.
@@ -662,7 +662,7 @@ goto :main_menu
 
 :ensure_frontend_ready
 if not exist "%PROJECT_ROOT%\node_modules\expo\bin\cli" (
-    echo Error: Frontend dependencies are missing.
+    echo Error: React frontend dependencies are missing.
     echo Run setup first from this menu.
     exit /b 1
 )
@@ -702,10 +702,10 @@ exit /b 0
 :resolve_api_tools_python
 set "API_TOOLS_PYTHON="
 
-if exist "%PROJECT_ROOT%\apps\api\venv\Scripts\python.exe" (
-    call :validate_python_executable "%PROJECT_ROOT%\apps\api\venv\Scripts\python.exe"
+if exist "%PROJECT_ROOT%\dev-tools\venv\Scripts\python.exe" (
+    call :validate_python_executable "%PROJECT_ROOT%\dev-tools\venv\Scripts\python.exe"
     if not errorlevel 1 (
-        set "API_TOOLS_PYTHON=%PROJECT_ROOT%\apps\api\venv\Scripts\python.exe"
+        set "API_TOOLS_PYTHON=%PROJECT_ROOT%\dev-tools\venv\Scripts\python.exe"
     )
 )
 

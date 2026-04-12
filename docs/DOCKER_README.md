@@ -10,7 +10,7 @@ apps/scheduling-service  FastAPI scheduling service
 apps/messaging-service   FastAPI messaging service
 apps/snapshot-service    FastAPI snapshot service
 apps/rag-service         FastAPI RAG service
-apps/api                 Local-only database maintenance tools
+dev-tools/               Local reset/seed helpers and development utilities
 infra/                   Render config and docker compose
 ```
 
@@ -60,4 +60,4 @@ ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19000,http://localhost:19
 - The old Express proxy server has been removed.
 - The frontend now talks directly to the dedicated service URLs.
 - Frontend build output is generated in `apps/frontend/dist`.
-- `apps/api` remains in the repo for database reset/seed utilities and is not a deployed service.
+- `dev-tools` remains in the repo for reset/seed utilities and other local-only development helpers.

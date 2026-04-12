@@ -12,7 +12,7 @@ dist
 .expo
 apps/frontend/dist
 apps/frontend/.expo
-apps/api/venv
+dev-tools/venv
 apps/*-service/venv
 *.orig.*
 *.jks

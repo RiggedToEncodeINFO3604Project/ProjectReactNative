@@ -2,7 +2,7 @@
 Orchestrate reconstruction of the identity-related Firestore collections.
 
 Collection ownership now lives in separate per-collection scripts under
-apps/api/firestore_collections/.
+dev-tools/firestore_collections/.
 """
 
 import sys
