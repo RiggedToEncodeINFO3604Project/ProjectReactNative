@@ -46,6 +46,13 @@ class RagApiTests(unittest.TestCase):
         self.assertEqual(response.json()["status"], "ok")
         self.assertEqual(response.json()["service"], "rag-service")
 
+    def test_render_health_endpoint_reports_service_status(self):
+        response = self.request("GET", "/health")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
+        self.assertEqual(response.json()["service"], "rag-service")
+
     def test_chat_endpoint_returns_answer_and_matched_sections(self):
         with patch.object(
             rag_main,

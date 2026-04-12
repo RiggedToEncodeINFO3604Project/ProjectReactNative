@@ -114,14 +114,23 @@ class ChatResponse(BaseModel):
     matchedSections: list[str]
 
 
-@app.get("/api/health")
-async def health():
+def build_health_payload():
     return {
         "status": "ok",
         "service": "rag-service",
         "model": MODEL,
         "timestamp": time.time(),
     }
+
+
+@app.get("/api/health")
+async def api_health():
+    return build_health_payload()
+
+
+@app.get("/health")
+async def health():
+    return build_health_payload()
 
 
 @app.get("/api/status")
