@@ -1,40 +1,52 @@
 services:
-  # Combined Frontend + Backend Service
-  # Runs the frontend, API, and RAG service in a single container
   - type: web
-    name: expo-scheduling
+    name: skeduleit-front
     runtime: docker
-    dockerfilePath: ./infra/Dockerfile
-    # Health check verifies the Express proxy plus both internal services.
+    dockerfilePath: ./apps/frontend/Dockerfile
+    healthCheckPath: /health
+
+  - type: web
+    name: skeduleit
+    runtime: docker
+    dockerfilePath: ./apps/scheduling-service/Dockerfile
     healthCheckPath: /health
     envVars:
-      # Leave blank so the web build uses the same-origin Render URL.
-      - key: EXPO_PUBLIC_API_URL
-        value: ""
-
-      # Firebase admin credentials for the FastAPI backend.
       - key: FIREBASE_CREDENTIALS
         sync: false
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:8081,http://localhost:19000,http://localhost:19006,https://skeduleit-front.onrender.com
 
-      # Firebase web config for the Expo frontend.
-      - key: EXPO_PUBLIC_FIREBASE_API_KEY
-        sync: false
-      - key: EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN
-        sync: false
-      - key: EXPO_PUBLIC_FIREBASE_PROJECT_ID
+  - type: web
+    name: skeduleit-messaging
+    runtime: docker
+    dockerfilePath: ./apps/messaging-service/Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: FIREBASE_CREDENTIALS
         sync: false
       - key: EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET
         sync: false
-      - key: EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-        sync: false
-      - key: EXPO_PUBLIC_FIREBASE_APP_ID
-        sync: false
-      - key: EXPO_PUBLIC_FIREBASE_DATABASE_URL
-        sync: false
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:8081,http://localhost:19000,http://localhost:19006,https://skeduleit-front.onrender.com
 
-      # Gemini API for the local RAG service.
+  - type: web
+    name: skeduleit-snapshots
+    runtime: docker
+    dockerfilePath: ./apps/snapshot-service/Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: FIREBASE_CREDENTIALS
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:8081,http://localhost:19000,http://localhost:19006,https://skeduleit-front.onrender.com
+
+  - type: web
+    name: skeduleit-rag
+    runtime: docker
+    dockerfilePath: ./apps/rag-service/Dockerfile
+    healthCheckPath: /api/health
+    envVars:
       - key: GEMINI_API_KEY
         sync: false
-
-      - key: NODE_ENV
-        value: production
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:8081,http://localhost:19000,http://localhost:19006,https://skeduleit-front.onrender.com

@@ -121,14 +121,8 @@ export const getRagServiceBaseUrl = (): string =>
 export const getRagChatUrl = (): string =>
   `${getRagServiceBaseUrl()}/api/chat`;
 
-export const getRagHealthUrl = (): string => {
-  const hasDedicatedRagUrl = Boolean(normalizeUrl(publicEnv.EXPO_PUBLIC_RAG_URL));
-  if (!hasDedicatedRagUrl && legacyApiUrl) {
-    return `${getRagServiceBaseUrl()}/api/rag/health`;
-  }
-
-  return `${getRagServiceBaseUrl()}/api/health`;
-};
+export const getRagHealthUrl = (): string =>
+  `${getRagServiceBaseUrl()}/api/health`;
 
 export const getMessagingWebSocketUrl = (): string => {
   const baseUrl = getMessagingServiceBaseUrl();

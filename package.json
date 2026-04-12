@@ -18,7 +18,6 @@
     "ios": "npm run ios --workspace apps/frontend",
     "web": "npm run web --workspace apps/frontend",
     "build:web": "npm run build:web --workspace apps/frontend",
-    "serve": "npm run serve --workspace apps/frontend",
     "lint": "npm run lint --workspace apps/frontend",
     "test": "npm run test:frontend && npm run test:scheduling && npm run test:messaging && npm run test:snapshot && npm run test:rag",
     "test:frontend": "npm run test --workspace apps/frontend",
