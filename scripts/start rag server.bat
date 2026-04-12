@@ -6,7 +6,7 @@ echo   Starting RAG Server
 echo ============================================
 echo.
 
-cd apps\rag-server
+cd apps\rag-service
 
 if exist "venv\Scripts\activate" (
     call venv\Scripts\activate

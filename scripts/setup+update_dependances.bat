@@ -113,15 +113,15 @@ echo.
 echo [5/8] Preparing RAG virtual environment...
 popd >nul
 
-if not exist "apps\rag-server" (
-    echo Error: apps\rag-server folder was not found.
+if not exist "apps\rag-service" (
+    echo Error: apps\rag-service folder was not found.
     goto :fail
 )
 
-pushd "apps\rag-server" >nul
+pushd "apps\rag-service" >nul
 
 if not exist "requirements.txt" (
-    echo Error: apps\rag-server\requirements.txt was not found.
+    echo Error: apps\rag-service\requirements.txt was not found.
     popd >nul
     goto :fail
 )

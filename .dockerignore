@@ -13,7 +13,7 @@ dist
 apps/frontend/dist
 apps/frontend/.expo
 apps/api/venv
-apps/rag-server/venv
+apps/*-service/venv
 *.orig.*
 *.jks
 *.p8

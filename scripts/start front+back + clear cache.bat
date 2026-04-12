@@ -22,7 +22,7 @@ echo Backend server started!
 echo.
 
 echo [2/3] Starting RAG Server...
-cd apps\rag-server
+cd apps\rag-service
 if exist "venv\Scripts\activate" (
     call venv\Scripts\activate
 ) else (

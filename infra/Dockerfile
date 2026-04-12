@@ -37,8 +37,8 @@ RUN npm install
 
 # Copy Python requirements and install
 COPY apps/api/requirements.txt ./apps/api/requirements.txt
-COPY apps/rag-server/requirements.txt ./apps/rag-server/requirements.txt
-RUN pip3 install --no-cache-dir --break-system-packages -r apps/api/requirements.txt -r apps/rag-server/requirements.txt
+COPY apps/rag-service/requirements.txt ./apps/rag-service/requirements.txt
+RUN pip3 install --no-cache-dir --break-system-packages -r apps/api/requirements.txt -r apps/rag-service/requirements.txt
 
 # Copy all source code
 COPY . .

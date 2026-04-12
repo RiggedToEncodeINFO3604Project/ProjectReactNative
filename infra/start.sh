@@ -47,7 +47,7 @@ echo "========================================"
 echo "Starting RAG server on port 8001..."
 echo "========================================"
 
-cd /app/apps/rag-server
+cd /app/apps/rag-service
 python3 -m uvicorn main:app --host 127.0.0.1 --port 8001 &
 RAG_PID=$!
 echo "RAG server started with PID $RAG_PID"

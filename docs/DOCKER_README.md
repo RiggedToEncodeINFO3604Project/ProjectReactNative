@@ -7,7 +7,7 @@ The repo now keeps deployment files in `infra/` and app code in `apps/`.
 ```text
 apps/frontend     Expo app plus Express web server
 apps/api          FastAPI API
-apps/rag-server   FastAPI RAG service
+apps/rag-service  FastAPI RAG service
 infra/            Dockerfile, compose file, Render config, startup script
 ```
 
@@ -20,7 +20,7 @@ infra/            Dockerfile, compose file, Render config, startup script
 
 ## What the container runs
 
-1. `apps/rag-server` on port `8001`
+1. `apps/rag-service` on port `8001`
 2. `apps/api` on port `8000`
 3. `apps/frontend/server.js` on port `8081`
 
@@ -62,6 +62,6 @@ RAG, and WebSocket traffic all stay on one public origin.
 ## Notes
 
 - Frontend build output is generated inside `apps/frontend/dist`.
-- Python dependencies are installed from `apps/api/requirements.txt` and `apps/rag-server/requirements.txt`.
+- Python dependencies are installed from `apps/api/requirements.txt` and `apps/rag-service/requirements.txt`.
 - The container startup sequence is defined in `infra/start.sh`.
 - `GET /health` now checks the Express process plus the internal FastAPI and RAG services.
