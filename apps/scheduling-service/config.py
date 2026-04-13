@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     secret_key: str = ""
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    schedule_timezone: str = "America/Port_of_Spain"
+    reminder_worker_enabled: bool = True
+    reminder_worker_poll_seconds: int = 60
 
     class Config:
         env_file = str(ENV_FILE)
