@@ -135,9 +135,9 @@ echo   Run Tests
 echo ============================================
 echo.
 echo 1. Run All Tests
-echo 2. Run Messaging Tests
-echo 3. Run Calendar Tests
-echo 4. Run Scheduling Tests
+echo 2. Run Scheduling Tests
+echo 3. Run Messaging Tests
+echo 4. Run Calendar Tests
 echo 5. Run Snapshot Tests
 echo 6. Run Chatbot + RAG Tests
 echo B. Back
@@ -146,9 +146,9 @@ set "TEST_CHOICE="
 set /p TEST_CHOICE="Choose an option: "
 
 if /i "%TEST_CHOICE%"=="1" goto :run_all_tests
-if /i "%TEST_CHOICE%"=="2" goto :run_messaging_tests
-if /i "%TEST_CHOICE%"=="3" goto :run_calendar_tests
-if /i "%TEST_CHOICE%"=="4" goto :run_scheduling_tests
+if /i "%TEST_CHOICE%"=="2" goto :run_scheduling_tests
+if /i "%TEST_CHOICE%"=="3" goto :run_messaging_tests
+if /i "%TEST_CHOICE%"=="4" goto :run_calendar_tests
 if /i "%TEST_CHOICE%"=="5" goto :run_snapshot_tests
 if /i "%TEST_CHOICE%"=="6" goto :run_chatbot_rag_tests
 if /i "%TEST_CHOICE%"=="B" goto :main_menu
