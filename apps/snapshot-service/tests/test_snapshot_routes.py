@@ -204,7 +204,118 @@ class SnapshotRouteTests(unittest.TestCase):
             }
         )
 
+    def test_create_customer_tag_uses_default_values_when_fields_are_missing(self):
+        provider_doc = make_doc("provider-1", {"user_id": "provider-user-1"})
+        customer_doc = make_doc("customer-1", {"name": "Ava Customer"})
 
+        providers_query = MagicMock()
+        providers_query.limit.return_value = providers_query
+        providers_query.get.return_value = [provider_doc]
+        providers_collection = MagicMock()
+        providers_collection.where.return_value = providers_query
+
+        customer_doc_ref = MagicMock()
+        customer_doc_ref.get.return_value = customer_doc
+        customers_collection = MagicMock()
+        customers_collection.document.return_value = customer_doc_ref
+
+        customer_tags_collection = MagicMock()
+        tag_doc_ref = MagicMock()
+        customer_tags_collection.document.return_value = tag_doc_ref
+
+        db = MagicMock()
+        db.collection.side_effect = lambda name: {
+            "providers": providers_collection,
+            "customers": customers_collection,
+            "customer_tags": customer_tags_collection,
+        }[name]
+
+        with (
+            patch.object(snapshot_routes, "get_database", return_value=db),
+            patch.object(snapshot_routes.uuid, "uuid4", return_value="tag-123"),
+            patch.object(snapshot_routes, "datetime") as datetime_mock,
+        ):
+            datetime_mock.now.return_value = self.created_at
+            response = self.client.post(
+                "/provider/customer/customer-1/tags",
+                json={},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], "tag-123")
+        self.assertEqual(response.json()["tag"], "Untitled")
+        self.assertEqual(response.json()["color"], "#42bbeb")
+        tag_doc_ref.set.assert_called_once()
+
+    def test_update_customer_tag_rejects_updates_for_another_provider(self):
+        provider_doc = make_doc("provider-1", {"user_id": "provider-user-1"})
+        foreign_tag_doc = make_doc(
+            "tag-1",
+            {"provider_id": "other-provider", "tag": "VIP", "color": "#ffcc00"},
+        )
+
+        providers_query = MagicMock()
+        providers_query.limit.return_value = providers_query
+        providers_query.get.return_value = [provider_doc]
+        providers_collection = MagicMock()
+        providers_collection.where.return_value = providers_query
+
+        foreign_tag_doc_ref = MagicMock()
+        foreign_tag_doc_ref.get.return_value = foreign_tag_doc
+        customer_tags_collection = MagicMock()
+        customer_tags_collection.document.return_value = foreign_tag_doc_ref
+
+        db = MagicMock()
+        db.collection.side_effect = lambda name: {
+            "providers": providers_collection,
+            "customer_tags": customer_tags_collection,
+        }[name]
+
+        with patch.object(snapshot_routes, "get_database", return_value=db):
+            response = self.client.put(
+                "/provider/tags/tag-1",
+                json={"tag": "Updated"},
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["detail"],
+            "Not authorized to update this tag",
+        )
+
+    def test_delete_customer_note_removes_owned_note(self):
+        provider_doc = make_doc("provider-1", {"user_id": "provider-user-1"})
+        note_doc = make_doc(
+            "note-1",
+            {"provider_id": "provider-1", "note": "Prefers morning"},
+        )
+        note_doc_ref = MagicMock()
+        note_doc_ref.get.return_value = note_doc
+
+        providers_query = MagicMock()
+        providers_query.limit.return_value = providers_query
+        providers_query.get.return_value = [provider_doc]
+        providers_collection = MagicMock()
+        providers_collection.where.return_value = providers_query
+
+        customer_notes_collection = MagicMock()
+        customer_notes_collection.document.return_value = note_doc_ref
+
+        db = MagicMock()
+        db.collection.side_effect = lambda name: {
+            "providers": providers_collection,
+            "customer_notes": customer_notes_collection,
+        }[name]
+
+        with patch.object(snapshot_routes, "get_database", return_value=db):
+            response = self.client.delete("/provider/notes/note-1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"message": "Note deleted successfully", "note_id": "note-1"},
+        )
+        note_doc_ref.delete.assert_called_once()
 
 
 if __name__ == "__main__":
