@@ -307,7 +307,44 @@ class CustomerRouteTests(unittest.TestCase):
         self.assertEqual(saved_booking["status"], "pending")
         self.assertEqual(saved_booking["cost"], 55)
 
+    def test_cancel_booking_updates_status_for_owned_booking(self):
+        customer_doc = make_doc(
+            "customer-1",
+            {"user_id": "customer-user-1", "name": "Ava Customer", "phone": "+1-555-0100"},
+        )
+        booking_doc = make_doc(
+            "booking-1",
+            {"customer_id": "customer-1", "status": "pending"},
+        )
 
+        customers_query = MagicMock()
+        customers_query.limit.return_value = customers_query
+        customers_query.get.return_value = [customer_doc]
+        customers_collection = MagicMock()
+        customers_collection.where.return_value = customers_query
+
+        client_records_collection = MagicMock()
+        booking_doc_ref = MagicMock()
+        booking_doc_ref.get.return_value = booking_doc
+        client_records_collection.document.return_value = booking_doc_ref
+
+        db = MagicMock()
+
+        def collection_side_effect(name: str):
+            if name == "customers":
+                return customers_collection
+            if name == "client_records":
+                return client_records_collection
+            raise AssertionError(f"Unexpected collection: {name}")
+
+        db.collection.side_effect = collection_side_effect
+
+        with patch.object(customer_routes, "get_database", return_value=db):
+            response = self.client.delete("/customer/bookings/booking-1")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"message": "Booking cancelled successfully"})
+        booking_doc_ref.update.assert_called_once_with({"status": "cancelled"})
 
 
 if __name__ == "__main__":
