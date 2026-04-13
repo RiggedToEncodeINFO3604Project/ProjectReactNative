@@ -5,7 +5,10 @@ import {
   registerProvider as apiRegisterProvider,
   restoreAuthSession,
 } from "@/services/schedulingApi";
-import { clearDevicePushToken } from "@/services/notifications";
+import {
+  clearDevicePushToken,
+  clearScheduledBookingReminders,
+} from "@/services/notifications";
 import {
   AuthContextType,
   AuthState,
@@ -97,6 +100,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await clearDevicePushToken();
     } catch (error) {
       console.error("Error clearing push token:", error);
+    }
+
+    try {
+      await clearScheduledBookingReminders();
+    } catch (error) {
+      console.error("Error clearing scheduled booking reminders:", error);
     }
 
     await apiLogout();
