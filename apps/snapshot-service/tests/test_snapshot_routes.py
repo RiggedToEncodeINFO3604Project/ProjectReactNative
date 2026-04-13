@@ -155,6 +155,56 @@ class SnapshotRouteTests(unittest.TestCase):
         self.assertEqual(len(body["notes"]), 1)
         self.assertEqual(body["notes"][0]["id"], "note-1")
 
+    def test_update_tagging_rules_merges_existing_configuration(self):
+        provider_doc = make_doc("provider-1", {"user_id": "provider-user-1"})
+        providers_query = MagicMock()
+        providers_query.limit.return_value = providers_query
+        providers_query.get.return_value = [provider_doc]
+        providers_collection = MagicMock()
+        providers_collection.where.return_value = providers_query
+
+        rules_doc_ref = MagicMock()
+        rules_collection = MagicMock()
+        rules_collection.document.return_value = rules_doc_ref
+
+        db = MagicMock()
+        db.collection.side_effect = lambda name: {
+            "providers": providers_collection,
+            "provider_tagging_rules": rules_collection,
+        }[name]
+
+        with (
+            patch.object(snapshot_routes, "get_database", return_value=db),
+            patch.object(
+                snapshot_routes,
+                "get_provider_tagging_config",
+                return_value={"tag_priority": "manual_first", "vip_visit_threshold": 5},
+            ),
+        ):
+            response = self.client.put(
+                "/provider/tags/rules",
+                json={"tag_priority": "auto_first"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "success": True,
+                "config": {
+                    "tag_priority": "auto_first",
+                    "vip_visit_threshold": 5,
+                },
+            },
+        )
+        rules_doc_ref.set.assert_called_once_with(
+            {
+                "tag_priority": "auto_first",
+                "vip_visit_threshold": 5,
+            }
+        )
+
+
 
 
 if __name__ == "__main__":
