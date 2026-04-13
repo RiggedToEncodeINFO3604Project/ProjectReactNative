@@ -135,20 +135,22 @@ echo   Run Tests
 echo ============================================
 echo.
 echo 1. Run All Tests
-echo 2. Run Messaging Tests
-echo 3. Run Calendar Tests
-echo 4. Run Snapshot Tests
-echo 5. Run Chatbot + RAG Tests
+echo 2. Run Scheduling Tests
+echo 3. Run Messaging Tests
+echo 4. Run Calendar Tests
+echo 5. Run Snapshot Tests
+echo 6. Run Chatbot + RAG Tests
 echo B. Back
 echo.
 set "TEST_CHOICE="
 set /p TEST_CHOICE="Choose an option: "
 
 if /i "%TEST_CHOICE%"=="1" goto :run_all_tests
-if /i "%TEST_CHOICE%"=="2" goto :run_messaging_tests
-if /i "%TEST_CHOICE%"=="3" goto :run_calendar_tests
-if /i "%TEST_CHOICE%"=="4" goto :run_snapshot_tests
-if /i "%TEST_CHOICE%"=="5" goto :run_chatbot_rag_tests
+if /i "%TEST_CHOICE%"=="2" goto :run_scheduling_tests
+if /i "%TEST_CHOICE%"=="3" goto :run_messaging_tests
+if /i "%TEST_CHOICE%"=="4" goto :run_calendar_tests
+if /i "%TEST_CHOICE%"=="5" goto :run_snapshot_tests
+if /i "%TEST_CHOICE%"=="6" goto :run_chatbot_rag_tests
 if /i "%TEST_CHOICE%"=="B" goto :main_menu
 
 echo.
@@ -295,22 +297,27 @@ echo ============================================
 echo   Run All Tests
 echo ============================================
 echo.
-echo [1/4] Running frontend tests...
+echo [1/5] Running frontend tests...
 call :run_frontend_test_command "__tests__"
 if errorlevel 1 goto :tests_failed
 
 echo.
-echo [2/4] Running messaging tests...
+echo [2/5] Running scheduling tests...
+call :run_service_test_command "apps\scheduling-service" "Scheduling tests" "npm run test:scheduling"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo [3/5] Running messaging tests...
 call :run_service_test_command "apps\messaging-service" "Messaging tests" "npm run test:messaging"
 if errorlevel 1 goto :tests_failed
 
 echo.
-echo [3/4] Running snapshot tests...
+echo [4/5] Running snapshot tests...
 call :run_service_test_command "apps\snapshot-service" "Snapshot tests" "npm run test:snapshot"
 if errorlevel 1 goto :tests_failed
 
 echo.
-echo [4/4] Running chatbot + RAG tests...
+echo [5/5] Running chatbot + RAG tests...
 call :run_chatbot_rag_suite
 if errorlevel 1 goto :tests_failed
 
@@ -350,6 +357,20 @@ if errorlevel 1 goto :tests_failed
 
 echo.
 echo Calendar tests completed successfully.
+pause
+goto :menu_tests
+
+:run_scheduling_tests
+cls
+echo ============================================
+echo   Run Scheduling Tests
+echo ============================================
+echo.
+call :run_service_test_command "apps\scheduling-service" "Scheduling tests" "npm run test:scheduling"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo Scheduling tests completed successfully.
 pause
 goto :menu_tests
 
