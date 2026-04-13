@@ -18,6 +18,7 @@ import {
   useTheme,
 } from "@/context/ThemeContext";
 import {
+  clearScheduledBookingReminders,
   getConversationRouteFromNotification,
   syncDevicePushToken,
 } from "@/services/notifications";
@@ -49,6 +50,16 @@ function AuthNavigator() {
       console.error("Error syncing push token:", error);
     });
   }, [isAuthenticated, user?.id]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id || role !== "Customer") {
+      return;
+    }
+
+    clearScheduledBookingReminders().catch((error) => {
+      console.error("Error clearing legacy booking reminders:", error);
+    });
+  }, [isAuthenticated, role, user?.id]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -84,12 +95,13 @@ function AuthNavigator() {
         console.error("Error reading last notification response:", error);
       });
 
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      navigateFromNotification,
-    );
+    const responseSubscription =
+      Notifications.addNotificationResponseReceivedListener(
+        navigateFromNotification,
+      );
 
     return () => {
-      subscription.remove();
+      responseSubscription.remove();
     };
   }, [isAuthenticated, router]);
 
