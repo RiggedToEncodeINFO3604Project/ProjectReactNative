@@ -32,11 +32,11 @@
     "web": "node ../../node_modules/expo/bin/cli start --web",
     "build:web": "node ../../node_modules/expo/bin/cli export --platform web",
     "lint": "node ../../node_modules/expo/bin/cli lint",
-    "test": "node ../../node_modules/jest/bin/jest.js",
-    "test:services": "node ../../node_modules/jest/bin/jest.js --config jest.services.config.js",
+    "test": "node ../../node_modules/jest/bin/jest.js --runInBand",
+    "test:services": "node ../../node_modules/jest/bin/jest.js --config jest.services.config.js --runInBand",
     "test:notifications": "node ../../node_modules/jest/bin/jest.js --config jest.services.config.js __tests__/services/notifications.test.ts --runInBand",
-    "test:snapshot": "node ../../node_modules/jest/bin/jest.js --testPathPattern=__tests__/snapshot",
-    "test:watch": "node ../../node_modules/jest/bin/jest.js --watch"
+    "test:snapshot": "node ../../node_modules/jest/bin/jest.js --testPathPattern=__tests__/snapshot --runInBand",
+    "test:watch": "node ../../node_modules/jest/bin/jest.js --watch --runInBand"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -62,6 +62,7 @@
     "expo-image": "~3.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.8",
+    "expo-modules-core": "^3.0.29",
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.8",
     "expo-splash-screen": "~31.0.10",

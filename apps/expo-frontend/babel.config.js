@@ -1,5 +1,6 @@
 module.exports = function (api) {
-  api.cache(true);
+  const isTest = api.env("test");
+  api.cache.using(() => isTest);
 
   try {
     require.resolve("babel-preset-expo");
@@ -7,7 +8,7 @@ module.exports = function (api) {
       presets: ["babel-preset-expo"],
     };
   } catch (error) {
-    if (!api.env("test")) {
+    if (!isTest) {
       throw error;
     }
   }
