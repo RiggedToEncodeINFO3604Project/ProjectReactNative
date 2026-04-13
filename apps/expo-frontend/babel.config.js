@@ -1,6 +1,27 @@
 module.exports = function (api) {
-  api.cache(true);
+  const isTest = api.env("test");
+  api.cache.using(() => isTest);
+
+  try {
+    require.resolve("babel-preset-expo");
+    return {
+      presets: ["babel-preset-expo"],
+    };
+  } catch (error) {
+    if (!isTest) {
+      throw error;
+    }
+  }
+
   return {
-    presets: ['babel-preset-expo'],
+    plugins: [
+      [
+        "@babel/plugin-transform-typescript",
+        {
+          allowDeclareFields: true,
+        },
+      ],
+      "@babel/plugin-transform-modules-commonjs",
+    ],
   };
 };

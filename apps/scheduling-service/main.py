@@ -1,11 +1,14 @@
 import os
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from config import settings
 from firebase_db import close_firebase, initialize_firebase
 from routes import auth_routes, customer_routes, provider_routes
+from services.booking_reminder_service import run_booking_reminder_worker
 
 allowed_origins = [
     origin.strip()
@@ -24,8 +27,25 @@ allowed_origin_regex = os.getenv(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     initialize_firebase()
-    yield
-    close_firebase()
+    reminder_stop_event = asyncio.Event()
+    reminder_task = None
+
+    if settings.reminder_worker_enabled:
+        reminder_task = asyncio.create_task(
+            run_booking_reminder_worker(reminder_stop_event)
+        )
+
+    try:
+        yield
+    finally:
+        reminder_stop_event.set()
+        if reminder_task is not None:
+            reminder_task.cancel()
+            try:
+                await reminder_task
+            except asyncio.CancelledError:
+                pass
+        close_firebase()
 
 
 app = FastAPI(title="SkeduleIt Core Scheduling Service", lifespan=lifespan)

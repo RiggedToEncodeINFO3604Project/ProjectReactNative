@@ -19,6 +19,8 @@ from services.datetime_utils import (
     parse_schedule_date,
     normalize_firestore_datetime,
 )
+from services.booking_reminder_service import build_booking_reminder_reset_fields
+from services.notification_service import send_booking_rescheduled_notification
 
 router = APIRouter(prefix="/provider", tags=["provider"])
 
@@ -87,6 +89,7 @@ def get_provider_reschedule_context(
 
     provider_doc = provider_docs[0]
     provider_id = provider_doc.id
+    provider_data = provider_doc.to_dict() or {}
     service_data = service_doc.to_dict() if service_doc.exists else None
 
     if not service_data or service_data["provider_id"] != provider_id:
@@ -106,6 +109,8 @@ def get_provider_reschedule_context(
     return {
         "booking_data": booking_data,
         "provider_id": provider_id,
+        "provider_data": provider_data,
+        "service_data": service_data,
         "availability": availability,
         "service_ids": service_ids,
     }
@@ -536,7 +541,12 @@ async def accept_booking(
         raise HTTPException(status_code=403, detail="Not authorized")
     
     # Confirm the booking
-    db.collection("client_records").document(booking_id).update({"status": "confirmed"})
+    db.collection("client_records").document(booking_id).update(
+        {
+            "status": "confirmed",
+            **build_booking_reminder_reset_fields(),
+        }
+    )
     
     # Find and reject all other pending bookings that overlap with this time slot
     provider_id = provider_doc.id
@@ -687,6 +697,8 @@ async def reschedule_booking(
     context = get_provider_reschedule_context(db, booking_id, current_user)
     booking_data = context["booking_data"]
     provider_id = context["provider_id"]
+    provider_data = context.get("provider_data") or {}
+    service_data = context.get("service_data") or {}
     
     # Parse the new date
     try:
@@ -770,9 +782,27 @@ async def reschedule_booking(
     db.collection("client_records").document(booking_id).update({
         "date": new_date,
         "start_time": reschedule_data.start_time,
-        "end_time": reschedule_data.end_time
+        "end_time": reschedule_data.end_time,
+        **build_booking_reminder_reset_fields(),
     })
-    
+
+    customer_user_id = None
+    customer_doc = db.collection("customers").document(booking_data["customer_id"]).get()
+    if customer_doc.exists:
+        customer_data = customer_doc.to_dict() or {}
+        customer_user_id = customer_data.get("user_id")
+
+    if customer_user_id:
+        send_booking_rescheduled_notification(
+            recipient_user_id=customer_user_id,
+            provider_name=provider_data.get("provider_name", ""),
+            service_name=service_data.get("name", ""),
+            old_date=old_date,
+            new_date=reschedule_data.date,
+            old_time=old_time,
+            new_time=f"{reschedule_data.start_time}-{reschedule_data.end_time}",
+        )
+
     return {
         "message": "Booking rescheduled successfully",
         "booking_id": booking_id,

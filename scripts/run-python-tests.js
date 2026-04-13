@@ -13,6 +13,7 @@ const workspaceRoot = path.join(repoRoot, appPath);
 const testsDir = path.join(workspaceRoot, "tests");
 const workspaceVenv = path.join(repoRoot, appPath, "venv");
 const legacyApiVenv = path.join(repoRoot, "apps", "api", "venv");
+const useShellForPython = process.platform === "win32";
 const candidates = process.platform === "win32"
   ? [
       path.join(workspaceVenv, "Scripts", "python.exe"),
@@ -35,7 +36,7 @@ function isUsablePython(candidate) {
     cwd: repoRoot,
     env: process.env,
     encoding: "utf8",
-    shell: false,
+    shell: useShellForPython,
   });
 
   return !probe.error && probe.status === 0;
@@ -60,7 +61,7 @@ for (const candidate of candidates) {
         .join(path.delimiter),
     },
     stdio: "inherit",
-    shell: false,
+    shell: useShellForPython,
   });
 
   if (!result.error) {

@@ -2,7 +2,6 @@ import BackButton from "@/components/BackButton";
 import ConfirmModal from "@/components/ConfirmModal";
 import SuccessModal from "@/components/SuccessModal";
 import { ExtendedColours, SharedColours } from "@/constants/theme";
-import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cancelBooking, getMyBookings } from "@/services/schedulingApi";
 import { BookingWithDetails } from "@/types/scheduling";
@@ -47,7 +46,6 @@ const formatDayHeader = (dateKey: string) =>
 
 export default function MyBookingsScreen() {
   const { isDarkMode, colours: themeColours } = useTheme();
-  const { logout } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 

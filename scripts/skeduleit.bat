@@ -297,27 +297,32 @@ echo ============================================
 echo   Run All Tests
 echo ============================================
 echo.
-echo [1/5] Running frontend tests...
+echo [1/6] Running frontend tests...
 call :run_frontend_test_command "__tests__"
 if errorlevel 1 goto :tests_failed
 
 echo.
-echo [2/5] Running scheduling tests...
+echo [2/6] Running frontend notification tests...
+call :run_frontend_workspace_command "npm run test:notifications --workspace apps\expo-frontend" "frontend notification tests"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo [3/6] Running scheduling tests...
 call :run_service_test_command "apps\scheduling-service" "Scheduling tests" "npm run test:scheduling"
 if errorlevel 1 goto :tests_failed
 
 echo.
-echo [3/5] Running messaging tests...
+echo [4/6] Running messaging tests...
 call :run_service_test_command "apps\messaging-service" "Messaging tests" "npm run test:messaging"
 if errorlevel 1 goto :tests_failed
 
 echo.
-echo [4/5] Running snapshot tests...
+echo [5/6] Running snapshot tests...
 call :run_service_test_command "apps\snapshot-service" "Snapshot tests" "npm run test:snapshot"
 if errorlevel 1 goto :tests_failed
 
 echo.
-echo [5/5] Running chatbot + RAG tests...
+echo [6/6] Running chatbot + RAG tests...
 call :run_chatbot_rag_suite
 if errorlevel 1 goto :tests_failed
 
@@ -366,6 +371,12 @@ echo ============================================
 echo   Run Scheduling Tests
 echo ============================================
 echo.
+echo [1/2] Running frontend notification tests...
+call :run_frontend_workspace_command "npm run test:notifications --workspace apps\expo-frontend" "frontend notification tests"
+if errorlevel 1 goto :tests_failed
+
+echo.
+echo [2/2] Running scheduling tests...
 call :run_service_test_command "apps\scheduling-service" "Scheduling tests" "npm run test:scheduling"
 if errorlevel 1 goto :tests_failed
 
@@ -428,6 +439,17 @@ if errorlevel 1 exit /b 1
 
 echo Running Expo frontend tests for %FRONTEND_TEST_TARGET%...
 call npm run test --workspace apps\expo-frontend -- --runInBand %FRONTEND_TEST_TARGET%
+exit /b %errorlevel%
+
+:run_frontend_workspace_command
+set "FRONTEND_COMMAND=%~1"
+set "FRONTEND_LABEL=%~2"
+
+call :ensure_frontend_ready
+if errorlevel 1 exit /b 1
+
+echo Running %FRONTEND_LABEL%...
+call %FRONTEND_COMMAND%
 exit /b %errorlevel%
 
 :run_service_test_command

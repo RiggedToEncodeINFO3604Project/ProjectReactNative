@@ -22,9 +22,9 @@
     "test": "npm run test:frontend && npm run test:scheduling && npm run test:messaging && npm run test:snapshot && npm run test:rag",
     "test:frontend": "npm run test --workspace apps/expo-frontend",
     "test:frontend:snapshot": "npm run test:snapshot --workspace apps/expo-frontend",
-    "test:scheduling": "node scripts/run-python-tests.js apps/scheduling-service",
-    "test:messaging": "node scripts/run-python-tests.js apps/messaging-service",
-    "test:snapshot": "node scripts/run-python-tests.js apps/snapshot-service",
-    "test:rag": "node scripts/run-python-tests.js apps/rag-service"
+    "test:scheduling": "py -3 -m unittest discover -s apps/scheduling-service/tests -p test_*.py",
+    "test:messaging": "py -3 -m unittest discover -s apps/messaging-service/tests -p test_*.py",
+    "test:snapshot": "py -3 -m unittest discover -s apps/snapshot-service/tests -p test_*.py",
+    "test:rag": "py -3 -m unittest discover -s apps/rag-service/tests -p test_*.py"
   }
 }

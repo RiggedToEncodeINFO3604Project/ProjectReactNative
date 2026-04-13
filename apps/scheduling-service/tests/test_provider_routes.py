@@ -204,7 +204,13 @@ class ProviderRouteTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"message": "Booking accepted"})
-        booking_doc_ref.update.assert_called_once_with({"status": "confirmed"})
+        booking_doc_ref.update.assert_called_once_with(
+            {
+                "status": "confirmed",
+                "reminder_day_before_sent_at": None,
+                "reminder_two_hours_sent_at": None,
+            }
+        )
         batch.update.assert_called_once_with(
             overlapping_booking.reference,
             {"status": "cancelled"},
@@ -237,6 +243,126 @@ class ProviderRouteTests(unittest.TestCase):
         self.assertEqual(
             response.json()["detail"],
             "End date cannot be earlier than start date",
+        )
+
+    def test_reschedule_booking_notifies_customer_when_date_changes(self):
+        booking_data = {
+            "customer_id": "customer-1",
+            "service_id": "service-1",
+            "date": datetime(2026, 4, 13, 0, 0, tzinfo=timezone.utc),
+            "start_time": "09:00",
+            "end_time": "09:30",
+        }
+        availability_doc = make_doc(
+            "availability-1",
+            {
+                "provider_id": "provider-1",
+                "schedule": [
+                    {
+                        "day_of_week": 1,
+                        "time_slots": [
+                            {
+                                "start_time": "10:00",
+                                "end_time": "11:00",
+                                "session_duration": 30,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+        service_doc = make_doc("service-1", {"provider_id": "provider-1"})
+        customer_doc = make_doc("customer-1", {"user_id": "customer-user-1"})
+
+        availability_query = MagicMock()
+        availability_query.limit.return_value = availability_query
+        availability_query.get.return_value = [availability_doc]
+        availability_collection = MagicMock()
+        availability_collection.where.return_value = availability_query
+
+        services_query = MagicMock()
+        services_query.get.return_value = [service_doc]
+        services_collection = MagicMock()
+        services_collection.where.return_value = services_query
+
+        conflict_query = MagicMock()
+        conflict_query.where.return_value = conflict_query
+        conflict_query.get.return_value = []
+        booking_doc_ref = MagicMock()
+        client_records_collection = MagicMock()
+        client_records_collection.where.return_value = conflict_query
+        client_records_collection.document.return_value = booking_doc_ref
+
+        customer_doc_ref = MagicMock()
+        customer_doc_ref.get.return_value = customer_doc
+        customers_collection = MagicMock()
+        customers_collection.document.return_value = customer_doc_ref
+
+        db = MagicMock()
+        db.collection.side_effect = lambda name: {
+            "availability": availability_collection,
+            "services": services_collection,
+            "client_records": client_records_collection,
+            "customers": customers_collection,
+        }[name]
+
+        with (
+            patch.object(provider_routes, "get_database", return_value=db),
+            patch.object(
+                provider_routes,
+                "get_provider_reschedule_context",
+                return_value={
+                    "booking_data": booking_data,
+                    "provider_id": "provider-1",
+                    "provider_data": {"provider_name": "Kai Styles"},
+                    "service_data": {"name": "Haircut"},
+                    "availability": availability_doc.to_dict(),
+                    "service_ids": ["service-1"],
+                },
+            ),
+            patch.object(
+                provider_routes,
+                "send_booking_rescheduled_notification",
+            ) as send_notification,
+        ):
+            response = self.client.put(
+                "/provider/bookings/booking-1/reschedule",
+                json={
+                    "date": "2026-04-14",
+                    "start_time": "10:00",
+                    "end_time": "10:30",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "message": "Booking rescheduled successfully",
+                "booking_id": "booking-1",
+                "old_date": "2026-04-13",
+                "new_date": "2026-04-14",
+                "old_time": "09:00-09:30",
+                "new_time": "10:00-10:30",
+            },
+        )
+        booking_doc_ref.update.assert_called_once_with(
+            {
+                "date": datetime(2026, 4, 14, 0, 0),
+                "start_time": "10:00",
+                "end_time": "10:30",
+                "reminder_day_before_sent_at": None,
+                "reminder_two_hours_sent_at": None,
+            }
+        )
+        send_notification.assert_called_once_with(
+            recipient_user_id="customer-user-1",
+            provider_name="Kai Styles",
+            service_name="Haircut",
+            old_date="2026-04-13",
+            new_date="2026-04-14",
+            old_time="09:00-09:30",
+            new_time="10:00-10:30",
         )
 
 
