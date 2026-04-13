@@ -33,6 +33,8 @@
     "build:web": "node ../../node_modules/expo/bin/cli export --platform web",
     "lint": "node ../../node_modules/expo/bin/cli lint",
     "test": "node ../../node_modules/jest/bin/jest.js",
+    "test:services": "node ../../node_modules/jest/bin/jest.js --config jest.services.config.js",
+    "test:notifications": "node ../../node_modules/jest/bin/jest.js --config jest.services.config.js __tests__/services/notifications.test.ts --runInBand",
     "test:snapshot": "node ../../node_modules/jest/bin/jest.js --testPathPattern=__tests__/snapshot",
     "test:watch": "node ../../node_modules/jest/bin/jest.js --watch"
   },
