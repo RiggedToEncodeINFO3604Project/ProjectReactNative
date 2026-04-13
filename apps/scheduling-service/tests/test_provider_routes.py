@@ -100,6 +100,57 @@ class ProviderRouteTests(unittest.TestCase):
             }
         )
 
+    def test_set_availability_rejects_invalid_service_selection(self):
+        provider_doc = make_doc(
+            "provider-1",
+            {"user_id": "provider-user-1", "provider_name": "Kai Styles"},
+        )
+        existing_service_doc = make_doc("service-1", {"provider_id": "provider-1"})
+
+        providers_query = MagicMock()
+        providers_query.limit.return_value = providers_query
+        providers_query.get.return_value = [provider_doc]
+        providers_collection = MagicMock()
+        providers_collection.where.return_value = providers_query
+
+        services_query = MagicMock()
+        services_query.get.return_value = [existing_service_doc]
+        services_collection = MagicMock()
+        services_collection.where.return_value = services_query
+
+        db = MagicMock()
+        db.collection.side_effect = lambda name: {
+            "providers": providers_collection,
+            "services": services_collection,
+        }[name]
+
+        with patch.object(provider_routes, "get_database", return_value=db):
+            response = self.client.post(
+                "/provider/availability",
+                json={
+                    "provider_id": "provider-1",
+                    "schedule": [
+                        {
+                            "day_of_week": 0,
+                            "time_slots": [
+                                {
+                                    "start_time": "09:00",
+                                    "end_time": "10:00",
+                                    "session_duration": 30,
+                                    "service_ids": ["missing-service"],
+                                }
+                            ],
+                        }
+                    ],
+                },
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["detail"],
+            "Availability contains invalid service selections",
+        )
+
 
 
 
