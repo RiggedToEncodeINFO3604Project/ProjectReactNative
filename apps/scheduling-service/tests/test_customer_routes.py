@@ -116,6 +116,96 @@ class CustomerRouteTests(unittest.TestCase):
             ],
         )
 
+    def test_get_provider_availability_filters_bookings_and_busy_times(self):
+        target_date = datetime(2026, 4, 13, 9, 0, tzinfo=timezone.utc)
+        availability_doc = make_doc(
+            "availability-1",
+            {
+                "provider_id": "provider-1",
+                "schedule": [
+                    {
+                        "day_of_week": 0,
+                        "time_slots": [
+                            {
+                                "start_time": "09:00",
+                                "end_time": "10:00",
+                                "session_duration": 30,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+        service_doc = make_doc(
+            "service-1",
+            {
+                "provider_id": "provider-1",
+                "name": "Haircut",
+                "description": "Classic cut",
+                "price": 40,
+            },
+        )
+        booking_doc = make_doc(
+            "booking-1",
+            {
+                "date": target_date,
+                "status": "confirmed",
+                "start_time": "09:00",
+                "end_time": "09:30",
+            },
+        )
+        busy_doc = make_doc(
+            "busy-1",
+            {
+                "provider_id": "provider-1",
+                "date": "2026-04-13",
+                "start_time": "09:30",
+                "end_time": "10:00",
+            },
+        )
+
+        availability_query = MagicMock()
+        availability_query.limit.return_value = availability_query
+        availability_query.get.return_value = [availability_doc]
+        availability_collection = MagicMock()
+        availability_collection.where.return_value = availability_query
+
+        services_query = MagicMock()
+        services_query.get.return_value = [service_doc]
+        services_collection = MagicMock()
+        services_collection.where.return_value = services_query
+
+        client_records_query = MagicMock()
+        client_records_query.get.return_value = [booking_doc]
+        client_records_collection = MagicMock()
+        client_records_collection.where.return_value = client_records_query
+
+        busy_query = MagicMock()
+        busy_query.where.return_value = busy_query
+        busy_query.get.return_value = [busy_doc]
+        busy_collection = MagicMock()
+        busy_collection.where.return_value = busy_query
+
+        db = MagicMock()
+
+        def collection_side_effect(name: str):
+            mapping = {
+                "availability": availability_collection,
+                "services": services_collection,
+                "client_records": client_records_collection,
+                "provider_busy_times": busy_collection,
+            }
+            return mapping[name]
+
+        db.collection.side_effect = collection_side_effect
+
+        with patch.object(customer_routes, "get_database", return_value=db):
+            response = self.client.get(
+                "/customer/providers/provider-1/availability/2026-04-13",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"available_slots": []})
 
 
 
