@@ -3,22 +3,28 @@
   "private": true,
   "version": "1.0.0",
   "workspaces": [
-    "apps/frontend"
+    "apps/expo-frontend"
   ],
+  "devDependencies": {
+    "eslint-scope": "^8.4.0",
+    "expo-modules-autolinking": "3.0.24",
+    "expo-modules-core": "3.0.29"
+  },
   "scripts": {
-    "start": "npm run start --workspace apps/frontend",
-    "frontend": "npm run start --workspace apps/frontend",
-    "frontend:clear": "npm run start:clear --workspace apps/frontend",
-    "android": "npm run android --workspace apps/frontend",
-    "ios": "npm run ios --workspace apps/frontend",
-    "web": "npm run web --workspace apps/frontend",
-    "build:web": "npm run build:web --workspace apps/frontend",
-    "serve": "npm run serve --workspace apps/frontend",
-    "lint": "npm run lint --workspace apps/frontend",
-    "test": "npm run test:frontend && npm run test:api && npm run test:rag",
-    "test:frontend": "npm run test --workspace apps/frontend",
-    "test:frontend:snapshot": "npm run test:snapshot --workspace apps/frontend",
-    "test:api": "node scripts/run-python-tests.js apps/api",
-    "test:rag": "node scripts/run-python-tests.js apps/rag-server"
+    "start": "npm run start --workspace apps/expo-frontend",
+    "frontend": "npm run start --workspace apps/expo-frontend",
+    "frontend:clear": "npm run start:clear --workspace apps/expo-frontend",
+    "android": "npm run android --workspace apps/expo-frontend",
+    "ios": "npm run ios --workspace apps/expo-frontend",
+    "web": "npm run web --workspace apps/expo-frontend",
+    "build:web": "npm run build:web --workspace apps/expo-frontend",
+    "lint": "npm run lint --workspace apps/expo-frontend",
+    "test": "npm run test:frontend && npm run test:scheduling && npm run test:messaging && npm run test:snapshot && npm run test:rag",
+    "test:frontend": "npm run test --workspace apps/expo-frontend",
+    "test:frontend:snapshot": "npm run test:snapshot --workspace apps/expo-frontend",
+    "test:scheduling": "node scripts/run-python-tests.js apps/scheduling-service",
+    "test:messaging": "node scripts/run-python-tests.js apps/messaging-service",
+    "test:snapshot": "node scripts/run-python-tests.js apps/snapshot-service",
+    "test:rag": "node scripts/run-python-tests.js apps/rag-service"
   }
 }

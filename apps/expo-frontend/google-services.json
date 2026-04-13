@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1039815996255",
+    "project_id": "skeduleit-85dc6",
+    "storage_bucket": "skeduleit-85dc6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1039815996255:android:6650430267c415ef57fcea",
+        "android_client_info": {
+          "package_name": "com.skeduleit.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB494wPlqBRm2v6kDfnR1nrmUY-kF1cq60"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

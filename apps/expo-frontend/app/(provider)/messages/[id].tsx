@@ -1,0 +1,822 @@
+// =====================================================
+// = Chat Screen - Provider                            =
+// = Full-screen chat for a specific conversation      =
+// =====================================================
+
+import { ChatHeader } from "@/components/messaging/ChatHeader";
+import { MessageBubble } from "@/components/messaging/MessageBubble";
+import { MessageInput } from "@/components/messaging/MessageInput";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+import {
+  isFirebaseConfigured,
+  subscribeToConversationMessages,
+  unsubscribeFromConversation,
+} from "@/services/firebaseMessaging";
+import {
+  getConversation,
+  getFullMessageHistory,
+  markConversationAsRead,
+  messagingSocket,
+  sendMessage,
+} from "@/services/messagingApi";
+import {
+  pickMessageImageFromDevice,
+  uploadMessagingImage,
+} from "@/services/messagingMedia";
+import { Conversation, Message, MessageStatus } from "@/types/scheduling";
+import { getMessageSearchResults } from "@/utils/messageSearch";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+const MESSAGE_MATCH_WINDOW_MS = 5000;
+
+const getMessageTimestamp = (message: Message): number =>
+  new Date(message.created_at).getTime();
+
+const isSameLogicalMessage = (
+  existing: Message,
+  incoming: Message,
+  options?: { ignoreContent?: boolean },
+): boolean => {
+  if (existing.id === incoming.id) {
+    return true;
+  }
+
+  const sameSender =
+    existing.sender_id === incoming.sender_id &&
+    existing.sender_role === incoming.sender_role;
+  const sameType = existing.message_type === incoming.message_type;
+  const sameImage = existing.image_url === incoming.image_url;
+  const sameContent = options?.ignoreContent
+    ? true
+    : existing.content === incoming.content;
+  const closeInTime =
+    Math.abs(getMessageTimestamp(existing) - getMessageTimestamp(incoming)) <
+    MESSAGE_MATCH_WINDOW_MS;
+
+  return sameSender && sameType && sameImage && sameContent && closeInTime;
+};
+
+const isOptimisticMessage = (message: Message): boolean =>
+  typeof message.id === "string" && message.id.startsWith("temp-");
+
+const upsertMessages = (
+  currentMessages: Message[],
+  incomingMessages: Message[],
+  options?: { ignoreContent?: boolean },
+): Message[] => {
+  const merged = [...currentMessages];
+
+  incomingMessages.forEach((incoming) => {
+    const existingIndex = merged.findIndex((existing) =>
+      isSameLogicalMessage(existing, incoming, {
+        ignoreContent:
+          options?.ignoreContent &&
+          (isOptimisticMessage(existing) || isOptimisticMessage(incoming)),
+      }),
+    );
+
+    if (existingIndex >= 0) {
+      merged[existingIndex] = {
+        ...merged[existingIndex],
+        ...incoming,
+      };
+      return;
+    }
+
+    merged.push(incoming);
+  });
+
+  return merged.sort(
+    (a, b) => getMessageTimestamp(a) - getMessageTimestamp(b),
+  );
+};
+
+const replaceOptimisticMessage = (
+  currentMessages: Message[],
+  tempId: string,
+  persistedMessage: Message,
+): Message[] => {
+  const withoutTemp = currentMessages.filter((message) => message.id !== tempId);
+  return upsertMessages(withoutTemp, [persistedMessage], {
+    ignoreContent: true,
+  });
+};
+
+const applyReadReceiptUpdate = (
+  currentMessages: Message[],
+  readerRole: "Customer" | "Provider",
+  currentUserRole?: "Customer" | "Provider",
+): Message[] => {
+  let hasChanges = false;
+
+  const nextMessages = currentMessages.map((message) => {
+    if (message.sender_role === readerRole || message.read) {
+      return message;
+    }
+
+    hasChanges = true;
+    return {
+      ...message,
+      read: true,
+      status: message.sender_role === currentUserRole ? "read" : message.status,
+    };
+  });
+
+  return hasChanges ? nextMessages : currentMessages;
+};
+
+const getRenderKey = (message: Message, index: number): string =>
+  `${message.id}-${message.created_at}-${index}`;
+
+const buildOptimisticMessage = (
+  conversationId: string,
+  senderId: string,
+  senderRole: "Customer" | "Provider",
+  content: string,
+  messageType: "text" | "image",
+  imageUrl?: string,
+): Message => ({
+  id: `temp-${Date.now()}`,
+  conversation_id: conversationId,
+  sender_id: senderId,
+  sender_role: senderRole,
+  content,
+  message_type: messageType,
+  image_url: imageUrl,
+  created_at: new Date().toISOString(),
+  read: false,
+  status: "sending",
+});
+
+export default function ChatScreen() {
+  const { token, user } = useAuth();
+  const { colours: theme } = useTheme();
+  const currentUserId = user?.id || "";
+  const { id: conversationId } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+
+  // State
+  const [conversation, setConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [hasHydratedMessages, setHasHydratedMessages] = useState(false);
+  const [connectionState, setConnectionState] = useState<
+    "connected" | "disconnected" | "connecting"
+  >("disconnected");
+  const [firebaseConnected, setFirebaseConnected] = useState(false);
+
+  // Message search state
+  const [isMessageSearching, setIsMessageSearching] = useState(false);
+  const [messageSearchQuery, setMessageSearchQuery] = useState("");
+  const [currentResultIndex, setCurrentResultIndex] = useState(0);
+
+  const messagesScrollViewRef = useRef<ScrollView>(null);
+  const messageRefs = useRef<Map<string, View>>(new Map());
+  const isMarkingConversationReadRef = useRef(false);
+
+  // Get other user details (for provider, the other user is the customer)
+  const otherUserName = useMemo(() => {
+    if (!conversation) return "";
+    return conversation.customer_name || "Customer";
+  }, [conversation]);
+
+  const otherUserAvatar = useMemo(() => {
+    if (!conversation) return undefined;
+    return conversation.customer_avatar;
+  }, [conversation]);
+
+  // Search results - filter messages based on search query
+  const searchResults = useMemo(() => {
+    return getMessageSearchResults(messages, messageSearchQuery);
+  }, [messageSearchQuery, messages]);
+
+  // Fetch conversation details
+  const fetchConversation = useCallback(async () => {
+    if (!conversationId) return;
+    setIsLoading(true);
+    try {
+      const data = await getConversation(conversationId);
+      setConversation(data);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [conversationId]);
+
+  // Fetch messages for conversation
+  const fetchMessages = useCallback(async () => {
+    if (!conversationId) return;
+    setIsLoadingMessages(true);
+    setHasHydratedMessages(false);
+    try {
+      const data = await getFullMessageHistory(conversationId);
+      // Reverse to show oldest first
+      setMessages(
+        Array.isArray(data)
+          ? upsertMessages([], [...data].reverse())
+          : [],
+      );
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      setMessages([]);
+    } finally {
+      setHasHydratedMessages(true);
+      setIsLoadingMessages(false);
+    }
+  }, [conversationId]);
+
+  // Handle new message from WebSocket
+  const handleNewMessage = useCallback(
+    (message: Message) => {
+      if (message.conversation_id === conversationId) {
+        setMessages((prev) => upsertMessages(prev, [message], { ignoreContent: true }));
+      }
+    },
+    [conversationId],
+  );
+
+  // Handle messages read notification from WebSocket (backup - Firebase handles primary updates)
+  const handleMessagesRead = useCallback(
+    (data: { conversation_id: string; reader_role: string }) => {
+      console.log("[Chat] WebSocket messages_read received:", data);
+      if (data.conversation_id !== conversationId) {
+        return;
+      }
+
+      setMessages((prev) =>
+        applyReadReceiptUpdate(
+          prev,
+          data.reader_role as "Customer" | "Provider",
+          user?.role,
+        ),
+      );
+    },
+    [conversationId, user?.role],
+  );
+
+  // Handle new message from Firebase
+  const handleFirebaseMessages = useCallback(
+    (firebaseMessages: Message[]) => {
+      if (!conversationId || !firebaseMessages.length) return;
+      if (!hasHydratedMessages) return;
+
+      setMessages((prev) => {
+        if (!prev || !Array.isArray(prev)) {
+          return prev;
+        }
+
+        const nextMessages = upsertMessages(prev, firebaseMessages, {
+          ignoreContent: true,
+        });
+
+        const noStructuralChange =
+          nextMessages.length === prev.length &&
+          nextMessages.every(
+            (message, index) =>
+              message.id === prev[index]?.id &&
+              message.status === prev[index]?.status &&
+              message.read === prev[index]?.read,
+          );
+
+        if (noStructuralChange) {
+          return prev;
+        }
+
+        return nextMessages;
+      });
+      setFirebaseConnected(true);
+    },
+    [conversationId, hasHydratedMessages],
+  );
+
+  // Handle connection state change
+  const handleConnectionChange = useCallback(
+    (
+      state:
+        | "connected"
+        | "disconnected"
+        | "connecting"
+        | "reconnecting"
+        | "fallback_polling",
+    ) => {
+      if (state === "reconnecting") {
+        setConnectionState("connecting");
+      } else if (state === "fallback_polling") {
+        setConnectionState("disconnected");
+      } else {
+        setConnectionState(
+          state as "connected" | "disconnected" | "connecting",
+        );
+      }
+    },
+    [],
+  );
+
+  // Initialize WebSocket and fetch data on mount
+  useEffect(() => {
+    fetchConversation();
+    fetchMessages();
+
+    if (token && conversationId) {
+      messagingSocket.setCallbacks({
+        onMessageReceived: handleNewMessage,
+        onMessagesRead: handleMessagesRead,
+        onConnectionChange: handleConnectionChange,
+        onError: (error) => console.error("WebSocket error:", error),
+      });
+      messagingSocket.subscribeToConversation(conversationId);
+      messagingSocket.connect(token);
+    }
+
+    return () => {
+      setHasHydratedMessages(false);
+      if (conversationId) {
+        messagingSocket.unsubscribeFromConversation(conversationId);
+      }
+      messagingSocket.disconnect();
+      if (conversationId) {
+        unsubscribeFromConversation(conversationId);
+      }
+    };
+  }, [
+    token,
+    fetchConversation,
+    fetchMessages,
+    handleNewMessage,
+    handleConnectionChange,
+    conversationId,
+  ]);
+
+  // Subscribe to Firebase Firestore real-time updates
+  useEffect(() => {
+    if (!conversationId || !isFirebaseConfigured() || !hasHydratedMessages) {
+      return;
+    }
+
+    const unsubscribe = subscribeToConversationMessages(
+      conversationId,
+      handleFirebaseMessages,
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [conversationId, handleFirebaseMessages, hasHydratedMessages]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (
+      messages.length > 0 &&
+      messagesScrollViewRef.current &&
+      !isMessageSearching
+    ) {
+      setTimeout(() => {
+        messagesScrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages, isMessageSearching]);
+
+  const markConversationReadIfNeeded = useCallback(() => {
+    if (!conversationId || !user?.role || isMarkingConversationReadRef.current) {
+      return;
+    }
+
+    const hasUnreadFromOtherUser = messages.some(
+      (message) =>
+        message.sender_role !== user.role &&
+        !message.read &&
+        !!message.id &&
+        !message.id.startsWith("temp-"),
+    );
+
+    if (!hasUnreadFromOtherUser) {
+      return;
+    }
+
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.sender_role !== user.role &&
+        !message.read &&
+        !!message.id &&
+        !message.id.startsWith("temp-")
+          ? { ...message, read: true }
+          : message,
+      ),
+    );
+
+    isMarkingConversationReadRef.current = true;
+    markConversationAsRead(conversationId)
+      .catch((error) => {
+        console.error("Error marking conversation as read:", error);
+      })
+      .finally(() => {
+        isMarkingConversationReadRef.current = false;
+      });
+  }, [conversationId, messages, user?.role]);
+
+  useEffect(() => {
+    markConversationReadIfNeeded();
+  }, [markConversationReadIfNeeded]);
+
+  // Scroll to current search result
+  useEffect(() => {
+    if (searchResults.length > 0 && currentResultIndex < searchResults.length) {
+      const currentMessage = searchResults[currentResultIndex];
+      const messageRef = messageRefs.current.get(currentMessage.id);
+      if (messageRef) {
+        messageRef.measureLayout(
+          messagesScrollViewRef.current?.getInnerViewNode(),
+          (x, y) => {
+            messagesScrollViewRef.current?.scrollTo({
+              y: y - 100,
+              animated: true,
+            });
+          },
+          () => {},
+        );
+      }
+    }
+  }, [currentResultIndex, searchResults]);
+
+  // Handle back button
+  const handleBack = useCallback(() => {
+    router.back();
+  }, [router]);
+
+  const handleOpenMessageSearch = useCallback(() => {
+    setIsMessageSearching(true);
+    setCurrentResultIndex(0);
+  }, []);
+
+  // Handle message search
+  const handleMessageSearch = useCallback((query: string) => {
+    setIsMessageSearching(true);
+    setMessageSearchQuery(query);
+    setCurrentResultIndex(0);
+  }, []);
+
+  // Handle search close
+  const handleSearchClose = useCallback(() => {
+    setIsMessageSearching(false);
+    setMessageSearchQuery("");
+    setCurrentResultIndex(0);
+  }, []);
+
+  // Navigate to previous search result
+  const handleNavigatePrevious = useCallback(() => {
+    if (searchResults.length === 0) return;
+    setCurrentResultIndex((prev) =>
+      prev > 0 ? prev - 1 : searchResults.length - 1,
+    );
+  }, [searchResults.length]);
+
+  // Navigate to next search result
+  const handleNavigateNext = useCallback(() => {
+    if (searchResults.length === 0) return;
+    setCurrentResultIndex((prev) =>
+      prev < searchResults.length - 1 ? prev + 1 : 0,
+    );
+  }, [searchResults.length]);
+
+  // Handle sending a message
+  const submitMessage = useCallback(
+    async ({
+      content,
+      imageUrl,
+      messageType,
+    }: {
+      content: string;
+      imageUrl?: string;
+      messageType: "text" | "image";
+    }) => {
+      if (!conversationId) return;
+      if (messageType === "text" && !content.trim()) return;
+      if (messageType === "image" && !imageUrl?.trim()) return;
+
+      const trimmedContent = content.trim();
+      const optimisticMessage = buildOptimisticMessage(
+        conversationId,
+        currentUserId,
+        user?.role || "Provider",
+        trimmedContent,
+        messageType,
+        imageUrl?.trim(),
+      );
+      const tempId = optimisticMessage.id;
+
+      setMessages((prev) => [...prev, optimisticMessage]);
+
+      try {
+        const response = await sendMessage(conversationId, {
+          content: trimmedContent,
+          message_type: messageType,
+          image_url: imageUrl?.trim(),
+        });
+
+        setMessages((prev) =>
+          replaceOptimisticMessage(prev, tempId, {
+            ...optimisticMessage,
+            id: response.message_id || tempId,
+            content:
+              messageType === "text"
+                ? (response.filtered_content ?? optimisticMessage.content)
+                : optimisticMessage.content,
+            status: "sent" as MessageStatus,
+          }),
+        );
+      } catch (error) {
+        console.error("Error sending message:", error);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId ? { ...m, status: "failed" as MessageStatus } : m,
+          ),
+        );
+      }
+    },
+    [conversationId, currentUserId, user?.role],
+  );
+
+  const handleSendMessage = useCallback(
+    async (content: string) => {
+      await submitMessage({ content, messageType: "text" });
+    },
+    [submitMessage],
+  );
+
+  const handleSendImageUrl = useCallback(
+    async (imageUrl: string, caption?: string) => {
+      await submitMessage({
+        content: caption ?? "",
+        imageUrl,
+        messageType: "image",
+      });
+    },
+    [submitMessage],
+  );
+
+  const handleSendImageFile = useCallback(async () => {
+    if (!conversationId || !currentUserId) return;
+
+    try {
+      const selectedImage = await pickMessageImageFromDevice();
+      if (!selectedImage) {
+        return;
+      }
+
+      setIsUploadingImage(true);
+      const imageUrl = await uploadMessagingImage(
+        selectedImage,
+        conversationId,
+        currentUserId,
+      );
+
+      await submitMessage({
+        content: "",
+        imageUrl,
+        messageType: "image",
+      });
+    } catch (error) {
+      console.error("Error sending image:", error);
+      Alert.alert(
+        "Unable to send image",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setIsUploadingImage(false);
+    }
+  }, [conversationId, currentUserId, submitMessage]);
+
+  // Handle retry for failed messages
+  const handleRetryMessage = useCallback(
+    async (messageId: string) => {
+      // Find the failed message
+      const failedMessage = messages.find(
+        (m) => m.id === messageId && m.status === "failed",
+      );
+      if (!failedMessage || !conversationId) return;
+
+      // Update status to "sending"
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, status: "sending" as MessageStatus } : m,
+        ),
+      );
+
+      try {
+        // Retry sending the message
+        const response = await sendMessage(conversationId, {
+          content: failedMessage.content,
+          message_type: failedMessage.message_type,
+          image_url: failedMessage.image_url,
+        });
+
+        // Update status to "sent" on success
+        setMessages((prev) =>
+          replaceOptimisticMessage(prev, messageId, {
+            ...failedMessage,
+            id: response.message_id || messageId,
+            content: response.filtered_content ?? failedMessage.content,
+            status: "sent" as MessageStatus,
+          }),
+        );
+      } catch (error) {
+        console.error("Error retrying message:", error);
+        // Keep status as "failed"
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? { ...m, status: "failed" as MessageStatus }
+              : m,
+          ),
+        );
+      }
+    },
+    [conversationId, messages],
+  );
+
+  // Render loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        edges={["top", "bottom"]}
+      >
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.tint} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Render error state if conversation not found
+  if (!conversation) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        edges={["top", "bottom"]}
+      >
+        <View style={styles.errorContainer}>
+          <IconSymbol
+            name="exclamationmark.triangle"
+            size={48}
+            color={theme.icon}
+            style={{ opacity: 0.5 }}
+          />
+          <Text style={[styles.errorText, { color: theme.text }]}>
+            Conversation not found
+          </Text>
+          <Text style={[styles.errorSubtext, { color: theme.icon }]}>
+            The conversation may have been deleted or you do not have access
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      edges={["top", "bottom"]}
+    >
+      {/* Chat Header */}
+      <ChatHeader
+        name={otherUserName}
+        avatar={otherUserAvatar}
+        status={connectionState === "connected" ? "Online" : undefined}
+        onBack={handleBack}
+        onSearchOpen={handleOpenMessageSearch}
+        onSearch={handleMessageSearch}
+        isSearching={isMessageSearching}
+        searchQuery={messageSearchQuery}
+        onSearchClose={handleSearchClose}
+        searchResultCount={searchResults.length}
+        currentResultIndex={currentResultIndex}
+        onNavigatePrevious={handleNavigatePrevious}
+        onNavigateNext={handleNavigateNext}
+      />
+
+      {/* Messages */}
+      {isLoadingMessages ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.tint} />
+        </View>
+      ) : (
+        <ScrollView
+          ref={messagesScrollViewRef}
+          style={styles.messagesContainer}
+          contentContainerStyle={styles.messagesContent}
+        >
+          {messages.length === 0 ? (
+            <View style={styles.noMessagesState}>
+              <IconSymbol
+                name="paperplane.fill"
+                size={48}
+                color={theme.icon}
+                style={{ opacity: 0.3 }}
+              />
+              <Text style={[styles.noMessagesText, { color: theme.icon }]}>
+                No messages yet. Start the conversation!
+              </Text>
+            </View>
+          ) : (
+            Array.isArray(messages) &&
+            messages.map((message, index) => {
+              const isCurrentUserMessage = message.sender_id === currentUserId;
+
+              return (
+                <View
+                  key={getRenderKey(message, index)}
+                  ref={(ref) => {
+                    if (ref) {
+                      messageRefs.current.set(message.id, ref);
+                    }
+                  }}
+                >
+                  <MessageBubble
+                    message={message}
+                    isCurrentUser={isCurrentUserMessage}
+                    showStatus={index === messages.length - 1}
+                    highlightQuery={isMessageSearching ? messageSearchQuery : ""}
+                    isHighlighted={
+                      isMessageSearching &&
+                      searchResults.length > 0 &&
+                      searchResults[currentResultIndex]?.id === message.id
+                    }
+                    onRetry={handleRetryMessage}
+                  />
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
+
+      {/* Message Input */}
+      <MessageInput
+        onSend={handleSendMessage}
+        onSendImageFile={handleSendImageFile}
+        onSendImageUrl={handleSendImageUrl}
+        attachmentDisabled={isUploadingImage}
+        isUploadingImage={isUploadingImage}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  messagesContainer: {
+    flex: 1,
+  },
+  messagesContent: {
+    paddingVertical: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 16,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  noMessagesState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 48,
+  },
+  noMessagesText: {
+    fontSize: 14,
+    marginTop: 16,
+  },
+});

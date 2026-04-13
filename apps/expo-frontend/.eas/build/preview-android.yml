@@ -1,0 +1,15 @@
+build:
+  name: Preview Android APK
+  steps:
+    - eas/checkout
+    - eas/install_node_modules
+    - run:
+        name: Repair Expo workspace bins
+        command: node ./scripts/eas-postinstall.js
+    - run:
+        name: Expo prebuild Android
+        command: npx expo prebuild --no-install --platform android
+    - eas/configure_eas_update
+    - eas/inject_android_credentials
+    - eas/run_gradle
+    - eas/find_and_upload_build_artifacts

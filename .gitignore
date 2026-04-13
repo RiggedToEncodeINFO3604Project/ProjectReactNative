@@ -3,15 +3,15 @@
 # dependencies
 node_modules/
 plans/
-apps/frontend/node_modules/
+apps/expo-frontend/node_modules/
 
 # Expo
 .expo/
 dist/
 web-build/
 expo-env.d.ts
-apps/frontend/.expo/
-apps/frontend/dist/
+apps/expo-frontend/.expo/
+apps/expo-frontend/dist/
 
 # Native
 .kotlin/
@@ -49,20 +49,24 @@ app-example
 # generated native folders
 /ios
 /android
+apps/expo-frontend/android/
+apps/expo-frontend/ios/
+apps/expo-frontend/android/local.properties
 
 # Backend
 __pycache__/
 *.py[cod]
-apps/api/venv/
-apps/api/.env
-apps/api/**/__pycache__/
-apps/api/**/*.pyc
-apps/api/*.pyc
-apps/api/*.db
-apps/rag-server/venv/
-apps/rag-server/.env
-apps/rag-server/__pycache__/
-apps/rag-server/**/__pycache__/
-apps/rag-server/**/*.pyc
-apps/rag-server/*.pyc
+.pytest_cache/
+dev-tools/venv/
+dev-tools/.env
+dev-tools/**/__pycache__/
+dev-tools/**/*.pyc
+dev-tools/*.pyc
+dev-tools/*.db
+apps/*-service/venv/
+apps/*-service/.env
+apps/*-service/__pycache__/
+apps/*-service/**/__pycache__/
+apps/*-service/**/*.pyc
+apps/*-service/*.pyc
 
