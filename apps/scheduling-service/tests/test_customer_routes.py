@@ -207,6 +207,107 @@ class CustomerRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"available_slots": []})
 
+    def test_create_booking_persists_pending_booking_for_valid_slot(self):
+        customer_doc = make_doc(
+            "customer-1",
+            {"user_id": "customer-user-1", "name": "Ava Customer", "phone": "+1-555-0100"},
+        )
+        service_doc = make_doc(
+            "service-1",
+            {
+                "provider_id": "provider-1",
+                "name": "Haircut",
+                "description": "Classic cut",
+                "price": 55,
+            },
+        )
+        availability_doc = make_doc(
+            "availability-1",
+            {
+                "provider_id": "provider-1",
+                "schedule": [
+                    {
+                        "day_of_week": 0,
+                        "time_slots": [
+                            {
+                                "start_time": "09:00",
+                                "end_time": "10:00",
+                                "session_duration": 30,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+
+        customers_query = MagicMock()
+        customers_query.limit.return_value = customers_query
+        customers_query.get.return_value = [customer_doc]
+        customers_collection = MagicMock()
+        customers_collection.where.return_value = customers_query
+
+        service_doc_ref = MagicMock()
+        service_doc_ref.get.return_value = service_doc
+        services_collection = MagicMock()
+        services_collection.document.return_value = service_doc_ref
+
+        availability_query = MagicMock()
+        availability_query.limit.return_value = availability_query
+        availability_query.get.return_value = [availability_doc]
+        availability_collection = MagicMock()
+        availability_collection.where.return_value = availability_query
+
+        client_records_query = MagicMock()
+        client_records_query.get.return_value = []
+        booking_doc_ref = MagicMock()
+        client_records_collection = MagicMock()
+        client_records_collection.where.return_value = client_records_query
+        client_records_collection.document.return_value = booking_doc_ref
+
+        db = MagicMock()
+
+        def collection_side_effect(name: str):
+            mapping = {
+                "customers": customers_collection,
+                "services": services_collection,
+                "availability": availability_collection,
+                "client_records": client_records_collection,
+            }
+            return mapping[name]
+
+        db.collection.side_effect = collection_side_effect
+
+        with (
+            patch.object(customer_routes, "get_database", return_value=db),
+            patch.object(customer_routes.uuid, "uuid4", return_value="booking-123"),
+        ):
+            response = self.client.post(
+                "/customer/bookings",
+                json={
+                    "provider_id": "provider-1",
+                    "service_id": "service-1",
+                    "date": "2026-04-13",
+                    "start_time": "09:00",
+                    "end_time": "09:30",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "message": "Booking request created successfully",
+                "booking_id": "booking-123",
+            },
+        )
+        booking_doc_ref.set.assert_called_once()
+        saved_booking = booking_doc_ref.set.call_args.args[0]
+        self.assertEqual(saved_booking["customer_id"], "customer-1")
+        self.assertEqual(saved_booking["service_id"], "service-1")
+        self.assertEqual(saved_booking["status"], "pending")
+        self.assertEqual(saved_booking["cost"], 55)
+
+
 
 
 if __name__ == "__main__":
