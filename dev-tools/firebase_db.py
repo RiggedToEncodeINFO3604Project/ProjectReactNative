@@ -46,6 +46,11 @@ def get_database():
 
 def close_firebase():
     global _db
-    if _db is not None:
-        _db = None
+    had_connection = _db is not None or bool(firebase_admin._apps)
+    _db = None
+
+    for app in list(firebase_admin._apps.values()):
+        firebase_admin.delete_app(app)
+
+    if had_connection:
         print("Firebase connection closed")
