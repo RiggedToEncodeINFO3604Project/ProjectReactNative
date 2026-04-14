@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from google.cloud.firestore_v1.base_query import FieldFilter
+
 from config import settings
 from firebase_db import get_database
 from services.datetime_utils import format_schedule_date, normalize_firestore_datetime, utc_now
@@ -13,12 +15,23 @@ REMINDER_DAY_BEFORE_SENT_AT_FIELD = "reminder_day_before_sent_at"
 REMINDER_TWO_HOURS_SENT_AT_FIELD = "reminder_two_hours_sent_at"
 
 log = logging.getLogger("skeduleit.booking_reminders")
+FALLBACK_SCHEDULE_TIMEZONES = {
+    "America/Port_of_Spain": timezone(timedelta(hours=-4), name="America/Port_of_Spain"),
+}
 
 
 def get_schedule_timezone() -> timezone | ZoneInfo:
     try:
         return ZoneInfo(settings.schedule_timezone)
     except ZoneInfoNotFoundError:
+        fallback_timezone = FALLBACK_SCHEDULE_TIMEZONES.get(settings.schedule_timezone)
+        if fallback_timezone is not None:
+            log.info(
+                "Using built-in fallback timezone for SCHEDULE_TIMEZONE '%s'",
+                settings.schedule_timezone,
+            )
+            return fallback_timezone
+
         log.warning(
             "Invalid SCHEDULE_TIMEZONE '%s'; falling back to UTC",
             settings.schedule_timezone,
@@ -129,9 +142,9 @@ def process_due_booking_reminders(
     schedule_timezone = get_schedule_timezone()
     now = _normalize_current_time(current_time, schedule_timezone)
 
-    bookings_docs = (
-        db.collection("client_records").where("status", "==", "confirmed").get()
-    )
+    bookings_docs = db.collection("client_records").where(
+        filter=FieldFilter("status", "==", "confirmed")
+    ).get()
 
     checked = 0
     notifications_sent = 0
