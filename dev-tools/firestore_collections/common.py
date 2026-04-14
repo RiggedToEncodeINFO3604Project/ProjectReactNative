@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from firebase_db import get_database, initialize_firebase
+from firebase_db import close_firebase, get_database, initialize_firebase
 
 StepCallback = Callable[[], object]
 DatabaseCallback = Callable[[object], object]
@@ -80,6 +80,8 @@ def run_script_task(callback: Callable[[], object], failure_prefix: str = "Error
     except Exception as exc:
         print_script_error(failure_prefix, exc)
         return False
+    finally:
+        close_firebase()
 
 
 def run_collection_task(title: str, callback: DatabaseCallback) -> bool:
@@ -94,3 +96,5 @@ def run_collection_task(title: str, callback: DatabaseCallback) -> bool:
     except Exception as exc:
         print_script_error("[ERROR]", exc)
         return False
+    finally:
+        close_firebase()
