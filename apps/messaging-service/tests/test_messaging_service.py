@@ -17,17 +17,62 @@ class MessagingServiceTests(unittest.TestCase):
     def test_get_or_create_conversation_returns_existing_id(self):
         existing_doc = MagicMock()
         existing_doc.id = "conv-existing"
+        existing_doc.to_dict.return_value = {
+            "customer_id": "customer-1",
+            "provider_id": "provider-1",
+            "customer_name": "Ava Customer",
+            "provider_name": "Kai Provider",
+        }
+
+        missing_doc = MagicMock()
+        missing_doc.exists = False
+
+        customer_profile_doc = MagicMock()
+        customer_profile_doc.id = "customer-profile-1"
+        customer_profile_doc.to_dict.return_value = {
+            "user_id": "customer-1",
+            "name": "Ava Customer",
+        }
+
+        provider_profile_doc = MagicMock()
+        provider_profile_doc.id = "provider-profile-1"
+        provider_profile_doc.to_dict.return_value = {
+            "user_id": "provider-1",
+            "provider_name": "Kai Provider",
+        }
 
         query = MagicMock()
-        query.where.return_value = query
-        query.limit.return_value = query
         query.stream.return_value = [existing_doc]
 
         conversations_ref = MagicMock()
         conversations_ref.where.return_value = query
 
+        customers_query = MagicMock()
+        customers_query.limit.return_value = customers_query
+        customers_query.get.return_value = [customer_profile_doc]
+        customers_collection = MagicMock()
+        customers_collection.where.return_value = customers_query
+        customers_collection.document.return_value = SimpleNamespace(get=lambda: missing_doc)
+
+        providers_query = MagicMock()
+        providers_query.limit.return_value = providers_query
+        providers_query.get.return_value = [provider_profile_doc]
+        providers_collection = MagicMock()
+        providers_collection.where.return_value = providers_query
+        providers_collection.document.return_value = SimpleNamespace(get=lambda: missing_doc)
+
         db = MagicMock()
-        db.collection.return_value = conversations_ref
+
+        def collection_side_effect(name):
+            if name == "conversations":
+                return conversations_ref
+            if name == "customers":
+                return customers_collection
+            if name == "providers":
+                return providers_collection
+            raise AssertionError(f"Unexpected collection: {name}")
+
+        db.collection.side_effect = collection_side_effect
 
         with patch.object(messaging_service, "get_database", return_value=db):
             conversation_id = messaging_service.get_or_create_conversation(
@@ -37,6 +82,186 @@ class MessagingServiceTests(unittest.TestCase):
 
         self.assertEqual(conversation_id, "conv-existing")
         conversations_ref.add.assert_not_called()
+
+    def test_get_or_create_conversation_accepts_provider_profile_id(self):
+        customer_profile_doc = MagicMock()
+        customer_profile_doc.id = "customer-profile-1"
+        customer_profile_doc.to_dict.return_value = {
+            "user_id": "customer-user-1",
+            "name": "Ava Customer",
+        }
+
+        missing_customer_doc = MagicMock()
+        missing_customer_doc.exists = False
+
+        provider_profile_doc = MagicMock()
+        provider_profile_doc.id = "provider-profile-1"
+        provider_profile_doc.exists = True
+        provider_profile_doc.to_dict.return_value = {
+            "user_id": "provider-user-1",
+            "provider_name": "Kai Provider",
+        }
+
+        missing_provider_doc = MagicMock()
+        missing_provider_doc.exists = False
+
+        customers_query = MagicMock()
+        customers_query.limit.return_value = customers_query
+        customers_query.get.return_value = [customer_profile_doc]
+        customers_collection = MagicMock()
+        customers_collection.where.return_value = customers_query
+        customers_collection.document.side_effect = lambda doc_id: SimpleNamespace(
+            get=lambda: customer_profile_doc if doc_id == "customer-profile-1" else missing_customer_doc
+        )
+
+        providers_query = MagicMock()
+        providers_query.limit.return_value = providers_query
+        providers_query.get.return_value = []
+        providers_collection = MagicMock()
+        providers_collection.where.return_value = providers_query
+        providers_collection.document.side_effect = lambda doc_id: SimpleNamespace(
+            get=lambda: provider_profile_doc if doc_id == "provider-profile-1" else missing_provider_doc
+        )
+
+        conversation_query = MagicMock()
+        conversation_query.stream.return_value = []
+        conversations_collection = MagicMock()
+        conversations_collection.where.return_value = conversation_query
+        conversations_collection.add.return_value = (None, SimpleNamespace(id="conv-new"))
+
+        db = MagicMock()
+
+        def collection_side_effect(name):
+            if name == "customers":
+                return customers_collection
+            if name == "providers":
+                return providers_collection
+            if name == "conversations":
+                return conversations_collection
+            raise AssertionError(f"Unexpected collection: {name}")
+
+        db.collection.side_effect = collection_side_effect
+
+        with (
+            patch.object(messaging_service, "get_database", return_value=db),
+            patch.object(
+                messaging_service,
+                "utc_now",
+                return_value=datetime(2026, 4, 14, tzinfo=timezone.utc),
+            ),
+        ):
+            conversation_id = messaging_service.get_or_create_conversation(
+                "customer-user-1",
+                "provider-profile-1",
+            )
+
+        self.assertEqual(conversation_id, "conv-new")
+        conversations_collection.add.assert_called_once()
+        created_conversation = conversations_collection.add.call_args.args[0]
+        self.assertEqual(created_conversation["customer_id"], "customer-user-1")
+        self.assertEqual(created_conversation["provider_id"], "provider-user-1")
+        self.assertEqual(created_conversation["customer_name"], "Ava Customer")
+        self.assertEqual(created_conversation["provider_name"], "Kai Provider")
+
+    def test_get_user_conversations_includes_and_repairs_legacy_provider_profile_ids(self):
+        updated_at = datetime(2026, 4, 14, tzinfo=timezone.utc)
+
+        provider_profile_doc = MagicMock()
+        provider_profile_doc.id = "provider-profile-1"
+        provider_profile_doc.to_dict.return_value = {
+            "user_id": "provider-user-1",
+            "provider_name": "Kai Provider",
+        }
+
+        customer_profile_doc = MagicMock()
+        customer_profile_doc.id = "customer-profile-1"
+        customer_profile_doc.to_dict.return_value = {
+            "user_id": "customer-user-1",
+            "name": "Ava Customer",
+        }
+
+        missing_doc = MagicMock()
+        missing_doc.exists = False
+
+        provider_lookup_query = MagicMock()
+        provider_lookup_query.limit.return_value = provider_lookup_query
+        provider_lookup_query.get.return_value = [provider_profile_doc]
+        providers_collection = MagicMock()
+        providers_collection.where.return_value = provider_lookup_query
+        providers_collection.document.side_effect = lambda doc_id: SimpleNamespace(
+            get=lambda: provider_profile_doc if doc_id == "provider-profile-1" else missing_doc
+        )
+
+        customer_lookup_query = MagicMock()
+        customer_lookup_query.limit.return_value = customer_lookup_query
+        customer_lookup_query.get.return_value = [customer_profile_doc]
+        customers_collection = MagicMock()
+        customers_collection.where.return_value = customer_lookup_query
+        customers_collection.document.side_effect = lambda doc_id: SimpleNamespace(
+            get=lambda: customer_profile_doc if doc_id == "customer-profile-1" else missing_doc
+        )
+
+        legacy_conversation_doc = MagicMock()
+        legacy_conversation_doc.id = "conv-legacy"
+        legacy_conversation_doc.to_dict.return_value = {
+            "customer_id": "customer-user-1",
+            "provider_id": "provider-profile-1",
+            "updated_at": updated_at,
+            "provider_unread_count": 2,
+        }
+
+        provider_user_query = MagicMock()
+        provider_user_query.stream.return_value = []
+        provider_profile_query = MagicMock()
+        provider_profile_query.stream.return_value = [legacy_conversation_doc]
+        conversations_collection = MagicMock()
+
+        def conversations_where_side_effect(field, op, value):
+            if field != "provider_id" or op != "==":
+                raise AssertionError(f"Unexpected conversation lookup: {(field, op, value)}")
+            if value == "provider-user-1":
+                return provider_user_query
+            if value == "provider-profile-1":
+                return provider_profile_query
+            raise AssertionError(f"Unexpected provider conversation key: {value}")
+
+        conversations_collection.where.side_effect = conversations_where_side_effect
+        conversation_ref = MagicMock()
+        conversations_collection.document.return_value = conversation_ref
+
+        db = MagicMock()
+
+        def collection_side_effect(name):
+            if name == "providers":
+                return providers_collection
+            if name == "customers":
+                return customers_collection
+            if name == "conversations":
+                return conversations_collection
+            raise AssertionError(f"Unexpected collection: {name}")
+
+        db.collection.side_effect = collection_side_effect
+
+        with patch.object(messaging_service, "get_database", return_value=db):
+            conversations = messaging_service.get_user_conversations(
+                "provider-user-1",
+                "Provider",
+            )
+
+        self.assertEqual(len(conversations), 1)
+        self.assertEqual(conversations[0]["id"], "conv-legacy")
+        self.assertEqual(conversations[0]["provider_id"], "provider-user-1")
+        self.assertEqual(conversations[0]["provider_name"], "Kai Provider")
+        self.assertEqual(conversations[0]["customer_name"], "Ava Customer")
+        self.assertEqual(conversations[0]["unread_count"], 2)
+        conversation_ref.set.assert_called_once_with(
+            {
+                "provider_id": "provider-user-1",
+                "customer_name": "Ava Customer",
+                "provider_name": "Kai Provider",
+            },
+            merge=True,
+        )
 
     def test_send_message_sanitizes_content_and_updates_metadata(self):
         created_at = datetime(2026, 4, 7, tzinfo=timezone.utc)

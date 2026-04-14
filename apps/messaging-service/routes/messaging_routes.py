@@ -85,12 +85,14 @@ async def start_conversation(request: StartConversationRequest, current_user: Us
         
         return {"conversation_id": conversation_id}
     
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         log.error(f"Error creating conversation: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to create conversation: {str(e)}"
-        )       
+        )
         
 
 @router.get("/conversations/{conversation_id}", response_model=Conversation)

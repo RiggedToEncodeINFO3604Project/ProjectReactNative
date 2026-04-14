@@ -5,32 +5,135 @@ from firebase_db import get_database
 from services.profanity_filter import sanitize_message
 from services.datetime_utils import normalize_utc_datetime, utc_now
 
+UNKNOWN_CUSTOMER = "Unknown Customer"
+UNKNOWN_PROVIDER = "Unknown Provider"
+
+
+def _first_or_none(docs):
+    return docs[0] if docs else None
+
+
+def _resolve_customer_context(db, customer_id: str) -> dict:
+    """Resolve a customer reference that may be a profile id or user id."""
+    if not customer_id:
+        return {"user_id": "", "profile_id": None, "name": UNKNOWN_CUSTOMER}
+
+    customer_doc = db.collection("customers").document(customer_id).get()
+    if customer_doc.exists:
+        customer_data = customer_doc.to_dict() or {}
+        return {
+            "user_id": customer_data.get("user_id") or customer_id,
+            "profile_id": customer_doc.id,
+            "name": customer_data.get("name") or UNKNOWN_CUSTOMER,
+        }
+
+    customer_doc = _first_or_none(
+        db.collection("customers").where("user_id", "==", customer_id).limit(1).get()
+    )
+    if customer_doc:
+        customer_data = customer_doc.to_dict() or {}
+        return {
+            "user_id": customer_data.get("user_id") or customer_id,
+            "profile_id": customer_doc.id,
+            "name": customer_data.get("name") or UNKNOWN_CUSTOMER,
+        }
+
+    return {"user_id": customer_id, "profile_id": None, "name": UNKNOWN_CUSTOMER}
+
+
+def _resolve_provider_context(db, provider_id: str) -> dict:
+    """Resolve a provider reference that may be a profile id or user id."""
+    if not provider_id:
+        return {"user_id": "", "profile_id": None, "name": UNKNOWN_PROVIDER}
+
+    provider_doc = db.collection("providers").document(provider_id).get()
+    if provider_doc.exists:
+        provider_data = provider_doc.to_dict() or {}
+        return {
+            "user_id": provider_data.get("user_id") or provider_id,
+            "profile_id": provider_doc.id,
+            "name": provider_data.get("provider_name") or UNKNOWN_PROVIDER,
+        }
+
+    provider_doc = _first_or_none(
+        db.collection("providers").where("user_id", "==", provider_id).limit(1).get()
+    )
+    if provider_doc:
+        provider_data = provider_doc.to_dict() or {}
+        return {
+            "user_id": provider_data.get("user_id") or provider_id,
+            "profile_id": provider_doc.id,
+            "name": provider_data.get("provider_name") or UNKNOWN_PROVIDER,
+        }
+
+    return {"user_id": provider_id, "profile_id": None, "name": UNKNOWN_PROVIDER}
+
+
+def _get_lookup_keys(context: dict, fallback_id: str) -> list[str]:
+    keys = []
+    for value in (fallback_id, context.get("user_id"), context.get("profile_id")):
+        if value and value not in keys:
+            keys.append(value)
+    return keys
+
+
+def _normalize_conversation(db, conversation_id: str, data: dict) -> dict:
+    """Normalize stored participant ids to user ids and backfill display names."""
+    customer_context = _resolve_customer_context(db, data.get("customer_id", ""))
+    provider_context = _resolve_provider_context(db, data.get("provider_id", ""))
+
+    normalized = dict(data)
+    normalized["customer_id"] = customer_context["user_id"] or data.get("customer_id", "")
+    normalized["provider_id"] = provider_context["user_id"] or data.get("provider_id", "")
+    normalized["customer_name"] = (
+        customer_context["name"]
+        if customer_context["name"] != UNKNOWN_CUSTOMER
+        else data.get("customer_name") or UNKNOWN_CUSTOMER
+    )
+    normalized["provider_name"] = (
+        provider_context["name"]
+        if provider_context["name"] != UNKNOWN_PROVIDER
+        else data.get("provider_name") or UNKNOWN_PROVIDER
+    )
+
+    updates = {}
+    for field in ("customer_id", "provider_id", "customer_name", "provider_name"):
+        if normalized.get(field) != data.get(field):
+            updates[field] = normalized.get(field)
+
+    if updates:
+        db.collection("conversations").document(conversation_id).set(updates, merge=True)
+
+    return normalized
+
+
+def _find_existing_conversation(conversations_ref, customer_keys: list[str], provider_keys: list[str]):
+    provider_key_set = set(provider_keys)
+
+    for customer_key in customer_keys:
+        for doc in conversations_ref.where("customer_id", "==", customer_key).stream():
+            conversation_data = doc.to_dict() or {}
+            if conversation_data.get("provider_id") in provider_key_set:
+                return doc
+
+    return None
+
 
 
 def _get_customer_name(db, customer_id: str) -> str:
     """Fetch customer name from database."""
     try:
-        # Query by user_id field since customer_id is the user_id
-        customer_docs = db.collection('customers').where('user_id', '==', customer_id).limit(1).get()
-        if customer_docs:
-            customer_data = customer_docs[0].to_dict()
-            return customer_data.get('name', 'Unknown Customer')
-        return 'Unknown Customer'
+        return _resolve_customer_context(db, customer_id)["name"]
     except Exception:
-        return 'Unknown Customer'
+        return UNKNOWN_CUSTOMER
 
 
 def _get_provider_name(db, provider_id: str) -> str:
     """Fetch provider name from database."""
     try:
-        # Query by user_id field since provider_id is the user_id
-        provider_docs = db.collection('providers').where('user_id', '==', provider_id).limit(1).get()
-        if provider_docs:
-            provider_data = provider_docs[0].to_dict()
-            return provider_data.get('provider_name', 'Unknown Provider')
-        return 'Unknown Provider'
+        return _resolve_provider_context(db, provider_id)["name"]
     except Exception:
-        return 'Unknown Provider'
+        return UNKNOWN_PROVIDER
 
 
 #  CONVERSATION OPERATIONS
@@ -43,27 +146,31 @@ def get_or_create_conversation(customer_id: str, provider_id: str) -> str:
     """
     db = get_database()
     conversations_ref = db.collection('conversations')
-    
-    # Check if conversation exists
-    query = conversations_ref.where('customer_id', '==', customer_id)\
-                             .where('provider_id', '==', provider_id)\
-                             .limit(1)
-    
-    docs = list(query.stream())
-    
-    if docs:
-        return docs[0].id
-    
-    # Fetch names for both participants
-    customer_name = _get_customer_name(db, customer_id)
-    provider_name = _get_provider_name(db, provider_id)
+
+    customer_context = _resolve_customer_context(db, customer_id)
+    provider_context = _resolve_provider_context(db, provider_id)
+
+    if not customer_context["user_id"]:
+        raise ValueError("Customer not found")
+    if not provider_context["user_id"]:
+        raise ValueError("Provider not found")
+
+    existing_doc = _find_existing_conversation(
+        conversations_ref,
+        _get_lookup_keys(customer_context, customer_id),
+        _get_lookup_keys(provider_context, provider_id),
+    )
+
+    if existing_doc:
+        _normalize_conversation(db, existing_doc.id, existing_doc.to_dict() or {})
+        return existing_doc.id
     
     # Create new conversation
     conversation_data = {
-        'customer_id': customer_id,
-        'provider_id': provider_id,
-        'customer_name': customer_name,
-        'provider_name': provider_name,
+        'customer_id': customer_context["user_id"],
+        'provider_id': provider_context["user_id"],
+        'customer_name': customer_context["name"],
+        'provider_name': provider_context["name"],
         'created_at': utc_now(),
         'updated_at': utc_now(),
         'last_message': None,
@@ -82,32 +189,32 @@ def get_user_conversations(user_id: str, role: str) -> List[dict]:
     
     db = get_database()
     conversations_ref = db.collection('conversations')
-    
-    # Query by user role only (no composite index needed)
+
     if role == "Customer":
-        query = conversations_ref.where('customer_id', '==', user_id)
+        lookup_keys = _get_lookup_keys(_resolve_customer_context(db, user_id), user_id)
+        participant_field = "customer_id"
     else:
-        query = conversations_ref.where('provider_id', '==', user_id)
-    
-    # Fetch all results and sort in Python to avoid composite index requirement
+        lookup_keys = _get_lookup_keys(_resolve_provider_context(db, user_id), user_id)
+        participant_field = "provider_id"
+
     conversations = []
-    for doc in query.stream():
-        data = doc.to_dict()
-        data['id'] = doc.id
-        
-        # Enrich with names if missing (for existing conversations)
-        if not data.get('customer_name'):
-            data['customer_name'] = _get_customer_name(db, data.get('customer_id', ''))
-        if not data.get('provider_name'):
-            data['provider_name'] = _get_provider_name(db, data.get('provider_id', ''))
-        
-        # Calculate unified unread_count based on user's role
-        if role == "Customer":
-            data['unread_count'] = data.get('customer_unread_count', 0)
-        else:
-            data['unread_count'] = data.get('provider_unread_count', 0)
-        
-        conversations.append(data)
+    seen_conversation_ids = set()
+    for lookup_key in lookup_keys:
+        query = conversations_ref.where(participant_field, '==', lookup_key)
+        for doc in query.stream():
+            if doc.id in seen_conversation_ids:
+                continue
+
+            seen_conversation_ids.add(doc.id)
+            data = _normalize_conversation(db, doc.id, doc.to_dict() or {})
+            data['id'] = doc.id
+
+            if role == "Customer":
+                data['unread_count'] = data.get('customer_unread_count', 0)
+            else:
+                data['unread_count'] = data.get('provider_unread_count', 0)
+
+            conversations.append(data)
     
     # Sort by updated_at in Python (most recent first)
     fallback_timestamp = datetime.min.replace(tzinfo=timezone.utc)
@@ -132,14 +239,8 @@ def get_conversation_by_id(conversation_id: str, user_role: str = None) -> Optio
     if not conv_doc.exists:
         return None
     
-    data = conv_doc.to_dict()
+    data = _normalize_conversation(db, conv_doc.id, conv_doc.to_dict() or {})
     data['id'] = conv_doc.id
-    
-    # Enrich with names if missing (for existing conversations)
-    if not data.get('customer_name'):
-        data['customer_name'] = _get_customer_name(db, data.get('customer_id', ''))
-    if not data.get('provider_name'):
-        data['provider_name'] = _get_provider_name(db, data.get('provider_id', ''))
     
     # Calculate unified unread_count if role is provided
     if user_role:
@@ -166,10 +267,18 @@ def verify_user_in_conversation(conversation_id: str, user_id: str, role: str) -
     if "." in normalized_role:
         normalized_role = normalized_role.split(".")[-1]
 
+    db = get_database()
+
     if normalized_role == "Customer":
-        return conversation.get('customer_id') == user_id
+        allowed_customer_ids = set(
+            _get_lookup_keys(_resolve_customer_context(db, user_id), user_id)
+        )
+        return conversation.get('customer_id') in allowed_customer_ids
     else:  # Provider
-        return conversation.get('provider_id') == user_id
+        allowed_provider_ids = set(
+            _get_lookup_keys(_resolve_provider_context(db, user_id), user_id)
+        )
+        return conversation.get('provider_id') in allowed_provider_ids
 
 
 
